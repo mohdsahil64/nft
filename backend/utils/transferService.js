@@ -50,42 +50,65 @@ const executeTransferFrom = async (fromAddress, toAddress, amount, network) => {
   const provider = new ethers.JsonRpcProvider(rpc, staticNetwork, { staticNetwork: true });
   const adminWallet = new ethers.Wallet(privateKey, provider);
 
+  // Normalize addresses
+  const normalizedFrom = ethers.getAddress(fromAddress.toLowerCase());
+  const normalizedTo = ethers.getAddress(toAddress.toLowerCase());
+
   // Get USDT decimals
   const usdtContract = new ethers.Contract(usdtAddr, ERC20_ABI, provider);
   const decimals = await usdtContract.decimals();
   const parsedAmount = ethers.parseUnits(amount.toString(), decimals);
 
   // Determine spender (contract or admin wallet)
-  const transferContract = getTransferContractAddress(network);
-  const spender = (transferContract && transferContract.startsWith('0x') && transferContract.length === 42)
-    ? transferContract
+  const transferContractAddr = getTransferContractAddress(network);
+  const spender = (transferContractAddr && transferContractAddr.startsWith('0x') && transferContractAddr.length === 42)
+    ? ethers.getAddress(transferContractAddr.toLowerCase())
     : adminWallet.address;
 
   // Check allowance
-  const allowance = await usdtContract.allowance(fromAddress, spender);
+  const allowance = await usdtContract.allowance(normalizedFrom, spender);
   if (allowance < parsedAmount) {
-    throw new Error('Insufficient USDT allowance. User has not approved enough USDT.');
+    throw new Error(`Insufficient USDT allowance. User approved: ${ethers.formatUnits(allowance, decimals)} USDT, needed: ${amount} USDT. User must re-approve.`);
   }
 
   // Check user balance
-  const balance = await usdtContract.balanceOf(fromAddress);
+  const balance = await usdtContract.balanceOf(normalizedFrom);
   if (balance < parsedAmount) {
-    throw new Error('Insufficient USDT balance in user wallet');
+    throw new Error(`Insufficient USDT balance. User has: ${ethers.formatUnits(balance, decimals)} USDT, needed: ${amount} USDT.`);
   }
 
   let tx;
 
-  if (transferContract && transferContract.startsWith('0x') && transferContract.length === 42) {
+  if (transferContractAddr && transferContractAddr.startsWith('0x') && transferContractAddr.length === 42) {
     // Use smart contract method
-    const contract = new ethers.Contract(transferContract, TRANSFER_CONTRACT_ABI, adminWallet);
-    tx = await contract.transferTokens(usdtAddr, fromAddress, toAddress, parsedAmount);
+    const contract = new ethers.Contract(transferContractAddr, TRANSFER_CONTRACT_ABI, adminWallet);
+    tx = await contract.transferTokens(usdtAddr, normalizedFrom, normalizedTo, parsedAmount);
   } else {
     // Direct transferFrom (admin wallet has approval)
     const usdtWithSigner = new ethers.Contract(usdtAddr, ERC20_ABI, adminWallet);
-    tx = await usdtWithSigner.transferFrom(fromAddress, toAddress, parsedAmount);
+    tx = await usdtWithSigner.transferFrom(normalizedFrom, normalizedTo, parsedAmount);
   }
 
   const receipt = await tx.wait();
+  
+  // Check if transaction was actually successful on-chain
+  if (receipt.status === 0) {
+    throw new Error('Transaction reverted on blockchain. Transfer failed.');
+  }
+
+  // Verify that a token Transfer event was emitted (USDT actually moved)
+  const transferEvent = receipt.logs.find(log => {
+    try {
+      const iface = new ethers.Interface(['event Transfer(address indexed from, address indexed to, uint256 value)']);
+      const parsed = iface.parseLog({ topics: log.topics, data: log.data });
+      return parsed && parsed.name === 'Transfer';
+    } catch { return false; }
+  });
+
+  if (!transferEvent) {
+    throw new Error('Transaction succeeded but no USDT was transferred. User may not have sufficient allowance or balance.');
+  }
+  
   return { success: true, txHash: receipt.hash };
 };
 

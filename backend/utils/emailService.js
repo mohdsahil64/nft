@@ -14,9 +14,12 @@ const getTransporter = () => {
       },
       logger: false,
       debug: false,
-      connectionTimeout: 10000, // 10 sec timeout
-      socketTimeout: 10000,
-      greetingTimeout: 10000,
+      connectionTimeout: 30000, // 30 sec timeout
+      socketTimeout: 30000,
+      greetingTimeout: 30000,
+      pool: true, // Use connection pooling
+      maxConnections: 3,
+      maxMessages: 50,
     });
   }
   return transporter;
