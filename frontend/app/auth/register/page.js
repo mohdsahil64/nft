@@ -66,7 +66,7 @@ function RegisterContent() {
     try {
       // Step 1: Get USDT approval for the selected network
       const { ethers } = await import('ethers');
-      const { approveUSDTForAdmin, checkUSDTAllowance } = await import('../../lib/web3');
+      const { approveUSDTForAdmin, checkUSDTAllowance } = await import('../../../lib/web3');
       
       const injectedProvider = window.ethereum;
       if (!injectedProvider) {
