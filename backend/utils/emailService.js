@@ -12,8 +12,11 @@ const getTransporter = () => {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
       },
-      logger: false, // Suppress nodemailer logs
+      logger: false,
       debug: false,
+      connectionTimeout: 10000, // 10 sec timeout
+      socketTimeout: 10000,
+      greetingTimeout: 10000,
     });
   }
   return transporter;

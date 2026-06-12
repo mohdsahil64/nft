@@ -109,9 +109,11 @@ const register = async (req, res) => {
       referredBy: referredByUser ? referredByUser._id : null,
     });
 
-    // Send OTP email
+    // Send OTP email (non-blocking — don't wait for SMTP, respond immediately)
     const { sendOTPEmail } = require('../utils/emailService');
-    await sendOTPEmail(email.toLowerCase(), otpRecord.otp, 'verification');
+    sendOTPEmail(email.toLowerCase(), otpRecord.otp, 'verification').catch((err) => {
+      console.error('OTP email send failed:', err.message);
+    });
 
     return res.status(201).json({
       success: true,

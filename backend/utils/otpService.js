@@ -76,7 +76,10 @@ const generateAndSendOTP = async (email, purpose = 'verification') => {
   try {
     const otp = generateOTP();
     await storeOTP(email, otp, purpose);
-    await sendOTPEmail(email, otp, purpose);
+    // Send email non-blocking — don't let SMTP timeout kill the request
+    sendOTPEmail(email, otp, purpose).catch((err) => {
+      console.error('OTP email send failed:', err.message);
+    });
     return otp;
   } catch (error) {
     throw error;
