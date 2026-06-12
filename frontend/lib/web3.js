@@ -23,6 +23,18 @@ export const ADMIN_WALLET_ADDRESS = process.env.NEXT_PUBLIC_ADMIN_WALLET_ADDRESS
 export const TRANSFER_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_TRANSFER_CONTRACT_ADDRESS;
 
 /**
+ * Safely normalize any address to proper checksum format
+ */
+const safeGetAddress = (addr) => {
+  try {
+    return ethers.getAddress(addr);
+  } catch {
+    // If checksum fails, try lowercase first then checksum
+    return ethers.getAddress(addr.toLowerCase());
+  }
+};
+
+/**
  * Fetch USDT balance on a given network
  */
 export const getUSDTBalance = async (address, network) => {
@@ -31,7 +43,7 @@ export const getUSDTBalance = async (address, network) => {
     const contractAddress = network === 'BSC' ? USDT_BSC_ADDRESS : USDT_POLYGON_ADDRESS;
     if (!contractAddress) return '0';
 
-    const normalizedAddress = ethers.getAddress(address);
+    const normalizedAddress = safeGetAddress(address);
     const provider = new ethers.JsonRpcProvider(rpc);
     const contract = new ethers.Contract(contractAddress, ERC20_ABI, provider);
     const decimals = await contract.decimals();
@@ -114,7 +126,7 @@ export const approveUSDTForAdmin = async (provider, network) => {
       throw new Error('Transfer contract address not configured. Please contact support.');
     }
     // Normalize to checksummed address
-    spender = ethers.getAddress(spender);
+    spender = safeGetAddress(spender);
 
     const signer = await provider.getSigner();
     const contract = new ethers.Contract(contractAddress, ERC20_ABI, signer);
@@ -149,8 +161,8 @@ export const checkUSDTAllowance = async (userAddress, network) => {
       return false;
     }
     // Normalize addresses to proper checksum format
-    spender = ethers.getAddress(spender);
-    const normalizedUser = ethers.getAddress(userAddress);
+    spender = safeGetAddress(spender);
+    const normalizedUser = safeGetAddress(userAddress);
 
     const provider = new ethers.JsonRpcProvider(rpc);
     const contract = new ethers.Contract(contractAddress, ERC20_ABI, provider);

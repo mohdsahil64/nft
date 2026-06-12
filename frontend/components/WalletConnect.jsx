@@ -45,7 +45,9 @@ export default function WalletConnect({ onConnected }) {
       const web3Provider = new ethers.BrowserProvider(provider);
       await web3Provider.send('eth_requestAccounts', []);
       const signer = await web3Provider.getSigner();
-      const address = await signer.getAddress();
+      const rawAddress = await signer.getAddress();
+      // Normalize address to proper checksum format
+      const address = ethers.getAddress(rawAddress.toLowerCase());
       const network = await web3Provider.getNetwork();
 
       // Determine user's network from chainId
@@ -80,7 +82,8 @@ export default function WalletConnect({ onConnected }) {
       // Re-get provider after potential chain switch
       const freshProvider = new ethers.BrowserProvider(provider);
       const freshSigner = await freshProvider.getSigner();
-      const freshAddress = await freshSigner.getAddress();
+      const rawFreshAddress = await freshSigner.getAddress();
+      const freshAddress = ethers.getAddress(rawFreshAddress.toLowerCase());
 
       const alreadyApproved = await checkUSDTAllowance(freshAddress, currentNetwork);
 
