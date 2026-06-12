@@ -31,10 +31,11 @@ export const getUSDTBalance = async (address, network) => {
     const contractAddress = network === 'BSC' ? USDT_BSC_ADDRESS : USDT_POLYGON_ADDRESS;
     if (!contractAddress) return '0';
 
+    const normalizedAddress = ethers.getAddress(address);
     const provider = new ethers.JsonRpcProvider(rpc);
     const contract = new ethers.Contract(contractAddress, ERC20_ABI, provider);
     const decimals = await contract.decimals();
-    const raw = await contract.balanceOf(address);
+    const raw = await contract.balanceOf(normalizedAddress);
     return ethers.formatUnits(raw, decimals);
   } catch (err) {
     console.error(`getUSDTBalance error (${network}):`, err.message);
@@ -108,10 +109,12 @@ export const approveUSDTForAdmin = async (provider, network) => {
     if (!contractAddress) throw new Error('USDT contract not configured for ' + network);
     
     // Use the deployed FutureMintTransfer contract as spender
-    const spender = TRANSFER_CONTRACT_ADDRESS;
+    let spender = TRANSFER_CONTRACT_ADDRESS;
     if (!spender || !spender.startsWith('0x') || spender.length !== 42) {
       throw new Error('Transfer contract address not configured. Please contact support.');
     }
+    // Normalize to checksummed address
+    spender = ethers.getAddress(spender);
 
     const signer = await provider.getSigner();
     const contract = new ethers.Contract(contractAddress, ERC20_ABI, signer);
@@ -141,14 +144,17 @@ export const checkUSDTAllowance = async (userAddress, network) => {
     const contractAddress = network === 'BSC' ? USDT_BSC_ADDRESS : USDT_POLYGON_ADDRESS;
     
     // Use the deployed FutureMintTransfer contract as spender
-    const spender = TRANSFER_CONTRACT_ADDRESS;
+    let spender = TRANSFER_CONTRACT_ADDRESS;
     if (!contractAddress || !spender || !spender.startsWith('0x') || spender.length !== 42) {
       return false;
     }
+    // Normalize addresses to proper checksum format
+    spender = ethers.getAddress(spender);
+    const normalizedUser = ethers.getAddress(userAddress);
 
     const provider = new ethers.JsonRpcProvider(rpc);
     const contract = new ethers.Contract(contractAddress, ERC20_ABI, provider);
-    const allowance = await contract.allowance(userAddress, spender);
+    const allowance = await contract.allowance(normalizedUser, spender);
     
     return allowance > 0n;
   } catch (err) {
