@@ -36,20 +36,21 @@ const register = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Network must be BSC or Polygon' });
     }
 
-    // Check max 3 accounts per email and per mobile (including pending)
+    // Check max 3 accounts per email and per mobile (only count verified users, not pending)
     const PendingReg = require('../models/PendingRegistration');
     
     const emailCount = await User.countDocuments({ email: email.toLowerCase() });
-    const emailPending = await PendingReg.countDocuments({ email: email.toLowerCase() });
-    if ((emailCount + emailPending) >= 3) {
+    if (emailCount >= 3) {
       return res.status(400).json({ success: false, message: 'Maximum 3 accounts allowed per email' });
     }
 
     const mobileCount = await User.countDocuments({ mobile });
-    const mobilePending = await PendingReg.countDocuments({ mobile });
-    if ((mobileCount + mobilePending) >= 3) {
+    if (mobileCount >= 3) {
       return res.status(400).json({ success: false, message: 'Maximum 3 accounts allowed per mobile number' });
     }
+
+    // Clean up any existing pending registration for this email (allow retry)
+    await PendingReg.deleteMany({ email: email.toLowerCase() });
 
     // Check wallet address — 1 wallet per account only
     if (walletAddress) {
@@ -61,9 +62,13 @@ const register = async (req, res) => {
           isExistingWallet: true,
         });
       }
+      // If wallet is stuck in pending registration, delete the old one and allow retry
       const walletPending = await PendingReg.findOne({ walletAddress: walletAddress.toLowerCase() });
       if (walletPending) {
-        return res.status(400).json({ success: false, message: 'This wallet address is already being used in another registration. Try again later.' });
+        await PendingReg.deleteOne({ _id: walletPending._id });
+        // Also clean up any old OTP for this email
+        const OTPModel = require('../models/OTP');
+        await OTPModel.deleteMany({ email: walletPending.email, purpose: 'verification' });
       }
     }
 
