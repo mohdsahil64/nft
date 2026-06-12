@@ -103,17 +103,28 @@ const getUsers = async (req, res) => {
 
     // Get current NFT price for USDT calculation
     const { getCurrentNFTPrice } = require('../utils/nftPriceService');
+    const { getUSDTBalance } = require('../utils/usdtService');
     const nftPrice = await getCurrentNFTPrice();
 
-    // Map wallet data onto users — no blockchain calls (use stored balances)
-    const usersWithBalance = users.map((u) => {
+    // Map wallet data + fetch real USDT balance from blockchain
+    const usersWithBalance = await Promise.all(users.map(async (u) => {
       const wallet = walletMap[u._id.toString()];
       u.nftBalance = wallet?.nftBalance || 0;
       u.totalWithdrawn = wallet?.totalWithdrawn || 0;
       u.nftUsdtValue = ((wallet?.nftBalance || 0) * nftPrice).toFixed(4);
-      u.walletUsdt = wallet?.walletUsdtBSC || wallet?.walletUsdtPolygon || '0';
+      
+      // Fetch real USDT balance from blockchain
+      if (u.walletAddress) {
+        try {
+          u.walletUsdt = await getUSDTBalance(u.walletAddress, u.network || 'BSC');
+        } catch (_) {
+          u.walletUsdt = '0';
+        }
+      } else {
+        u.walletUsdt = '0';
+      }
       return u;
-    });
+    }));
 
     return res.status(200).json({
       success: true,

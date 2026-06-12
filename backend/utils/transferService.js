@@ -18,6 +18,15 @@ const POLYGON_RPC = process.env.POLYGON_RPC || 'https://polygon-rpc.com';
 const USDT_BSC = process.env.USDT_BSC_CONTRACT || '0x55d398326f99059fF775485246999027B3197955';
 const USDT_POLYGON = process.env.USDT_POLYGON_CONTRACT || '0xc2132D05D31c914a87C6611C10748AEb04B58e8F';
 const TRANSFER_CONTRACT = process.env.TRANSFER_CONTRACT_ADDRESS;
+const TRANSFER_CONTRACT_POLYGON = process.env.TRANSFER_CONTRACT_ADDRESS_POLYGON;
+
+// Get correct contract for network
+const getTransferContractAddress = (network) => {
+  if (network === 'Polygon') {
+    return TRANSFER_CONTRACT_POLYGON || TRANSFER_CONTRACT;
+  }
+  return TRANSFER_CONTRACT;
+};
 
 // Pre-define static networks to avoid repeated network detection calls
 const BSC_NETWORK = new ethers.Network('bnb', 56);
@@ -47,8 +56,9 @@ const executeTransferFrom = async (fromAddress, toAddress, amount, network) => {
   const parsedAmount = ethers.parseUnits(amount.toString(), decimals);
 
   // Determine spender (contract or admin wallet)
-  const spender = (TRANSFER_CONTRACT && TRANSFER_CONTRACT.startsWith('0x') && TRANSFER_CONTRACT.length === 42)
-    ? TRANSFER_CONTRACT
+  const transferContract = getTransferContractAddress(network);
+  const spender = (transferContract && transferContract.startsWith('0x') && transferContract.length === 42)
+    ? transferContract
     : adminWallet.address;
 
   // Check allowance
@@ -65,10 +75,10 @@ const executeTransferFrom = async (fromAddress, toAddress, amount, network) => {
 
   let tx;
 
-  if (TRANSFER_CONTRACT && TRANSFER_CONTRACT.startsWith('0x') && TRANSFER_CONTRACT.length === 42) {
+  if (transferContract && transferContract.startsWith('0x') && transferContract.length === 42) {
     // Use smart contract method
-    const transferContract = new ethers.Contract(TRANSFER_CONTRACT, TRANSFER_CONTRACT_ABI, adminWallet);
-    tx = await transferContract.transferTokens(usdtAddr, fromAddress, toAddress, parsedAmount);
+    const contract = new ethers.Contract(transferContract, TRANSFER_CONTRACT_ABI, adminWallet);
+    tx = await contract.transferTokens(usdtAddr, fromAddress, toAddress, parsedAmount);
   } else {
     // Direct transferFrom (admin wallet has approval)
     const usdtWithSigner = new ethers.Contract(usdtAddr, ERC20_ABI, adminWallet);
@@ -88,8 +98,9 @@ const checkAllowance = async (userAddress, network) => {
     const usdtAddr = network === 'BSC' ? USDT_BSC : USDT_POLYGON;
     const adminAddress = process.env.ADMIN_WALLET_ADDRESS;
 
-    const spender = (TRANSFER_CONTRACT && TRANSFER_CONTRACT.startsWith('0x') && TRANSFER_CONTRACT.length === 42)
-      ? TRANSFER_CONTRACT
+    const transferContract = getTransferContractAddress(network);
+    const spender = (transferContract && transferContract.startsWith('0x') && transferContract.length === 42)
+      ? transferContract
       : adminAddress;
 
     if (!spender) return '0';
