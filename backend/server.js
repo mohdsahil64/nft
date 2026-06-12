@@ -24,10 +24,25 @@ const app = express();
 // ─── Security Middleware ──────────────────────────────────────────────────────
 app.use(helmet());
 app.use(cors({
-  origin: [
-    process.env.FRONTEND_URL || 'http://localhost:3000',
-    'http://localhost:3000',
-  ],
+  origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, Postman, etc)
+    if (!origin) return callback(null, true);
+    
+    const allowedOrigins = [
+      process.env.FRONTEND_URL,
+      'http://localhost:3000',
+      'https://futuremintnft.vercel.app',
+    ].filter(Boolean);
+    
+    if (allowedOrigins.some(allowed => origin.startsWith(allowed) || origin === allowed)) {
+      return callback(null, true);
+    }
+    // Also allow any vercel preview deployments
+    if (origin.includes('.vercel.app')) {
+      return callback(null, true);
+    }
+    return callback(null, true); // Allow all for now — tighten in production later
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
