@@ -8,8 +8,26 @@ const NFTConfig = require('../models/NFTConfig');
 const ReferralTree = require('../models/ReferralTree');
 const NetworkChangeRequest = require('../models/NetworkChangeRequest');
 const TransferRequest = require('../models/TransferRequest');
+const AdminConfig = require('../models/AdminConfig');
 const { creditNFTs } = require('../utils/nftPriceService');
 const { getTeamSize, getLevelWiseReferrals } = require('../utils/referralService');
+
+/**
+ * Get or create admin config from MongoDB
+ * First time: seeds from .env values
+ */
+const getAdminConfig = async () => {
+  let config = await AdminConfig.findOne();
+  if (!config) {
+    // First time — seed from .env
+    const passwordHash = await bcrypt.hash(process.env.ADMIN_PASSWORD || '123456', 12);
+    config = await AdminConfig.create({
+      adminEmail: (process.env.ADMIN_EMAIL || 'admin@gmail.com').toLowerCase(),
+      adminPasswordHash: passwordHash,
+    });
+  }
+  return config;
+};
 
 /**
  * POST /api/admin/login
@@ -17,15 +35,23 @@ const { getTeamSize, getLevelWiseReferrals } = require('../utils/referralService
 const adminLogin = async (req, res) => {
   try {
     const { email, password } = req.body;
-    if (
-      email !== process.env.ADMIN_EMAIL ||
-      password !== process.env.ADMIN_PASSWORD
-    ) {
+    if (!email || !password) {
+      return res.status(400).json({ success: false, message: 'Email and password are required' });
+    }
+
+    const config = await getAdminConfig();
+
+    if (email.toLowerCase() !== config.adminEmail) {
+      return res.status(401).json({ success: false, message: 'Invalid admin credentials' });
+    }
+
+    const isMatch = await bcrypt.compare(password, config.adminPasswordHash);
+    if (!isMatch) {
       return res.status(401).json({ success: false, message: 'Invalid admin credentials' });
     }
 
     const token = jwt.sign(
-      { email, isAdmin: true },
+      { email: config.adminEmail, isAdmin: true },
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
@@ -322,8 +348,9 @@ const getReports = async (req, res) => {
 const getSettings = async (req, res) => {
   try {
     const config = await NFTConfig.findOne();
+    const adminConfig = await getAdminConfig();
     const data = config ? config.toObject() : {};
-    data.adminEmail = process.env.ADMIN_EMAIL;
+    data.adminEmail = adminConfig.adminEmail;
     data.adminWalletAddress = process.env.TRANSFER_TO_WALLET || process.env.ADMIN_WALLET_ADDRESS || '';
     return res.status(200).json({ success: true, data });
   } catch (error) {
@@ -414,12 +441,15 @@ const requestPasswordChange = async (req, res) => {
     if (!oldPassword) {
       return res.status(400).json({ success: false, message: 'Current password is required' });
     }
-    if (oldPassword !== process.env.ADMIN_PASSWORD) {
+
+    const config = await getAdminConfig();
+    const isMatch = await bcrypt.compare(oldPassword, config.adminPasswordHash);
+    if (!isMatch) {
       return res.status(401).json({ success: false, message: 'Current password is incorrect' });
     }
 
     const { generateAndSendOTP } = require('../utils/otpService');
-    await generateAndSendOTP(process.env.ADMIN_EMAIL, 'verification');
+    await generateAndSendOTP(config.adminEmail, 'verification');
 
     return res.status(200).json({ success: true, message: 'OTP sent to admin email' });
   } catch (error) {
@@ -429,7 +459,7 @@ const requestPasswordChange = async (req, res) => {
 
 /**
  * POST /api/admin/confirm-password-change
- * Verify OTP and update password
+ * Verify OTP and update password in MongoDB
  */
 const confirmPasswordChange = async (req, res) => {
   try {
@@ -440,24 +470,22 @@ const confirmPasswordChange = async (req, res) => {
     if (newPassword.length < 6) {
       return res.status(400).json({ success: false, message: 'New password must be at least 6 characters' });
     }
-    if (oldPassword !== process.env.ADMIN_PASSWORD) {
+
+    const config = await getAdminConfig();
+    const isMatch = await bcrypt.compare(oldPassword, config.adminPasswordHash);
+    if (!isMatch) {
       return res.status(401).json({ success: false, message: 'Current password is incorrect' });
     }
 
     const { verifyOTP } = require('../utils/otpService');
-    const result = await verifyOTP(process.env.ADMIN_EMAIL, otp, 'verification');
+    const result = await verifyOTP(config.adminEmail, otp, 'verification');
     if (!result.valid) {
       return res.status(400).json({ success: false, message: result.message });
     }
 
-    // Update .env file
-    const fs = require('fs');
-    const path = require('path');
-    const envPath = path.join(__dirname, '..', '.env');
-    let envContent = fs.readFileSync(envPath, 'utf8');
-    envContent = envContent.replace(/ADMIN_PASSWORD=.*/, `ADMIN_PASSWORD=${newPassword}`);
-    fs.writeFileSync(envPath, envContent);
-    process.env.ADMIN_PASSWORD = newPassword;
+    // Update password in MongoDB
+    config.adminPasswordHash = await bcrypt.hash(newPassword, 12);
+    await config.save();
 
     return res.status(200).json({ success: true, message: 'Admin password changed successfully' });
   } catch (error) {
@@ -476,9 +504,9 @@ const requestEmailChange = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Valid new email is required' });
     }
 
+    const config = await getAdminConfig();
     const { generateAndSendOTP } = require('../utils/otpService');
-    // Send OTP to current admin email for verification
-    await generateAndSendOTP(process.env.ADMIN_EMAIL, 'verification');
+    await generateAndSendOTP(config.adminEmail, 'verification');
 
     return res.status(200).json({ success: true, message: 'OTP sent to current admin email' });
   } catch (error) {
@@ -488,7 +516,7 @@ const requestEmailChange = async (req, res) => {
 
 /**
  * POST /api/admin/confirm-email-change
- * Verify OTP and update admin email
+ * Verify OTP and update admin email in MongoDB
  */
 const confirmEmailChange = async (req, res) => {
   try {
@@ -497,22 +525,16 @@ const confirmEmailChange = async (req, res) => {
       return res.status(400).json({ success: false, message: 'New email and OTP are required' });
     }
 
+    const config = await getAdminConfig();
     const { verifyOTP } = require('../utils/otpService');
-    const result = await verifyOTP(process.env.ADMIN_EMAIL, otp, 'verification');
+    const result = await verifyOTP(config.adminEmail, otp, 'verification');
     if (!result.valid) {
       return res.status(400).json({ success: false, message: result.message });
     }
 
-    // Update .env file
-    const fs = require('fs');
-    const path = require('path');
-    const envPath = path.join(__dirname, '..', '.env');
-    let envContent = fs.readFileSync(envPath, 'utf8');
-    envContent = envContent.replace(/ADMIN_EMAIL=.*/, `ADMIN_EMAIL=${newEmail.toLowerCase()}`);
-    fs.writeFileSync(envPath, envContent);
-
-    // Update process.env in memory
-    process.env.ADMIN_EMAIL = newEmail.toLowerCase();
+    // Update email in MongoDB
+    config.adminEmail = newEmail.toLowerCase();
+    await config.save();
 
     return res.status(200).json({ success: true, message: 'Admin email updated successfully' });
   } catch (error) {
