@@ -1,6 +1,5 @@
 'use client';
 import { useEffect } from 'react';
-import { AlertTriangle } from 'lucide-react';
 
 export default function ConfirmDialog({ isOpen, onClose, onConfirm, title, message, confirmText = 'Confirm', cancelText = 'Cancel', variant = 'danger' }) {
   useEffect(() => {
@@ -11,33 +10,40 @@ export default function ConfirmDialog({ isOpen, onClose, onConfirm, title, messa
 
   if (!isOpen) return null;
 
-  const variantStyles = {
-    danger: { btn: 'bg-red-600 hover:bg-red-500', icon: 'text-red-400 bg-red-900/30' },
-    warning: { btn: 'bg-yellow-600 hover:bg-yellow-500', icon: 'text-yellow-400 bg-yellow-900/30' },
-    primary: { btn: 'bg-primary-600 hover:bg-primary-500', icon: 'text-primary-400 bg-primary-900/30' },
-  };
-  const styles = variantStyles[variant] || variantStyles.danger;
+  const btnColor = variant === 'danger'
+    ? 'bg-red-500 hover:bg-red-400 shadow-red-500/20'
+    : variant === 'warning'
+    ? 'bg-yellow-500 hover:bg-yellow-400 shadow-yellow-500/20'
+    : 'bg-primary-500 hover:bg-primary-400 shadow-primary-500/20';
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-6" role="dialog" aria-modal="true" style={{ margin: 0 }}>
+    <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4" role="dialog" aria-modal="true">
       {/* Backdrop */}
-      <div className="fixed inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
-      {/* Panel */}
-      <div className="relative w-full max-w-[300px] bg-dark-800 rounded-2xl border border-dark-700 shadow-2xl p-5">
-        <div className="flex flex-col items-center text-center">
-          <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-3 ${styles.icon}`}>
-            <AlertTriangle className="w-6 h-6" />
-          </div>
-          <h3 className="text-base font-bold text-white mb-1.5">{title}</h3>
-          <p className="text-xs text-slate-400 mb-5 leading-relaxed">{message}</p>
-          <div className="flex gap-2 w-full">
-            <button onClick={onClose} className="flex-1 bg-dark-700 hover:bg-dark-600 text-white font-medium py-2.5 px-3 rounded-lg transition-all text-sm border border-dark-600">
-              {cancelText}
-            </button>
-            <button onClick={onConfirm} className={`flex-1 text-white font-medium py-2.5 px-3 rounded-lg transition-all text-sm ${styles.btn}`}>
-              {confirmText}
-            </button>
-          </div>
+      <div className="fixed inset-0 bg-black/60" onClick={onClose} aria-hidden="true" />
+      {/* Panel — slides up on mobile, centered on desktop */}
+      <div className="relative w-full sm:max-w-[320px] bg-[#1a1f2e] sm:rounded-2xl rounded-t-2xl border-t sm:border border-white/5 shadow-2xl overflow-hidden">
+        {/* Top accent line */}
+        <div className={`h-0.5 w-full ${variant === 'danger' ? 'bg-red-500' : variant === 'warning' ? 'bg-yellow-500' : 'bg-primary-500'}`} />
+        
+        <div className="px-6 pt-6 pb-5 text-center">
+          <h3 className="text-lg font-semibold text-white tracking-tight">{title}</h3>
+          <p className="text-sm text-slate-400 mt-2 leading-relaxed">{message}</p>
+        </div>
+
+        {/* Buttons */}
+        <div className="px-5 pb-5 flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 py-3 text-sm font-medium text-slate-300 bg-white/5 hover:bg-white/10 rounded-xl transition-all border border-white/5"
+          >
+            {cancelText}
+          </button>
+          <button
+            onClick={onConfirm}
+            className={`flex-1 py-3 text-sm font-semibold text-white rounded-xl transition-all shadow-lg ${btnColor}`}
+          >
+            {confirmText}
+          </button>
         </div>
       </div>
     </div>

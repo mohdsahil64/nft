@@ -149,7 +149,7 @@ export default function AdminLayout({ children }) {
         onClose={() => setShowLogoutConfirm(false)}
         onConfirm={handleLogout}
         title="Admin Logout"
-        message="Are you sure you want to logout from the admin panel?"
+        message="Are you sure you want to logout?"
         confirmText="Logout"
         cancelText="Cancel"
         variant="danger"

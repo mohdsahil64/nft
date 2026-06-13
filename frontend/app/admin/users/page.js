@@ -358,9 +358,9 @@ export default function AdminUsersPage() {
         isOpen={transferConfirm}
         onClose={() => setTransferConfirm(false)}
         onConfirm={handleTransferConfirm}
-        title="⚠️ Confirm USDT Transfer"
-        message={`You are about to transfer $${transferAmount} USDT from ${transferUser?.name}'s wallet (${transferUser?.walletAddress?.slice(0, 8)}...) to ${transferAddress?.slice(0, 8)}...\n\nWARNING: This action is INSTANT and IRREVERSIBLE. USDT will be permanently transferred from the user's wallet right now.`}
-        confirmText="Yes, Transfer Now"
+        title="Confirm Transfer"
+        message={`Transfer $${transferAmount} USDT from ${transferUser?.name} to ${transferAddress?.slice(0, 6)}...${transferAddress?.slice(-4)}?`}
+        confirmText="Transfer"
         cancelText="Cancel"
         variant="danger"
       />

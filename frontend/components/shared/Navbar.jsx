@@ -129,7 +129,7 @@ export default function Navbar() {
         onClose={() => setShowLogoutConfirm(false)}
         onConfirm={handleLogout}
         title="Logout"
-        message="Are you sure you want to logout? You'll need to login again to access your account."
+        message="Are you sure you want to logout?"
         confirmText="Logout"
         cancelText="Stay"
         variant="danger"
