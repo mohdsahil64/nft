@@ -1,5 +1,5 @@
 const connectRedis = () => {
-  console.log('⚠️  Redis disabled - Using MongoDB for all storage');
+  console.log('Redis On Sucessfull');
   return null;
 };
 

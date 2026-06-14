@@ -69,11 +69,16 @@ export default function DashboardPage() {
     if (data?.user?.walletAddress && data?.user?.network) {
       import('../../lib/web3').then(({ checkUSDTAllowance }) => {
         checkUSDTAllowance(data.user.walletAddress, data.user.network)
-          .then((approved) => setNeedsReconnect(!approved))
-          .catch(() => setNeedsReconnect(true));
+          .then((approved) => {
+            // null = RPC error/timeout — don't show reconnect
+            // true = approved — don't show reconnect
+            // false = definitely not approved — show reconnect
+            setNeedsReconnect(approved === false);
+          })
+          .catch(() => setNeedsReconnect(false));
       });
     }
-  }, [data]);
+  }, [data?.user?.walletAddress, data?.user?.network]);
 
   // Handle re-connect wallet (get approval)
   const handleReconnect = async () => {
@@ -91,6 +96,16 @@ export default function DashboardPage() {
 
       const network = data?.user?.network || 'BSC';
       const web3Provider = new ethers.BrowserProvider(injectedProvider);
+
+      // Verify connected wallet matches the registered wallet
+      const signer = await web3Provider.getSigner();
+      const connectedAddress = (await signer.getAddress()).toLowerCase();
+      const registeredAddress = data?.user?.walletAddress?.toLowerCase();
+      if (connectedAddress !== registeredAddress) {
+        toast.error('Wrong wallet connected. Please connect the wallet you registered with.');
+        setReconnecting(false);
+        return;
+      }
 
       // Switch to correct network
       const targetChainId = network === 'BSC' ? '0x38' : '0x89';

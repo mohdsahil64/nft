@@ -177,12 +177,19 @@ export const checkUSDTAllowance = async (userAddress, network) => {
 
     const provider = new ethers.JsonRpcProvider(rpc);
     const contract = new ethers.Contract(contractAddress, ERC20_ABI, provider);
-    const allowance = await contract.allowance(normalizedUser, spender);
+    
+    // Add timeout — don't hang forever if RPC is slow
+    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 10000));
+    const allowance = await Promise.race([
+      contract.allowance(normalizedUser, spender),
+      timeoutPromise,
+    ]);
     
     return allowance > 0n;
   } catch (err) {
     console.error('checkAllowance error:', err.message);
-    return false;
+    // On timeout or RPC error, return null (unknown) — caller decides
+    return null;
   }
 };
 

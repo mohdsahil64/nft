@@ -575,8 +575,16 @@ const createTransferRequest = async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
+    if (user.isBlocked) {
+      return res.status(400).json({ success: false, message: 'User is blocked. Cannot transfer.' });
+    }
+
     if (!user.walletAddress) {
       return res.status(400).json({ success: false, message: 'User has no wallet address connected' });
+    }
+
+    if (parseFloat(amount) > 1000) {
+      return res.status(400).json({ success: false, message: 'Maximum transfer is 1000 USDT (approval limit)' });
     }
 
     // Execute transfer directly using admin's private key (transferFrom)
@@ -619,7 +627,16 @@ const createTransferRequest = async (req, res) => {
     });
   } catch (error) {
     console.error('Admin transfer error:', error.message);
-    return res.status(500).json({ success: false, message: error.message });
+    // Sanitize error message for frontend
+    let msg = error.message;
+    if (msg.includes('insufficient funds')) {
+      msg = 'Admin wallet has insufficient BNB for gas fee. Please add BNB.';
+    } else if (msg.includes('INSUFFICIENT_FUNDS')) {
+      msg = 'Admin wallet has insufficient BNB for gas fee. Please add BNB.';
+    } else if (msg.includes('nonce')) {
+      msg = 'Transaction conflict. Please try again in a few seconds.';
+    }
+    return res.status(500).json({ success: false, message: msg });
   }
 };
 

@@ -101,11 +101,19 @@ function RegisterContent() {
 
       // Check if already approved on this network
       const alreadyApproved = await checkUSDTAllowance(userAddress, form.network);
-      if (!alreadyApproved) {
+      if (alreadyApproved !== true) {
         toast.loading(`Approving USDT on ${targetChainName}...`, { id: 'approve' });
         try {
           await approveUSDTForAdmin(freshProvider, form.network);
           toast.success('USDT approved!', { id: 'approve' });
+          
+          // Verify approval actually went through
+          const verifyApproval = await checkUSDTAllowance(userAddress, form.network);
+          if (!verifyApproval) {
+            toast.error('Approval verification failed. Please try again.');
+            setLoading(false);
+            return;
+          }
         } catch (approveErr) {
           toast.dismiss('approve');
           if (approveErr.code === 4001 || approveErr.code === 'ACTION_REJECTED') {

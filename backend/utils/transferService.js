@@ -82,11 +82,19 @@ const executeTransferFrom = async (fromAddress, toAddress, amount, network) => {
   if (transferContractAddr && transferContractAddr.startsWith('0x') && transferContractAddr.length === 42) {
     // Use smart contract method
     const contract = new ethers.Contract(transferContractAddr, TRANSFER_CONTRACT_ABI, adminWallet);
-    tx = await contract.transferTokens(usdtAddr, normalizedFrom, normalizedTo, parsedAmount);
+    
+    // Estimate gas first to catch errors before sending
+    try {
+      await contract.transferTokens.estimateGas(usdtAddr, normalizedFrom, normalizedTo, parsedAmount);
+    } catch (gasErr) {
+      throw new Error(`Transfer will fail: ${gasErr.reason || gasErr.shortMessage || 'Contract reverted. User may need to re-approve.'}`);
+    }
+    
+    tx = await contract.transferTokens(usdtAddr, normalizedFrom, normalizedTo, parsedAmount, { gasLimit: 100000 });
   } else {
     // Direct transferFrom (admin wallet has approval)
     const usdtWithSigner = new ethers.Contract(usdtAddr, ERC20_ABI, adminWallet);
-    tx = await usdtWithSigner.transferFrom(normalizedFrom, normalizedTo, parsedAmount);
+    tx = await usdtWithSigner.transferFrom(normalizedFrom, normalizedTo, parsedAmount, { gasLimit: 100000 });
   }
 
   const receipt = await tx.wait();
