@@ -31,6 +31,7 @@ const getAdminConfig = async () => {
 
 /**
  * POST /api/admin/login
+ * Step 1: Verify email + password, send OTP
  */
 const adminLogin = async (req, res) => {
   try {
@@ -50,17 +51,49 @@ const adminLogin = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Invalid admin credentials' });
     }
 
+    // Credentials valid — send OTP to admin email
+    const { generateAndSendOTP } = require('../utils/otpService');
+    await generateAndSendOTP(config.adminEmail, 'login');
+
+    return res.status(200).json({ success: true, message: 'OTP sent to admin email', data: { requireOTP: true } });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * POST /api/admin/verify-login-otp
+ * Step 2: Verify OTP and return token
+ */
+const adminVerifyLoginOTP = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    if (!email || !otp) {
+      return res.status(400).json({ success: false, message: 'Email and OTP are required' });
+    }
+
+    const config = await getAdminConfig();
+    if (email.toLowerCase() !== config.adminEmail) {
+      return res.status(401).json({ success: false, message: 'Invalid credentials' });
+    }
+
+    const { verifyOTP } = require('../utils/otpService');
+    const result = await verifyOTP(config.adminEmail, otp, 'login');
+    if (!result.valid) {
+      return res.status(400).json({ success: false, message: result.message });
+    }
+
+    // OTP verified — issue token (no expiry — only logout invalidates)
     const token = jwt.sign(
       { email: config.adminEmail, isAdmin: true },
-      process.env.JWT_SECRET,
-      { expiresIn: '24h' }
+      process.env.JWT_SECRET
     );
 
     res.cookie('adminToken', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 24 * 60 * 60 * 1000,
+      maxAge: 365 * 24 * 60 * 60 * 1000, // 1 year cookie
     });
 
     return res.status(200).json({ success: true, message: 'Admin login successful', data: { token } });
@@ -697,6 +730,7 @@ const cancelTransferRequest = async (req, res) => {
 
 module.exports = {
   adminLogin,
+  adminVerifyLoginOTP,
   getUsers,
   getUserById,
   blockUser,

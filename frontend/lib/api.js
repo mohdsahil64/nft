@@ -98,6 +98,7 @@ export const nftAPI = {
 // ─── Admin ────────────────────────────────────────────────────────────────────
 export const adminAPI = {
   login: (data) => api.post('/api/admin/login', data),
+  verifyLoginOTP: (data) => api.post('/api/admin/verify-login-otp', data),
   logout: () => api.post('/api/admin/logout'),
   changePassword: (data) => api.put('/api/admin/change-password', data),
   requestPasswordChange: (data) => api.post('/api/admin/request-password-change', data),

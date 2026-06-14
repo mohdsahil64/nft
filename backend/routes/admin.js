@@ -3,6 +3,7 @@ const router = express.Router();
 const { adminProtect } = require('../middleware/adminAuth');
 const {
   adminLogin,
+  adminVerifyLoginOTP,
   getUsers,
   getUserById,
   blockUser,
@@ -27,6 +28,7 @@ const {
 
 // Public admin routes
 router.post('/login', adminLogin);
+router.post('/verify-login-otp', adminVerifyLoginOTP);
 router.post('/logout', adminLogout);
 
 // Protected admin routes
