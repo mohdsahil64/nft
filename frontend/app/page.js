@@ -267,40 +267,36 @@ export default function LandingPage() {
         </div>
       </div>
 
-      {/* ─── NFT PRICE TABLE ─── */}
+      {/* ─── NFT PRICE DOUBLING ─── */}
       <div className="bg-dark-800/30 border-y border-dark-700/50">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-16 sm:py-20">
-          <div className="card">
-            <div className="text-center mb-6">
-              <h2 className="text-lg sm:text-2xl font-bold text-white mb-2">NFT Price Schedule</h2>
-              <p className="text-xs sm:text-sm text-slate-400">Price doubles every 50,000 NFTs minted — early joiners win!</p>
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-16 sm:py-20">
+          <div className="text-center mb-10">
+            <div className="inline-flex items-center gap-2 bg-yellow-900/30 border border-yellow-700/30 rounded-full px-4 py-1.5 mb-4">
+              <TrendingUp className="w-3.5 h-3.5 text-yellow-400" />
+              <span className="text-xs text-yellow-300 font-medium">Price Goes Up</span>
             </div>
-            <div className="overflow-x-auto -mx-4 sm:mx-0">
-              <table className="data-table" aria-label="NFT price schedule">
-                <thead>
-                  <tr>
-                    <th>Minted Range</th>
-                    <th>Price per NFT</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[
-                    ['0 – 50,000', '$0.01'],
-                    ['50,001 – 100,000', '$0.02'],
-                    ['100,001 – 150,000', '$0.04'],
-                    ['150,001 – 200,000', '$0.08'],
-                    ['200,001 – 250,000', '$0.16'],
-                    ['250,001+', 'Doubles every 50k'],
-                  ].map(([range, price]) => (
-                    <tr key={range}>
-                      <td className="font-mono text-xs sm:text-sm">{range}</td>
-                      <td className="text-emerald-400 font-semibold text-xs sm:text-sm">{price}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <h2 className="text-2xl sm:text-4xl font-bold text-white mb-3">Price Doubles Every 50K Mint</h2>
+            <p className="text-slate-400 text-sm sm:text-base max-w-xl mx-auto">The earlier you join, the cheaper your NFTs. Price automatically doubles after every 50,000 NFTs are minted.</p>
           </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            {[
+              { range: '0 – 50K', price: '$0.01', multiplier: '1x' },
+              { range: '50K – 100K', price: '$0.02', multiplier: '2x' },
+              { range: '100K – 150K', price: '$0.04', multiplier: '4x' },
+              { range: '150K – 200K', price: '$0.08', multiplier: '8x' },
+              { range: '200K – 250K', price: '$0.16', multiplier: '16x' },
+              { range: '250K+', price: '$0.32+', multiplier: '32x+' },
+            ].map(({ range, price, multiplier }) => (
+              <div key={range} className="bg-dark-800 rounded-xl border border-dark-700 p-4 text-center hover:border-yellow-500/30 transition-all">
+                <p className="text-xs text-slate-500 mb-1">{range}</p>
+                <p className="text-lg sm:text-xl font-bold text-white">{price}</p>
+                <p className="text-xs text-yellow-400 font-medium mt-1">{multiplier}</p>
+              </div>
+            ))}
+          </div>
+
+          <p className="text-center text-xs text-slate-500 mt-6">Total Supply: 2,100,000 NFTs · Current early bird price won't last forever</p>
         </div>
       </div>
 

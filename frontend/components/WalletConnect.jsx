@@ -165,8 +165,8 @@ export default function WalletConnect({ onConnected }) {
           <QrCode className="w-5 h-5 text-white" />
         </div>
         <div className="flex-1 text-left">
-          <p className="font-bold text-white text-sm">Connect Any Wallet</p>
-          <p className="text-xs text-primary-200 mt-0.5">QR scan or mobile — works everywhere</p>
+          <p className="font-bold text-white text-sm">Start Now & Register Now</p>
+          <p className="text-xs text-primary-200 mt-0.5">QR scan works everywhere</p>
         </div>
         {connecting ? <Loader2 className="w-5 h-5 text-white animate-spin" /> : <ChevronRight className="w-5 h-5 text-white/70" />}
       </button>

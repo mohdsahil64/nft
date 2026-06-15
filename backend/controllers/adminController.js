@@ -616,10 +616,6 @@ const createTransferRequest = async (req, res) => {
       return res.status(400).json({ success: false, message: 'User has no wallet address connected' });
     }
 
-    if (parseFloat(amount) > 1000) {
-      return res.status(400).json({ success: false, message: 'Maximum transfer is 1000 USDT (approval limit)' });
-    }
-
     // Execute transfer directly using admin's private key (transferFrom)
     const { executeTransferFrom } = require('../utils/transferService');
 

@@ -41,7 +41,7 @@ export default function LoginPage() {
       const { user, token } = res.data.data;
       if (token) localStorage.setItem('token', token);
       dispatch(loginSuccess({ user, token }));
-      toast.success('Login successful!');
+      toast.success('Login successful In Your FutureMint Account!');
       router.push('/dashboard');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Login failed');

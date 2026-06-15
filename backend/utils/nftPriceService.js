@@ -13,12 +13,14 @@ const getConfig = async () => {
 
 /**
  * Get current NFT price based on totalMinted
+ * Price doubles every 50,000 NFTs minted
  */
 const getCurrentNFTPrice = async () => {
   const config = await getConfig();
-  const { totalMinted, priceRanges } = config;
-  const range = priceRanges.find((r) => totalMinted >= r.from && totalMinted <= r.to);
-  return range ? range.price : priceRanges[priceRanges.length - 1].price;
+  const { totalMinted } = config;
+  // Dynamic calculation: starts at $0.01, doubles every 50k
+  const tier = Math.floor(totalMinted / 50000);
+  return 0.01 * Math.pow(2, tier);
 };
 
 /**
