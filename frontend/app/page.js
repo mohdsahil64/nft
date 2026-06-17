@@ -143,7 +143,7 @@ export default function LandingPage() {
                         ? 'This wallet is already registered. Please login.'
                         : walletExists === false
                         ? 'New wallet detected! Create your account to start earning.'
-                        : 'verifying Your Details...'}
+                        : 'Please Wait...'}
                     </p>
                     <div className="flex flex-col gap-3">
                       {walletExists === true ? (
