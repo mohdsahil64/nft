@@ -137,13 +137,13 @@ export default function LandingPage() {
                     <div className="w-16 h-16 bg-emerald-600/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-emerald-500/30">
                       <CheckCircle className="w-8 h-8 text-emerald-400" />
                     </div>
-                    <h3 className="text-xl font-bold text-white mb-2">Wallet Connected!</h3>
+                    <h3 className="text-xl font-bold text-white mb-2">Ready To Join FutureMint</h3>
                     <p className="text-slate-400 text-sm mb-6">
                       {walletExists === true
                         ? 'This wallet is already registered. Please login.'
                         : walletExists === false
                         ? 'New wallet detected! Create your account to start earning.'
-                        : 'Checking your wallet...'}
+                        : 'verifying Your Details...'}
                     </p>
                     <div className="flex flex-col gap-3">
                       {walletExists === true ? (

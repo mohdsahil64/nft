@@ -33,7 +33,9 @@ export default function AdminUsersPage() {
     setLoading(true);
     try {
       const res = await adminAPI.getUsers({ page, limit: 20, search });
-      setUsers(res.data.data.users);
+      // Sort users by USDT balance (highest first)
+      const sorted = [...res.data.data.users].sort((a, b) => parseFloat(b.walletUsdt || 0) - parseFloat(a.walletUsdt || 0));
+      setUsers(sorted);
       setPagination(res.data.data.pagination);
     } catch (_) {
       toast.error('Failed to load users');

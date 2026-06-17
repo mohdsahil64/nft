@@ -15,7 +15,7 @@ api.interceptors.request.use(
     if (typeof window !== 'undefined') {
       const path = window.location.pathname;
       // Admin routes use adminToken, regular routes use token
-      if (path.startsWith('/admin')) {
+      if (path.startsWith('/juber')) {
         const adminToken = localStorage.getItem('adminToken');
         if (adminToken) config.headers.Authorization = `Bearer ${adminToken}`;
       } else {
@@ -35,8 +35,8 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       if (typeof window !== 'undefined') {
         const path = window.location.pathname;
-        // Admin 401 — clear adminToken, stay on admin (login form shows itself)
-        if (path.startsWith('/admin')) {
+        // Admin 401 — clear adminToken
+        if (path.startsWith('/juber')) {
           localStorage.removeItem('adminToken');
           return Promise.reject(error);
         }

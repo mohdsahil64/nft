@@ -4,9 +4,9 @@ let transporter = null;
 
 const getTransporter = () => {
   if (!transporter) {
-    const port = parseInt(process.env.SMTP_PORT, 10);
+    const port = parseInt(process.env.SMTP_PORT || '587', 10);
     transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
+      host: process.env.SMTP_HOST || 'smtp.gmail.com',
       port: port,
       secure: port === 465,
       auth: {

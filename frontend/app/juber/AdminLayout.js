@@ -11,12 +11,12 @@ import ConfirmDialog from '../../components/shared/ConfirmDialog';
 import toast from 'react-hot-toast';
 
 const adminNavItems = [
-  { label: 'Dashboard', href: '/admin', icon: LayoutDashboard },
-  { label: 'Users', href: '/admin/users', icon: Users },
-  { label: 'Withdrawals', href: '/admin/withdrawals', icon: ArrowDownCircle },
-  { label: 'Referrals', href: '/admin/referrals', icon: GitBranch },
-  { label: 'NFT', href: '/admin/nft', icon: Coins },
-  { label: 'Settings', href: '/admin/settings', icon: Settings },
+  { label: 'Dashboard', href: '/juber', icon: LayoutDashboard },
+  { label: 'Users', href: '/juber/users', icon: Users },
+  { label: 'Withdrawals', href: '/juber/withdrawals', icon: ArrowDownCircle },
+  { label: 'Referrals', href: '/juber/referrals', icon: GitBranch },
+  { label: 'NFT', href: '/juber/nft', icon: Coins },
+  { label: 'Settings', href: '/juber/settings', icon: Settings },
 ];
 
 export default function AdminLayout({ children }) {
