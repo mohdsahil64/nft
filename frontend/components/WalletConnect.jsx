@@ -56,7 +56,7 @@ export default function WalletConnect({ onConnected }) {
       dispatch(connectWallet({ address, chainId }));
       dispatch(setBalances(balances));
 
-      toast.success(`${walletName} connected!`);
+      toast.success('Please Wait...');
       if (onConnected) onConnected(address);
     } catch (err) {
       const msg = err.code === 4001 ? 'Wallet Connection rejected by user' : (err.message || 'Connection failed');
