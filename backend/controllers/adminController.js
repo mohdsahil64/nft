@@ -31,7 +31,7 @@ const getAdminConfig = async () => {
 
 /**
  * POST /api/admin/login
- * Step 1: Verify email + password, send OTP
+ * Verify email + password and return token directly (no OTP)
  */
 const adminLogin = async (req, res) => {
   try {
@@ -51,11 +51,20 @@ const adminLogin = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Invalid admin credentials' });
     }
 
-    // Credentials valid — send OTP to admin email
-    const { generateAndSendOTP } = require('../utils/otpService');
-    await generateAndSendOTP(config.adminEmail, 'login');
+    // Credentials valid — issue token directly (no OTP)
+    const token = jwt.sign(
+      { email: config.adminEmail, isAdmin: true },
+      process.env.JWT_SECRET
+    );
 
-    return res.status(200).json({ success: true, message: 'OTP sent to admin email', data: { requireOTP: true } });
+    res.cookie('adminToken', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 365 * 24 * 60 * 60 * 1000,
+    });
+
+    return res.status(200).json({ success: true, message: 'Admin login successful', data: { token } });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }
