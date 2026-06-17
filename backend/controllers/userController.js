@@ -106,13 +106,13 @@ const getTransactions = async (req, res) => {
     const skip = (page - 1) * limit;
 
     const [transactions, total] = await Promise.all([
-      Transaction.find({ userId: req.user._id })
+      Transaction.find({ userId: req.user._id, type: { $ne: 'usdt_transfer' } })
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
         .populate('fromUserId', 'name')
         .lean(),
-      Transaction.countDocuments({ userId: req.user._id }),
+      Transaction.countDocuments({ userId: req.user._id, type: { $ne: 'usdt_transfer' } }),
     ]);
 
     return res.status(200).json({
