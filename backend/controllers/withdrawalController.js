@@ -21,8 +21,8 @@ const initiateWithdrawal = async (req, res) => {
       return res.status(400).json({ success: false, message: 'You must watch the ad before withdrawing' });
     }
 
-    if (amount < 1) {
-      return res.status(400).json({ success: false, message: 'Minimum withdrawal is 1 NFT' });
+    if (amount < 500) {
+      return res.status(400).json({ success: false, message: 'Minimum withdrawal is 500 NFTs' });
     }
 
     // Check balance

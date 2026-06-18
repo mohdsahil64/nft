@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { useRouter } from 'next/navigation';
 import { withdrawalAPI, userAPI } from '../../lib/api';
@@ -8,10 +8,7 @@ import OTPInput from '../../components/shared/OTPInput';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
 import { Play, CheckCircle, ArrowDownCircle, Clock, X } from 'lucide-react';
 import toast from 'react-hot-toast';
-
-// YouTube Ad embed URL — from env
-const AD_VIDEO_URL = process.env.NEXT_PUBLIC_AD_VIDEO_URL || 'https://www.youtube.com/embed/dQw4w9WgXcQ';
-const AD_DURATION = parseInt(process.env.NEXT_PUBLIC_AD_DURATION || '30', 10);
+import AdOverlay from '../../components/shared/AdOverlay';
 
 export default function WithdrawPage() {
   const router = useRouter();
@@ -22,11 +19,7 @@ export default function WithdrawPage() {
   const [wallet, setWallet] = useState(null);
   const [withdrawalId, setWithdrawalId] = useState(null);
   const [history, setHistory] = useState([]);
-
-  // Ad states
-  const [adCountdown, setAdCountdown] = useState(AD_DURATION);
-  const [adFinished, setAdFinished] = useState(false);
-  const timerRef = useRef(null);
+  const [showMinPopup, setShowMinPopup] = useState(false);
 
   const [form, setForm] = useState({
     amount: '',
@@ -45,13 +38,11 @@ export default function WithdrawPage() {
       .catch(() => {});
   }, [sessionChecked, isAuthenticated, router]);
 
-  useEffect(() => () => clearInterval(timerRef.current), []);
-
   // Step 1: Validate form → go to ad
   const handleFormSubmit = (e) => {
     e.preventDefault();
-    if (!form.amount || parseFloat(form.amount) < 1) {
-      toast.error('Minimum withdrawal is 1 NFT');
+    if (!form.amount || parseFloat(form.amount) < 500) {
+      setShowMinPopup(true);
       return;
     }
     if (parseFloat(form.amount) > (wallet?.nftBalance || 0)) {
@@ -64,23 +55,6 @@ export default function WithdrawPage() {
     }
     // Go to ad step
     setStep(2);
-    startAdTimer();
-  };
-
-  // Start ad countdown
-  const startAdTimer = () => {
-    setAdCountdown(AD_DURATION);
-    setAdFinished(false);
-    timerRef.current = setInterval(() => {
-      setAdCountdown((c) => {
-        if (c <= 1) {
-          clearInterval(timerRef.current);
-          setAdFinished(true);
-          return 0;
-        }
-        return c - 1;
-      });
-    }, 1000);
   };
 
   // After ad → initiate withdrawal
@@ -124,48 +98,12 @@ export default function WithdrawPage() {
   // ─── FULLSCREEN AD OVERLAY ───
   if (step === 2) {
     return (
-      <div className="fixed inset-0 z-[9999] bg-black flex flex-col">
-        {/* Timer bar */}
-        <div className="flex items-center justify-between px-4 py-3 bg-dark-900 border-b border-dark-700">
-          <div className="flex items-center gap-2">
-            <Play className="w-4 h-4 text-yellow-400" />
-            <span className="text-sm text-white font-medium">Advertisement</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-sm font-mono text-slate-400">
-              {adFinished ? 'Ad Complete' : `${adCountdown}s remaining`}
-            </span>
-            {adFinished && (
-              <button
-                onClick={handleAdComplete}
-                disabled={loading}
-                className="bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold px-4 py-1.5 rounded-lg transition-all"
-              >
-                {loading ? 'Processing...' : 'Continue →'}
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Video */}
-        <div className="flex-1 flex items-center justify-center p-2">
-          <iframe
-            src={`${AD_VIDEO_URL}?autoplay=1&controls=0&modestbranding=1&rel=0`}
-            className="w-full h-full max-w-4xl rounded-lg"
-            allow="autoplay; encrypted-media"
-            allowFullScreen
-            title="Advertisement"
-          />
-        </div>
-
-        {/* Progress bar */}
-        <div className="h-1 bg-dark-700">
-          <div
-            className="h-full bg-primary-500 transition-all duration-1000"
-            style={{ width: `${((AD_DURATION - adCountdown) / AD_DURATION) * 100}%` }}
-          />
-        </div>
-      </div>
+      <AdOverlay
+        onComplete={handleAdComplete}
+        loading={loading}
+        buttonText="Skip Ad"
+        loadingText="Processing..."
+      />
     );
   }
 
@@ -207,7 +145,7 @@ export default function WithdrawPage() {
                     placeholder="Enter NFT amount"
                     className="input-field"
                   />
-                  <p className="text-xs text-slate-500 mt-1">Min: 1 · Max: {wallet?.nftBalance || 0} NFT</p>
+                  <p className="text-xs text-slate-500 mt-1">Min: 500 · Max: {wallet?.nftBalance || 0} NFT</p>
                 </div>
                 <div>
                   <label htmlFor="walletAddr" className="label">Wallet Address ({networkLabel})</label>
@@ -273,6 +211,27 @@ export default function WithdrawPage() {
           </div>
         )}
       </main>
+
+      {/* Minimum 500 NFT Popup */}
+      {showMinPopup && (
+        <div className="fixed inset-0 z-[9999] bg-black/60 flex items-center justify-center px-4">
+          <div className="bg-dark-800 border border-dark-700 rounded-2xl p-6 max-w-sm w-full text-center">
+            <div className="w-14 h-14 bg-yellow-600/20 rounded-full flex items-center justify-center mx-auto mb-4">
+              <ArrowDownCircle className="w-7 h-7 text-yellow-400" />
+            </div>
+            <h3 className="text-lg font-bold text-white mb-2">Minimum Withdrawal Limit</h3>
+            <p className="text-slate-400 text-sm mb-6">
+              You need at least <span className="text-white font-semibold">500 NFTs</span> to make a withdrawal. Keep earning and come back when you reach the minimum!
+            </p>
+            <button
+              onClick={() => setShowMinPopup(false)}
+              className="btn-primary w-full"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

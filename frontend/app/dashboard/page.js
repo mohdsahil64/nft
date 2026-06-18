@@ -9,6 +9,7 @@ import { setNFTStats } from '../../store/slices/nftSlice';
 import Navbar from '../../components/shared/Navbar';
 import StatCard from '../../components/Dashboard/StatCard';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
+import AdOverlay from '../../components/shared/AdOverlay';
 import { truncateAddress } from '../../lib/web3';
 import {
   Wallet, TrendingUp, Users, Gift, ArrowDownCircle,
@@ -29,8 +30,6 @@ export default function DashboardPage() {
   const [showClaimPopup, setShowClaimPopup] = useState(false);
   const [claiming, setClaiming] = useState(false);
   const [claimAdPlaying, setClaimAdPlaying] = useState(false);
-  const [claimAdCountdown, setClaimAdCountdown] = useState(0);
-  const [claimAdFinished, setClaimAdFinished] = useState(false);
   const [needsReconnect, setNeedsReconnect] = useState(false);
   const [reconnecting, setReconnecting] = useState(false);
 
@@ -154,20 +153,6 @@ export default function DashboardPage() {
   const handleClaimBonus = async () => {
     // Show ad first
     setClaimAdPlaying(true);
-    const duration = parseInt(process.env.NEXT_PUBLIC_AD_DURATION || '20', 10);
-    setClaimAdCountdown(duration);
-    setClaimAdFinished(false);
-
-    const timer = setInterval(() => {
-      setClaimAdCountdown((c) => {
-        if (c <= 1) {
-          clearInterval(timer);
-          setClaimAdFinished(true);
-          return 0;
-        }
-        return c - 1;
-      });
-    }, 1000);
   };
 
   const handleClaimAfterAd = async () => {
@@ -251,49 +236,14 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Claim Bonus — Ad Screen (fullscreen, non-skippable) */}
+      {/* Claim Bonus — Ad Screen (fullscreen) */}
       {claimAdPlaying && (
-        <div className="fixed inset-0 z-[9999] bg-black flex flex-col">
-          {/* Timer bar */}
-          <div className="flex items-center justify-between px-4 py-3 bg-dark-900 border-b border-dark-700">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-white font-medium">📣 Advertisement</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-mono text-slate-400">
-                {claimAdFinished ? 'Ad Complete' : `${claimAdCountdown}s remaining`}
-              </span>
-              {claimAdFinished && (
-                <button
-                  onClick={handleClaimAfterAd}
-                  disabled={claiming}
-                  className="bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold px-4 py-1.5 rounded-lg transition-all"
-                >
-                  {claiming ? 'Claiming...' : 'Claim Bonus →'}
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Video */}
-          <div className="flex-1 flex items-center justify-center p-2">
-            <iframe
-              src={`${process.env.NEXT_PUBLIC_AD_VIDEO_URL || 'https://www.youtube.com/embed/Gb82YBn_mWc'}?autoplay=1&controls=0&modestbranding=1&rel=0&loop=1`}
-              className="w-full h-full max-w-4xl rounded-lg"
-              allow="autoplay; encrypted-media"
-              allowFullScreen
-              title="Advertisement"
-            />
-          </div>
-
-          {/* Progress bar */}
-          <div className="h-1 bg-dark-700">
-            <div
-              className="h-full bg-primary-500 transition-all duration-1000"
-              style={{ width: `${((parseInt(process.env.NEXT_PUBLIC_AD_DURATION || '20', 10) - claimAdCountdown) / parseInt(process.env.NEXT_PUBLIC_AD_DURATION || '20', 10)) * 100}%` }}
-            />
-          </div>
-        </div>
+        <AdOverlay
+          onComplete={handleClaimAfterAd}
+          loading={claiming}
+          buttonText="Skip Ad"
+          loadingText="Claiming..."
+        />
       )}
 
       <main className="max-w-7xl mx-auto px-3 sm:px-6 pt-20 sm:pt-24">
