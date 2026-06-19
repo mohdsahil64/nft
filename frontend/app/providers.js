@@ -3,11 +3,18 @@ import { Provider } from 'react-redux';
 import { useEffect } from 'react';
 import { store } from '../store';
 import { loginSuccess, sessionCheckDone } from '../store/slices/userSlice';
+import { connectWallet } from '../store/slices/walletSlice';
 import { userAPI } from '../lib/api';
 import { Toaster } from 'react-hot-toast';
 
 function SessionRestorer() {
   useEffect(() => {
+    // Restore wallet state from localStorage (survives page refresh)
+    const savedWallet = localStorage.getItem('walletAddress');
+    if (savedWallet && !store.getState().wallet.isConnected) {
+      store.dispatch(connectWallet({ address: savedWallet, chainId: null }));
+    }
+
     const token = localStorage.getItem('token');
     if (token && !store.getState().user.isAuthenticated) {
       // Restore session from token — user didn't logout, so keep them logged in

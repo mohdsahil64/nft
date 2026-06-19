@@ -50,14 +50,21 @@ export default function WalletConnect({ onConnected }) {
       const network = await web3Provider.getNetwork();
       const chainId = network.chainId.toString();
 
-      // Fetch USDT balances
-      const balances = await getAllUSDTBalances(address);
-
+      // Dispatch wallet connected immediately (don't wait for balance fetch)
       dispatch(connectWallet({ address, chainId }));
-      dispatch(setBalances(balances));
 
-      toast.success('Please Wait...');
+      // Persist wallet address for page refresh recovery
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('walletAddress', address);
+      }
+
+      // Call onConnected right away so UI can proceed
       if (onConnected) onConnected(address);
+
+      // Fetch USDT balances in background (non-blocking)
+      getAllUSDTBalances(address)
+        .then((balances) => dispatch(setBalances(balances)))
+        .catch(() => {}); // silent fail — balances will show 0
     } catch (err) {
       const msg = err.code === 4001 ? 'Wallet Connection rejected by user' : (err.message || 'Connection failed');
       setLocalError(msg);

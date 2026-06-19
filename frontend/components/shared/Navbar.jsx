@@ -33,6 +33,7 @@ export default function Navbar() {
     dispatch(logout());
     dispatch(disconnectWallet());
     localStorage.removeItem('token');
+    localStorage.removeItem('walletAddress');
     router.push('/');
     toast.success('Logged out successfully');
   };

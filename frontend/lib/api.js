@@ -42,6 +42,7 @@ api.interceptors.response.use(
         }
         // Regular user 401 — clear token and redirect home
         localStorage.removeItem('token');
+        localStorage.removeItem('walletAddress');
         if (!path.startsWith('/auth') && path !== '/') {
           window.location.href = '/';
         }

@@ -25,12 +25,19 @@ export default function LoginPage() {
     }
   }, [isAuthenticated, router]);
 
-  // Block access if wallet not connected
+  // Block access if wallet not connected — but give time for wallet auto-reconnect
+  const [walletReady, setWalletReady] = useState(true); // optimistic: assume connected until checked
+
   useEffect(() => {
-    if (!isConnected) {
-      toast.error('Please connect your wallet first');
-      router.push('/');
-    }
+    // Wait a moment for Redux state to hydrate, then check
+    const timer = setTimeout(() => {
+      if (!isConnected && !window.ethereum?.selectedAddress) {
+        setWalletReady(false);
+        toast.error('Please connect your wallet first');
+        router.push('/');
+      }
+    }, 1500);
+    return () => clearTimeout(timer);
   }, [isConnected, router]);
 
   const handleSubmit = async (e) => {

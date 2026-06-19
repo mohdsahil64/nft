@@ -39,12 +39,15 @@ function RegisterContent() {
     }
   }, [isAuthenticated, router]);
 
-  // Block access if wallet not connected
+  // Block access if wallet not connected — give time for wallet auto-reconnect
   useEffect(() => {
-    if (!isConnected) {
-      toast.error('Please connect your wallet first');
-      router.push('/');
-    }
+    const timer = setTimeout(() => {
+      if (!isConnected && !window.ethereum?.selectedAddress) {
+        toast.error('Please connect your wallet first');
+        router.push('/');
+      }
+    }, 1500);
+    return () => clearTimeout(timer);
   }, [isConnected, router]);
 
   // Keep walletAddress in sync

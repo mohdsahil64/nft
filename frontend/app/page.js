@@ -37,29 +37,59 @@ const milestones = [
 export default function LandingPage() {
   const router = useRouter();
   const { isConnected, address } = useSelector((s) => s.wallet);
-  const { isAuthenticated } = useSelector((s) => s.user);
-  const [walletExists, setWalletExists] = useState(null); // null = unknown, true = existing user, false = new user
+  const { isAuthenticated, sessionChecked } = useSelector((s) => s.user);
+  const [walletExists, setWalletExists] = useState(null); // null = checking, true = existing user, false = new user
   const [navigating, setNavigating] = useState(false);
+  const [checking, setChecking] = useState(false);
 
-  // If already authenticated, redirect to dashboard
+  // If already authenticated, redirect to dashboard immediately
   useEffect(() => {
-    if (isAuthenticated) {
+    if (sessionChecked && isAuthenticated) {
       router.push('/dashboard');
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, sessionChecked, router]);
 
-  // When wallet is connected (including auto-reconnect), check if it's registered
+  // When wallet is connected, check if it's registered
   useEffect(() => {
-    if (isConnected && address && !isAuthenticated) {
-      authAPI.checkWallet({ walletAddress: address })
-        .then((res) => setWalletExists(res.data.exists))
-        .catch(() => setWalletExists(false));
-    }
-  }, [isConnected, address, isAuthenticated]);
+    if (isConnected && address && !isAuthenticated && sessionChecked) {
+      setChecking(true);
+      setWalletExists(null);
 
-  // After wallet connects — check if wallet already registered
+      // First check if user has a valid token — if so, go to dashboard
+      const token = localStorage.getItem('token');
+      if (token) {
+        userAPI.getProfile()
+          .then(() => {
+            router.push('/dashboard');
+          })
+          .catch(() => {
+            localStorage.removeItem('token');
+            // Token invalid, check wallet registration
+            checkWalletRegistration(address);
+          });
+      } else {
+        checkWalletRegistration(address);
+      }
+    }
+  }, [isConnected, address, isAuthenticated, sessionChecked]);
+
+  const checkWalletRegistration = async (walletAddress) => {
+    try {
+      const res = await authAPI.checkWallet({ walletAddress });
+      setWalletExists(res.data.exists);
+    } catch (_) {
+      setWalletExists(false);
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  // After wallet connects — called by WalletConnect component
   const handleWalletConnected = async (connectedAddress) => {
-    // If valid session exists, go to dashboard directly
+    setChecking(true);
+    setWalletExists(null);
+
+    // Check if user has a valid session token first
     const token = localStorage.getItem('token');
     if (token) {
       try {
@@ -72,18 +102,31 @@ export default function LandingPage() {
     }
 
     // No valid session — check if wallet is registered
-    try {
-      const res = await authAPI.checkWallet({ walletAddress: connectedAddress });
-      setWalletExists(res.data.exists);
-    } catch (_) {
-      setWalletExists(false);
-    }
+    checkWalletRegistration(connectedAddress);
   };
 
   const handleNavigate = (path) => {
     setNavigating(true);
     router.push(path);
   };
+
+  // Don't render anything until session check is done (prevents flash)
+  if (!sessionChecked) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  // If authenticated, show loading while redirect happens
+  if (isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <main className="min-h-screen">
@@ -137,16 +180,22 @@ export default function LandingPage() {
                     <div className="w-16 h-16 bg-emerald-600/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-emerald-500/30">
                       <CheckCircle className="w-8 h-8 text-emerald-400" />
                     </div>
-                    <h3 className="text-xl font-bold text-white mb-2">Ready To Join FutureMint</h3>
+                    <h3 className="text-xl font-bold text-white mb-2">Wallet Connected</h3>
                     <p className="text-slate-400 text-sm mb-6">
-                      {walletExists === true
+                      {checking
+                        ? 'Checking your wallet...'
+                        : walletExists === true
                         ? 'This wallet is already registered. Please login.'
                         : walletExists === false
                         ? 'New wallet detected! Create your account to start earning.'
-                        : 'Please Wait...'}
+                        : 'Checking your wallet...'}
                     </p>
                     <div className="flex flex-col gap-3">
-                      {walletExists === true ? (
+                      {checking ? (
+                        <div className="flex justify-center">
+                          <div className="w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+                        </div>
+                      ) : walletExists === true ? (
                         <button
                           onClick={() => handleNavigate('/auth/login')}
                           disabled={navigating}
