@@ -41,7 +41,7 @@ export default function WithdrawPage() {
   // Step 1: Validate form → go to ad
   const handleFormSubmit = (e) => {
     e.preventDefault();
-    if (!form.amount || parseFloat(form.amount) < 500) {
+    if (!form.amount || parseFloat(form.amount) < 200) {
       setShowMinPopup(true);
       return;
     }
@@ -145,7 +145,7 @@ export default function WithdrawPage() {
                     placeholder="Enter NFT amount"
                     className="input-field"
                   />
-                  <p className="text-xs text-slate-500 mt-1">Min: 500 · Max: {wallet?.nftBalance || 0} NFT</p>
+                  <p className="text-xs text-slate-500 mt-1">Min: 200 · Max: {wallet?.nftBalance || 0} NFT</p>
                 </div>
                 <div>
                   <label htmlFor="walletAddr" className="label">Wallet Address ({networkLabel})</label>
@@ -221,7 +221,7 @@ export default function WithdrawPage() {
             </div>
             <h3 className="text-lg font-bold text-white mb-2">Minimum Withdrawal Limit</h3>
             <p className="text-slate-400 text-sm mb-6">
-              You need at least <span className="text-white font-semibold">500 NFTs</span> to make a withdrawal. Keep earning and come back when you reach the minimum!
+              You need at least <span className="text-white font-semibold">200 NFTs</span> to make a withdrawal. Keep earning and come back when you reach the minimum!
             </p>
             <button
               onClick={() => setShowMinPopup(false)}

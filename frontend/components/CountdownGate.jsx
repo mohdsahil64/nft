@@ -1,8 +1,11 @@
 'use client';
 import { useState, useEffect } from 'react';
 
-// ─── LAUNCH DATE: June 22, 2026, 00:00:00 IST (UTC+5:30) ───
-const LAUNCH_DATE = new Date('2026-06-22T00:00:00+05:30').getTime();
+// ─── LAUNCH DATE: Read from env, fallback to June 22, 2026 00:00:00 IST ───
+// Set NEXT_PUBLIC_LAUNCH_DATE in .env.local (ISO format, e.g. "2026-06-22T00:00:00+05:30")
+// Set NEXT_PUBLIC_MAINTENANCE_MODE=true to force countdown regardless of date
+const LAUNCH_DATE = new Date(process.env.NEXT_PUBLIC_LAUNCH_DATE || '2026-06-22T00:00:00+05:30').getTime();
+const MAINTENANCE_MODE = process.env.NEXT_PUBLIC_MAINTENANCE_MODE === 'true';
 
 function getTimeLeft() {
   const now = Date.now();
@@ -65,12 +68,14 @@ export default function CountdownGate({ children }) {
     );
   }
 
-  // Launch time passed — show the actual website
-  if (!timeLeft) {
+  // Launch time passed AND not in maintenance mode — show the actual website
+  if (!timeLeft && !MAINTENANCE_MODE) {
     return children;
   }
 
-  // Show countdown
+  // Show countdown (either time is left, or maintenance mode is forced)
+  const displayTime = timeLeft || { days: 0, hours: 0, minutes: 0, seconds: 0 };
+
   return (
     <div className="min-h-screen bg-dark-900 relative overflow-hidden flex items-center justify-center px-4">
       {/* Background effects */}
@@ -109,22 +114,22 @@ export default function CountdownGate({ children }) {
 
         {/* Countdown */}
         <div className="flex items-center justify-center gap-3 sm:gap-4 md:gap-6 mb-12">
-          <TimeBlock value={timeLeft.days} label="Days" />
+          <TimeBlock value={displayTime.days} label="Days" />
           <div className="flex flex-col gap-2 pb-6">
             <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-pulse" />
             <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-pulse" />
           </div>
-          <TimeBlock value={timeLeft.hours} label="Hours" />
+          <TimeBlock value={displayTime.hours} label="Hours" />
           <div className="flex flex-col gap-2 pb-6">
             <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-pulse" />
             <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-pulse" />
           </div>
-          <TimeBlock value={timeLeft.minutes} label="Minutes" />
+          <TimeBlock value={displayTime.minutes} label="Minutes" />
           <div className="flex flex-col gap-2 pb-6">
             <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-pulse" />
             <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-pulse" />
           </div>
-          <TimeBlock value={timeLeft.seconds} label="Seconds" />
+          <TimeBlock value={displayTime.seconds} label="Seconds" />
         </div>
 
         {/* Features teaser */}
