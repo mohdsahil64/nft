@@ -100,12 +100,15 @@ app.use((err, req, res, next) => {
 
 // ─── Start Server ─────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 5000;
+const HOST = '0.0.0.0'; // Required for Railway/Docker — binds to all interfaces
 
 const start = async () => {
   await connectDB();
   connectRedis();
-  app.listen(PORT, () => {
-    console.log('\n✅ MongoDB Connected Successfully\n');
+  app.listen(PORT, HOST, () => {
+    console.log(`\n🚀 FutureMint API running on ${HOST}:${PORT}\n`);
+    console.log(`   Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`   Frontend: ${process.env.FRONTEND_URL || 'not set'}\n`);
   });
 };
 
