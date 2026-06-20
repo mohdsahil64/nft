@@ -33,7 +33,7 @@ export default function LoginPage() {
     const timer = setTimeout(() => {
       if (!isConnected && !window.ethereum?.selectedAddress) {
         setWalletReady(false);
-        toast.error('Please connect your wallet first');
+        toast.error('Please verify your identity first');
         router.push('/');
       }
     }, 1500);
