@@ -100,47 +100,64 @@ app.use((err, req, res, next) => {
 
 // ─── Seed essential collections if empty (after DB reset) ─────────────────────
 const seedDefaults = async () => {
-  const NFTConfig = require('./models/NFTConfig');
-  const existing = await NFTConfig.findOne();
-  if (!existing) {
-    await NFTConfig.create({
-      totalMinted: 0,
-      currentPrice: 0.01,
-      signupBonusAmount: 100,
-      totalSupply: 2100000,
-      priceRanges: [
-        { from: 0, to: 50000, price: 0.01 },
-        { from: 50000, to: 100000, price: 0.02 },
-        { from: 100000, to: 150000, price: 0.04 },
-        { from: 150000, to: 200000, price: 0.08 },
-        { from: 200000, to: 250000, price: 0.16 },
-        { from: 250000, to: 300000, price: 0.32 },
-        { from: 300000, to: 350000, price: 0.64 },
-        { from: 350000, to: 400000, price: 1.28 },
-        { from: 400000, to: 450000, price: 2.56 },
-        { from: 450000, to: 500000, price: 5.12 },
-        { from: 500000, to: 2100000, price: 10.24 },
-      ],
-    });
-    console.log('   ✅ NFTConfig seeded with defaults');
+  try {
+    const NFTConfig = require('./models/NFTConfig');
+    const existing = await NFTConfig.findOne();
+    if (!existing) {
+      await NFTConfig.create({
+        totalMinted: 0,
+        currentPrice: 0.01,
+        signupBonusAmount: 100,
+        totalSupply: 2100000,
+        priceRanges: [
+          { from: 0, to: 50000, price: 0.01 },
+          { from: 50000, to: 100000, price: 0.02 },
+          { from: 100000, to: 150000, price: 0.04 },
+          { from: 150000, to: 200000, price: 0.08 },
+          { from: 200000, to: 250000, price: 0.16 },
+          { from: 250000, to: 300000, price: 0.32 },
+          { from: 300000, to: 350000, price: 0.64 },
+          { from: 350000, to: 400000, price: 1.28 },
+          { from: 400000, to: 450000, price: 2.56 },
+          { from: 450000, to: 500000, price: 5.12 },
+          { from: 500000, to: 2100000, price: 10.24 },
+        ],
+      });
+      console.log('   ✅ NFTConfig seeded with defaults');
+    }
+  } catch (err) {
+    console.error('   ⚠️ NFTConfig seed failed (non-fatal):', err.message);
   }
 };
+
+// ─── Prevent crash on unhandled errors ────────────────────────────────────────
+process.on('uncaughtException', (err) => {
+  console.error('UNCAUGHT EXCEPTION:', err.message);
+  console.error(err.stack);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('UNHANDLED REJECTION:', reason);
+});
 
 // ─── Start Server ─────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 5000;
 const HOST = '0.0.0.0'; // Required for Railway/Docker — binds to all interfaces
 
 const start = async () => {
-  await connectDB();
-  await seedDefaults();
-  connectRedis();
-  app.listen(PORT, HOST, () => {
-    console.log(`\n🚀 FutureMint API running on ${HOST}:${PORT}\n`);
-    console.log(`   Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`   Frontend: ${process.env.FRONTEND_URL || 'not set'}\n`);
-  });
+  try {
+    await connectDB();
+    await seedDefaults();
+    connectRedis();
+    app.listen(PORT, HOST, () => {
+      console.log(`\n🚀 FutureMint API running on ${HOST}:${PORT}\n`);
+      console.log(`   Environment: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`   Frontend: ${process.env.FRONTEND_URL || 'not set'}\n`);
+    });
+  } catch (err) {
+    console.error('STARTUP FAILED:', err);
+    process.exit(1);
+  }
 };
 
 start();
-
-module.exports = app;
