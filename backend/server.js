@@ -24,6 +24,11 @@ const app = express();
 // Trust proxy (required for Render/reverse proxy — fixes rate-limit & IP detection)
 app.set('trust proxy', 1);
 
+// ─── Body Parsing (MUST be before other middleware) ───────────────────────────
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(cookieParser());
+
 // ─── Security Middleware ──────────────────────────────────────────────────────
 app.use(helmet());
 app.use(cors({
@@ -66,20 +71,6 @@ const authLimiter = rateLimit({
 
 app.use('/api/', generalLimiter);
 app.use('/api/auth/', authLimiter);
-
-// ─── Body Parsing ─────────────────────────────────────────────────────────────
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-app.use(cookieParser());
-
-// Debug: log incoming requests body (remove after fixing)
-app.use((req, res, next) => {
-  if (req.method === 'POST' || req.method === 'PUT') {
-    console.log(`[DEBUG] ${req.method} ${req.path} | Body:`, JSON.stringify(req.body));
-    console.log(`[DEBUG] Content-Type:`, req.headers['content-type']);
-  }
-  next();
-});
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
