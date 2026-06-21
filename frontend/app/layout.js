@@ -1,7 +1,6 @@
 import './globals.css';
 import { Inter } from 'next/font/google';
 import Providers from './providers';
-import CountdownGate from '../components/CountdownGate';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -33,9 +32,7 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <body className={`${inter.className} bg-dark-900 text-white min-h-screen`}>
         <Providers>
-          <CountdownGate>
-            {children}
-          </CountdownGate>
+          {children}
         </Providers>
       </body>
     </html>
