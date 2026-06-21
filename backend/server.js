@@ -84,6 +84,18 @@ app.get('/api/health', (req, res) => {
   res.status(200).json({ success: true, message: 'FutureMint NFT API is running', timestamp: new Date() });
 });
 
+// Debug: test POST body parsing
+app.post('/api/test-body', (req, res) => {
+  res.status(200).json({
+    body: req.body,
+    headers: {
+      contentType: req.headers['content-type'],
+      contentLength: req.headers['content-length'],
+    },
+    bodyKeys: Object.keys(req.body || {}),
+  });
+});
+
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
 app.use((req, res) => {
   res.status(404).json({ success: false, message: `Route ${req.method} ${req.path} not found` });
