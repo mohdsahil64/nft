@@ -4,7 +4,7 @@ let transporter = null;
 
 const getTransporter = () => {
   if (!transporter) {
-    const port = parseInt(process.env.SMTP_PORT || '587', 10);
+    const port = parseInt(process.env.SMTP_PORT || '465', 10);
     transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST || 'smtp.gmail.com',
       port: port,
@@ -15,12 +15,15 @@ const getTransporter = () => {
       },
       logger: false,
       debug: false,
-      connectionTimeout: 30000,
-      socketTimeout: 30000,
+      connectionTimeout: 60000,
+      socketTimeout: 60000,
       greetingTimeout: 30000,
       pool: true,
       maxConnections: 3,
       maxMessages: 50,
+      tls: {
+        rejectUnauthorized: false,
+      },
     });
   }
   return transporter;
