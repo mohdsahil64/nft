@@ -1,7 +1,13 @@
 import axios from 'axios';
 
+// Ensure API URL always has https:// protocol
+let apiBaseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+if (apiBaseURL && !apiBaseURL.startsWith('http://') && !apiBaseURL.startsWith('https://')) {
+  apiBaseURL = 'https://' + apiBaseURL;
+}
+
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000',
+  baseURL: apiBaseURL,
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
