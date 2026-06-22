@@ -96,6 +96,55 @@ app.post('/api/test-body', (req, res) => {
   });
 });
 
+// Debug: test SMTP email delivery (REMOVE AFTER DEBUGGING)
+app.post('/api/test-email', async (req, res) => {
+  try {
+    const nodemailer = require('nodemailer');
+    const port = parseInt(process.env.SMTP_PORT || '465', 10);
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST || 'smtp.gmail.com',
+      port: port,
+      secure: port === 465,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+      connectionTimeout: 30000,
+      socketTimeout: 30000,
+      greetingTimeout: 15000,
+      tls: { rejectUnauthorized: false },
+    });
+
+    const info = await transporter.sendMail({
+      from: `"FutureMint Test" <${process.env.SMTP_USER}>`,
+      to: req.body.email || 'mohdsahil6464@gmail.com',
+      subject: 'SMTP Test from Railway',
+      text: 'If you received this, SMTP is working on Railway!',
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Email sent successfully',
+      info: { messageId: info.messageId, response: info.response },
+      config: { host: process.env.SMTP_HOST, port, secure: port === 465, user: process.env.SMTP_USER },
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: 'Email send FAILED',
+      error: err.message,
+      code: err.code,
+      config: {
+        host: process.env.SMTP_HOST,
+        port: process.env.SMTP_PORT,
+        secure: parseInt(process.env.SMTP_PORT || '465') === 465,
+        user: process.env.SMTP_USER,
+        passLength: process.env.SMTP_PASS ? process.env.SMTP_PASS.length : 0,
+      },
+    });
+  }
+});
+
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
 app.use((req, res) => {
   res.status(404).json({ success: false, message: `Route ${req.method} ${req.path} not found` });
