@@ -39,6 +39,18 @@ function RegisterContent() {
     }
   }, [isAuthenticated, router]);
 
+  // Guard: if wallet is already registered, redirect to login (one wallet = one account)
+  useEffect(() => {
+    if (isConnected && address) {
+      authAPI.checkWallet({ walletAddress: address }).then((res) => {
+        if (res.data.exists) {
+          toast.error('This wallet is already registered. Please login instead.');
+          router.push('/auth/login');
+        }
+      }).catch(() => {});
+    }
+  }, [isConnected, address, router]);
+
   // Block access if wallet not connected — give time for wallet auto-reconnect
   useEffect(() => {
     const timer = setTimeout(() => {
