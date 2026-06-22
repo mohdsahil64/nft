@@ -185,7 +185,7 @@ export default function LandingPage() {
                       {checking
                         ? 'Preparing your dashboard...'
                         : walletExists === true
-                        ? 'Welcome back! Your NFT portfolio awaits.'
+                        ? (localStorage.getItem('token') ? 'You are logged in. Access your dashboard.' : 'Welcome back! Login to access your portfolio.')
                         : walletExists === false
                         ? 'Great news! Claim your 100 free NFTs and start earning today.'
                         : 'Preparing your dashboard...'}
@@ -197,11 +197,15 @@ export default function LandingPage() {
                         </div>
                       ) : walletExists === true ? (
                         <button
-                          onClick={() => handleNavigate('/auth/login')}
+                          onClick={() => {
+                            // If user has a valid token, go directly to dashboard
+                            const token = localStorage.getItem('token');
+                            handleNavigate(token ? '/dashboard' : '/auth/login');
+                          }}
                           disabled={navigating}
                           className="btn-primary text-center shadow-lg shadow-primary-600/25 w-full"
                         >
-                          {navigating ? 'Loading...' : 'Continue to Account'}
+                          {navigating ? 'Loading...' : (localStorage.getItem('token') ? 'Go to Dashboard' : 'Login to Account')}
                         </button>
                       ) : walletExists === false ? (
                         <button
