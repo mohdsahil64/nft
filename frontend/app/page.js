@@ -178,17 +178,17 @@ export default function LandingPage() {
                 {isConnected ? (
                   <div className="text-center py-6">
                     <div className="w-16 h-16 bg-emerald-600/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-emerald-500/30">
-                      <CheckCircle className="w-8 h-8 text-emerald-400" />
+                      <Rocket className="w-8 h-8 text-emerald-400" />
                     </div>
-                    <h3 className="text-xl font-bold text-white mb-2">Verified Successfully</h3>
+                    <h3 className="text-xl font-bold text-white mb-2">You're All Set!</h3>
                     <p className="text-slate-400 text-sm mb-6">
                       {checking
-                        ? 'Verifying your details...'
+                        ? 'Preparing your dashboard...'
                         : walletExists === true
-                        ? 'Welcome back! Continue to your account.'
+                        ? 'Welcome back! Your NFT portfolio awaits.'
                         : walletExists === false
-                        ? 'You are eligible! Create your account to start earning NFTs.'
-                        : 'Verifying your details...'}
+                        ? 'Great news! Claim your 100 free NFTs and start earning today.'
+                        : 'Preparing your dashboard...'}
                     </p>
                     <div className="flex flex-col gap-3">
                       {checking ? (
