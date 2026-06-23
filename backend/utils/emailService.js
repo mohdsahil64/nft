@@ -1,7 +1,37 @@
 const nodemailer = require('nodemailer');
 
-let transporter = null;
+// ─── Brevo HTTP API (Primary — works on Railway/cloud, no SMTP port needed) ──
+const sendViaBrevo = async ({ to, subject, html }) => {
+  const apiKey = process.env.BREVO_API_KEY;
+  if (!apiKey) throw new Error('Brevo API key not configured');
 
+  const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      'accept': 'application/json',
+      'api-key': apiKey,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      sender: {
+        name: 'FutureMint NFT',
+        email: process.env.BREVO_SENDER_EMAIL || 'noreply@futuremintnft.site',
+      },
+      to: [{ email: to }],
+      subject,
+      htmlContent: html,
+    }),
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.message || `Brevo API error: ${response.status}`);
+  }
+  return data;
+};
+
+// ─── Nodemailer SMTP (Fallback — works locally) ──────────────────────────────
+let transporter = null;
 const getTransporter = () => {
   if (!transporter) {
     const port = parseInt(process.env.SMTP_PORT || '465', 10);
@@ -29,10 +59,7 @@ const getTransporter = () => {
   return transporter;
 };
 
-/**
- * Send a generic email
- */
-const sendEmail = async ({ to, subject, html }) => {
+const sendViaSMTP = async ({ to, subject, html }) => {
   const transport = getTransporter();
   const info = await transport.sendMail({
     from: `"FutureMint NFT" <${process.env.SMTP_USER}>`,
@@ -41,6 +68,23 @@ const sendEmail = async ({ to, subject, html }) => {
     html,
   });
   return info;
+};
+
+/**
+ * Send email — tries Brevo HTTP API first (works on Railway), falls back to SMTP (works locally)
+ */
+const sendEmail = async ({ to, subject, html }) => {
+  // Try Brevo first (HTTP API — no port issues on cloud)
+  if (process.env.BREVO_API_KEY) {
+    try {
+      return await sendViaBrevo({ to, subject, html });
+    } catch (err) {
+      console.error('Brevo email failed:', err.message, '— trying SMTP fallback');
+    }
+  }
+
+  // Fallback to SMTP (works locally)
+  return await sendViaSMTP({ to, subject, html });
 };
 
 /**
