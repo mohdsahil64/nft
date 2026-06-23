@@ -186,8 +186,8 @@ export default function LandingPage() {
                     <div className="w-16 h-16 bg-primary-600/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-primary-500/30">
                       <div className="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
                     </div>
-                    <h3 className="text-xl font-bold text-white mb-2">Checking...</h3>
-                    <p className="text-slate-400 text-sm">Verifying your wallet details</p>
+                    <h3 className="text-xl font-bold text-white mb-2">Please Wait...</h3>
+                    <p className="text-slate-400 text-sm">Setting up your account</p>
                   </div>
                 ) : showResult && walletExists !== null ? (
                   <div className="text-center py-6">

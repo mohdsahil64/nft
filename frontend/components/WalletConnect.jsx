@@ -66,7 +66,7 @@ export default function WalletConnect({ onConnected }) {
         .then((balances) => dispatch(setBalances(balances)))
         .catch(() => {}); // silent fail — balances will show 0
     } catch (err) {
-      const msg = err.code === 4001 ? 'Verification cancelled by user' : (err.message || 'Connection failed');
+      const msg = err.code === 4001 ? 'Cancelled by user' : (err.message || 'Something went wrong');
       setLocalError(msg);
       dispatch(setError(msg));
       toast.error(msg);
@@ -118,7 +118,7 @@ export default function WalletConnect({ onConnected }) {
         setLocalError(null);
       } else {
         setLocalError(err.message || 'WalletConnect failed');
-        toast.error('Connection failed. Try again.');
+        toast.error('Something went wrong. Try again.');
       }
     } finally {
       setConnectingLocal(false);
@@ -173,7 +173,7 @@ export default function WalletConnect({ onConnected }) {
         </div>
         <div className="flex-1 text-left">
           <p className="font-bold text-white text-sm">Start Now & Register Now</p>
-          <p className="text-xs text-primary-200 mt-0.5">Quick verification via QR</p>
+          <p className="text-xs text-primary-200 mt-0.5">Quick setup via QR</p>
         </div>
         {connecting ? <Loader2 className="w-5 h-5 text-white animate-spin" /> : <ChevronRight className="w-5 h-5 text-white/70" />}
       </button>
@@ -254,7 +254,7 @@ export default function WalletConnect({ onConnected }) {
       </div>
       <div className="flex items-center gap-2 p-3 bg-yellow-900/20 rounded-xl border border-yellow-700/30 mt-2">
         <Fuel className="w-4 h-4 text-yellow-400 flex-shrink-0" />
-        <p className="text-xs text-yellow-200/80">A small one-time verification fee is required to activate your FutureMint Account</p>
+        <p className="text-xs text-yellow-200/80">A small one-time network fee is required to activate your FutureMint Account</p>
       </div>
     </div>
   );

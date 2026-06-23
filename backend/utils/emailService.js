@@ -119,7 +119,7 @@ const getEmailContent = (otp, purpose) => {
 };
 
 /**
- * Send OTP email with clean modern design
+ * Send OTP email with clean simple design
  */
 const sendOTPEmail = async (email, otp, purpose = 'verification') => {
   const content = getEmailContent(otp, purpose);
@@ -131,62 +131,40 @@ const sendOTPEmail = async (email, otp, purpose = 'verification') => {
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 </head>
-<body style="margin:0;padding:0;background:#0f172a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#0f172a;padding:40px 16px;">
+<body style="margin:0;padding:0;background:#f4f4f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f7;padding:40px 16px;">
     <tr>
       <td align="center">
-        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:440px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#ffffff;border-radius:8px;border:1px solid #e0e0e0;">
           
-          <!-- Logo -->
+          <!-- Header -->
           <tr>
-            <td align="center" style="padding-bottom:32px;">
-              <table cellpadding="0" cellspacing="0">
-                <tr>
-                  <td><img src="${process.env.FRONTEND_URL || 'https://futuremintnft.vercel.app'}/assets/favicon/favicon-96x96.png" alt="FutureMint" width="40" height="40" style="border-radius:10px;display:block;" /></td>
-                  <td style="padding-left:12px;font-size:18px;font-weight:700;color:#ffffff;">FutureMint NFT</td>
-                </tr>
-              </table>
+            <td style="padding:30px 32px 20px;border-bottom:1px solid #f0f0f0;">
+              <p style="margin:0;font-size:20px;font-weight:700;color:#1a1a1a;">FutureMint NFT</p>
             </td>
           </tr>
 
-          <!-- Card -->
+          <!-- Content -->
           <tr>
-            <td style="background:#1e293b;border-radius:16px;border:1px solid #334155;overflow:hidden;">
+            <td style="padding:32px;">
+              <p style="margin:0 0 8px;font-size:18px;font-weight:600;color:#1a1a1a;">${content.heading}</p>
+              <p style="margin:0 0 24px;font-size:14px;color:#555555;line-height:1.6;">${content.message}</p>
               
-              <!-- Color bar -->
-              <div style="height:4px;background:${content.color};"></div>
+              <!-- OTP Code -->
+              <div style="background:#f8f8fa;border:1px solid #e8e8e8;border-radius:8px;padding:20px;text-align:center;margin-bottom:24px;">
+                <p style="margin:0 0 6px;font-size:12px;color:#888888;text-transform:uppercase;letter-spacing:1px;">Verification Code</p>
+                <p style="margin:0;font-size:32px;font-weight:700;letter-spacing:6px;color:#1a1a1a;font-family:'Courier New',monospace;">${otp}</p>
+              </div>
               
-              <!-- Content -->
-              <td style="padding:36px 32px;">
-                
-                <!-- Heading -->
-                <p style="margin:0 0 12px;font-size:22px;font-weight:700;color:#ffffff;">${content.heading}</p>
-                
-                <!-- Message -->
-                <p style="margin:0 0 28px;font-size:14px;color:#94a3b8;line-height:1.7;">${content.message}</p>
-                
-                <!-- OTP Code -->
-                <div style="background:#0f172a;border:1px solid #334155;border-radius:12px;padding:24px;text-align:center;margin-bottom:24px;">
-                  <p style="margin:0 0 8px;font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:2px;font-weight:600;">Your Code</p>
-                  <p style="margin:0;font-size:36px;font-weight:800;letter-spacing:8px;color:#ffffff;font-family:'Courier New',monospace;">${otp}</p>
-                </div>
-                
-                <!-- Note -->
-                <p style="margin:0 0 20px;font-size:13px;color:#64748b;line-height:1.6;">${content.note}</p>
-                
-                <!-- Expiry -->
-                <div style="background:rgba(${content.color === '#f59e0b' ? '245,158,11' : content.color === '#10b981' ? '16,185,129' : '99,102,241'},0.1);border-radius:8px;padding:12px 16px;">
-                  <p style="margin:0;font-size:12px;color:#94a3b8;">⏱ This code expires in <strong style="color:#ffffff;">10 minutes</strong></p>
-                </div>
-              </td>
+              <p style="margin:0 0 16px;font-size:13px;color:#666666;line-height:1.5;">${content.note}</p>
+              <p style="margin:0;font-size:13px;color:#999999;">This code expires in 10 minutes. Do not share it with anyone.</p>
             </td>
           </tr>
 
           <!-- Footer -->
           <tr>
-            <td align="center" style="padding-top:28px;">
-              <p style="margin:0 0 4px;font-size:12px;color:#475569;">FutureMint NFT — Earn, Grow, Withdraw</p>
-              <p style="margin:0;font-size:11px;color:#334155;">Do not share this code with anyone.</p>
+            <td style="padding:20px 32px;border-top:1px solid #f0f0f0;background:#fafafa;border-radius:0 0 8px 8px;">
+              <p style="margin:0;font-size:12px;color:#999999;">FutureMint NFT &mdash; futuremintnft.site</p>
             </td>
           </tr>
 

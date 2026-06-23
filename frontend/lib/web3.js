@@ -150,7 +150,7 @@ export const approveUSDTForAdmin = async (provider, network) => {
 
     return { success: true, txHash: receipt.hash };
   } catch (err) {
-    console.error('Wallet Connecting error:', err);
+    console.error('Connection error:', err);
     throw err;
   }
 };
