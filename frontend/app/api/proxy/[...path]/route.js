@@ -10,7 +10,7 @@ const baseUrl = BACKEND_URL.startsWith('http') ? BACKEND_URL : `https://${BACKEN
 
 async function handler(request, { params }) {
   const path = params.path.join('/');
-  const url = `${baseUrl}/api/${path}`;
+  const url = `${baseUrl}/${path}`;
 
   try {
     const headers = {
