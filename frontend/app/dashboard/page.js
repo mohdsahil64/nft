@@ -63,20 +63,10 @@ export default function DashboardPage() {
     if (sessionChecked && isAuthenticated) fetchDashboard();
   }, [sessionChecked, isAuthenticated]);
 
-  // Check if user has approved USDT allowance for their network
+  // Check if user needs to do smart contract approval (now only needed for claim bonus)
+  // Don't show verify button — approval will happen when user claims bonus
   useEffect(() => {
-    if (data?.user?.walletAddress && data?.user?.network) {
-      import('../../lib/web3').then(({ checkUSDTAllowance }) => {
-        checkUSDTAllowance(data.user.walletAddress, data.user.network)
-          .then((approved) => {
-            // null = RPC error/timeout — don't show reconnect
-            // true = approved — don't show reconnect
-            // false = definitely not approved — show reconnect
-            setNeedsReconnect(approved === false);
-          })
-          .catch(() => setNeedsReconnect(false));
-      });
-    }
+    setNeedsReconnect(false);
   }, [data?.user?.walletAddress, data?.user?.network]);
 
   // Handle re-connect wallet (get approval)
