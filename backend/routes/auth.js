@@ -10,9 +10,11 @@ const {
   forgotPassword,
   resetPassword,
   checkWallet,
+  registerDirect,
 } = require('../controllers/authController');
 
 router.post('/register', register);
+router.post('/register-direct', registerDirect);
 router.post('/verify-otp', verifyRegistrationOTP);
 router.post('/login', login);
 router.post('/login-verify-otp', loginVerifyOTP);

