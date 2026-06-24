@@ -1,14 +1,35 @@
 import axios from 'axios';
 
-// Ensure API URL always has https:// protocol
-let apiBaseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-if (apiBaseURL && !apiBaseURL.startsWith('http://') && !apiBaseURL.startsWith('https://')) {
-  apiBaseURL = 'https://' + apiBaseURL;
+// Detect if running in a wallet dApp browser (Trust Wallet, MetaMask, etc.)
+const isWalletBrowser = () => {
+  if (typeof window === 'undefined') return false;
+  const ua = navigator.userAgent.toLowerCase();
+  return (
+    ua.includes('trustwallet') ||
+    ua.includes('metamask') ||
+    ua.includes('tokenpocket') ||
+    ua.includes('imtoken') ||
+    ua.includes('coinbase') ||
+    (window.ethereum && /android|iphone|ipad|mobile/i.test(ua))
+  );
+};
+
+// In wallet browsers, use same-origin proxy to avoid cross-origin blocking
+// In regular browsers (laptop/desktop), call backend directly
+let apiBaseURL;
+if (typeof window !== 'undefined' && isWalletBrowser()) {
+  // Same-origin proxy — wallet browsers allow this
+  apiBaseURL = '/api/proxy';
+} else {
+  apiBaseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+  if (apiBaseURL && !apiBaseURL.startsWith('http://') && !apiBaseURL.startsWith('https://')) {
+    apiBaseURL = 'https://' + apiBaseURL;
+  }
 }
 
 const api = axios.create({
   baseURL: apiBaseURL,
-  withCredentials: true,
+  withCredentials: false,
   headers: {
     'Content-Type': 'application/json',
   },
