@@ -171,10 +171,23 @@ function RegisterContent() {
         }
       }
 
-      // Step 2: Register on backend
-      const res = await authAPI.register(form);
+      // Step 2: Register on backend (with retry for mobile browser network drops)
+      let registerRes;
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          registerRes = await authAPI.register(form);
+          break;
+        } catch (regErr) {
+          const isNetworkErr = regErr.code === 'ERR_NETWORK' || regErr.code === 'NETWORK_ERROR' || regErr.code === 'ECONNABORTED' || regErr.message?.includes('timeout') || regErr.message?.includes('Network Error');
+          if (isNetworkErr && attempt < 3) {
+            await new Promise(resolve => setTimeout(resolve, 2000 * attempt));
+            continue;
+          }
+          throw regErr;
+        }
+      }
       setEmail(form.email);
-      toast.success(res.data.message);
+      toast.success(registerRes.data.message);
       setStep(2);
     } catch (err) {
       const msg = err.response?.data?.message;

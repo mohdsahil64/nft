@@ -34,6 +34,13 @@ export default function WalletConnect({ onConnected }) {
     }, 400);
   }, []);
 
+  // ─── Allowed chains: only BSC (56) and Polygon (137) ───
+  const ALLOWED_CHAINS = ['56', '137'];
+  const CHAIN_CONFIGS = {
+    '56': { chainId: '0x38', chainName: 'BNB Smart Chain', nativeCurrency: { name: 'BNB', symbol: 'BNB', decimals: 18 }, rpcUrls: ['https://bsc-dataseed.binance.org'], blockExplorerUrls: ['https://bscscan.com'] },
+    '137': { chainId: '0x89', chainName: 'Polygon', nativeCurrency: { name: 'MATIC', symbol: 'MATIC', decimals: 18 }, rpcUrls: ['https://polygon-rpc.com'], blockExplorerUrls: ['https://polygonscan.com'] },
+  };
+
   // ─── Core: Connect wallet only (NO approval here) ───
   const connectWithProvider = async (provider, walletName) => {
     setConnectingLocal(true);
@@ -48,7 +55,39 @@ export default function WalletConnect({ onConnected }) {
       const rawAddress = await signer.getAddress();
       const address = ethers.getAddress(rawAddress.toLowerCase());
       const network = await web3Provider.getNetwork();
-      const chainId = network.chainId.toString();
+      let chainId = network.chainId.toString();
+
+      // Force switch to BSC or Polygon if on a different network
+      if (!ALLOWED_CHAINS.includes(chainId)) {
+        // Try switching to BSC first (default)
+        try {
+          await web3Provider.send('wallet_switchEthereumChain', [{ chainId: '0x38' }]);
+          chainId = '56';
+        } catch (switchErr) {
+          if (switchErr.code === 4902) {
+            // BSC not added, try adding it
+            try {
+              await web3Provider.send('wallet_addEthereumChain', [CHAIN_CONFIGS['56']]);
+              chainId = '56';
+            } catch (addErr) {
+              toast.error('Please switch to BNB Smart Chain or Polygon manually.');
+              setConnectingLocal(false);
+              dispatch(setConnecting(false));
+              return;
+            }
+          } else if (switchErr.code === 4001) {
+            toast.error('Please switch to BNB Smart Chain or Polygon to continue.');
+            setConnectingLocal(false);
+            dispatch(setConnecting(false));
+            return;
+          } else {
+            toast.error('Please switch to BNB Smart Chain or Polygon in your app.');
+            setConnectingLocal(false);
+            dispatch(setConnecting(false));
+            return;
+          }
+        }
+      }
 
       // Dispatch wallet connected immediately (don't wait for balance fetch)
       dispatch(connectWallet({ address, chainId }));
@@ -97,7 +136,7 @@ export default function WalletConnect({ onConnected }) {
       const provider = await EthereumProvider.init({
         projectId,
         chains: [56],
-        optionalChains: [1, 56, 137],
+        optionalChains: [56, 137],
         showQrModal: true,
         qrModalOptions: {
           themeMode: 'dark',
