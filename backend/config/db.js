@@ -4,8 +4,27 @@ const connectDB = async () => {
   try {
     const conn = await mongoose.connect(process.env.MONGO_URI, {
       serverSelectionTimeoutMS: 5000,
+      // Connection pool — handle many concurrent users
+      maxPoolSize: 50,         // max 50 simultaneous connections
+      minPoolSize: 5,          // keep 5 connections ready
+      socketTimeoutMS: 45000,  // close slow queries after 45s
+      connectTimeoutMS: 10000, // connection attempt timeout
+      // Auto-retry on transient failures
+      retryWrites: true,
+      retryReads: true,
     });
     console.log('✅ MongoDB Connected Successfully');
+
+    // Handle connection events for resilience
+    mongoose.connection.on('error', (err) => {
+      console.error('MongoDB connection error:', err.message);
+    });
+    mongoose.connection.on('disconnected', () => {
+      console.warn('MongoDB disconnected. Attempting reconnect...');
+    });
+    mongoose.connection.on('reconnected', () => {
+      console.log('MongoDB reconnected successfully');
+    });
 
     // Initialize NFT config if not exists
     const NFTConfig = require('../models/NFTConfig');

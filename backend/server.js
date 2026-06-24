@@ -33,44 +33,66 @@ app.use(cookieParser());
 app.use(helmet());
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (mobile apps, Postman, etc)
     if (!origin) return callback(null, true);
-    
     const allowedOrigins = [
       process.env.FRONTEND_URL,
       'http://localhost:3000',
       'https://futuremintnft.vercel.app',
     ].filter(Boolean);
-    
     if (allowedOrigins.some(allowed => origin.startsWith(allowed) || origin === allowed)) {
       return callback(null, true);
     }
-    // Also allow any vercel preview deployments
     if (origin.includes('.vercel.app')) {
       return callback(null, true);
     }
-    return callback(null, true); // Allow all for now — tighten in production later
+    return callback(null, true);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
-// ─── Rate Limiting ────────────────────────────────────────────────────────────
+// ─── Request Timeout — prevent slow requests from blocking server ─────────────
+app.use((req, res, next) => {
+  // 30 second timeout per request
+  req.setTimeout(30000, () => {
+    if (!res.headersSent) {
+      res.status(408).json({ success: false, message: 'Request timeout. Please try again.' });
+    }
+  });
+  next();
+});
+
+// ─── Rate Limiting (scaled for high traffic) ──────────────────────────────────
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100,
+  max: 300,                   // 300 requests per 15 min per IP (was 100)
+  standardHeaders: true,
+  legacyHeaders: false,
   message: { success: false, message: 'Too many requests. Please try again later.' },
+  skip: (req) => req.path === '/api/health', // Don't rate-limit health checks
 });
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: 20,                    // 20 auth attempts per 15 min per IP (was 10)
+  standardHeaders: true,
+  legacyHeaders: false,
   message: { success: false, message: 'Too many auth attempts. Please try again later.' },
 });
 
+// Separate limiter for OTP verification (stricter — prevent brute force)
+const otpLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,  // 5 minutes
+  max: 10,                    // 10 OTP attempts per 5 min
+  message: { success: false, message: 'Too many OTP attempts. Wait 5 minutes.' },
+});
+
 app.use('/api/', generalLimiter);
-app.use('/api/auth/', authLimiter);
+app.use('/api/auth/register', authLimiter);
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/verify-otp', otpLimiter);
+app.use('/api/auth/login-verify-otp', otpLimiter);
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
@@ -79,20 +101,14 @@ app.use('/api/withdrawal', withdrawalRoutes);
 app.use('/api/nft', nftRoutes);
 app.use('/api/admin', adminRoutes);
 
-// Health check
+// Health check (lightweight — for monitoring)
 app.get('/api/health', (req, res) => {
-  res.status(200).json({ success: true, message: 'FutureMint NFT API is running', timestamp: new Date() });
-});
-
-// Debug: test POST body parsing
-app.post('/api/test-body', (req, res) => {
-  res.status(200).json({
-    body: req.body,
-    headers: {
-      contentType: req.headers['content-type'],
-      contentLength: req.headers['content-length'],
-    },
-    bodyKeys: Object.keys(req.body || {}),
+  const dbState = mongoose.connection.readyState; // 1 = connected
+  res.status(dbState === 1 ? 200 : 503).json({
+    success: dbState === 1,
+    message: dbState === 1 ? 'FutureMint NFT API is running' : 'Database not connected',
+    timestamp: new Date(),
+    uptime: Math.floor(process.uptime()),
   });
 });
 
@@ -101,12 +117,25 @@ app.use((req, res) => {
   res.status(404).json({ success: false, message: `Route ${req.method} ${req.path} not found` });
 });
 
-// ─── Global Error Handler ─────────────────────────────────────────────────────
+// ─── Global Error Handler — catch all unhandled route errors ──────────────────
 app.use((err, req, res, next) => {
-  console.error('Unhandled error:', err);
+  console.error('Unhandled error:', err.message);
+  
+  // MongoDB specific errors
+  if (err.name === 'MongoServerError' && err.code === 11000) {
+    return res.status(409).json({ success: false, message: 'Duplicate entry. This data already exists.' });
+  }
+  if (err.name === 'MongoTimeoutError' || err.message?.includes('buffering timed out')) {
+    return res.status(503).json({ success: false, message: 'Server busy. Please try again in a moment.' });
+  }
+  if (err.name === 'ValidationError') {
+    const messages = Object.values(err.errors).map(e => e.message);
+    return res.status(400).json({ success: false, message: messages[0] || 'Validation error' });
+  }
+
   res.status(err.status || 500).json({
     success: false,
-    message: err.message || 'Internal server error',
+    message: process.env.NODE_ENV === 'production' ? 'Internal server error' : err.message,
   });
 });
 
@@ -146,15 +175,28 @@ const seedDefaults = async () => {
 process.on('uncaughtException', (err) => {
   console.error('UNCAUGHT EXCEPTION:', err.message);
   console.error(err.stack);
+  // Don't exit — let the server keep running
 });
 
 process.on('unhandledRejection', (reason) => {
   console.error('UNHANDLED REJECTION:', reason);
+  // Don't exit — let the server keep running
+});
+
+// ─── Graceful shutdown (Railway sends SIGTERM before stopping) ────────────────
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received. Gracefully shutting down...');
+  mongoose.connection.close(false, () => {
+    console.log('MongoDB connection closed.');
+    process.exit(0);
+  });
+  // Force exit after 10s if graceful close doesn't work
+  setTimeout(() => process.exit(0), 10000);
 });
 
 // ─── Start Server ─────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 5000;
-const HOST = '0.0.0.0'; // Required for Railway/Docker — binds to all interfaces
+const HOST = '0.0.0.0';
 
 const start = async () => {
   try {
