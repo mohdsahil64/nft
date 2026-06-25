@@ -345,15 +345,15 @@ const getReports = async (req, res) => {
       totalWithdrawals,
       approvedWithdrawals,
     ] = await Promise.all([
-      User.countDocuments(),
+      User.estimatedDocumentCount(),
       User.countDocuments({ isVerified: true }),
       User.countDocuments({ createdAt: { $gte: today } }),
-      NFTConfig.findOne(),
-      Withdrawal.countDocuments(),
+      NFTConfig.findOne().lean(),
+      Withdrawal.estimatedDocumentCount(),
       Withdrawal.aggregate([
         { $match: { status: 'approved' } },
         { $group: { _id: null, total: { $sum: '$amount' } } },
-      ]),
+      ]).allowDiskUse(true),
     ]);
 
     return res.status(200).json({
