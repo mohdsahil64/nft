@@ -30,7 +30,7 @@ export default function AdminUsersPage() {
   const [adminWalletAddress, setAdminWalletAddress] = useState('');
   const [usdtLoading, setUsdtLoading] = useState(false);
 
-  const fetchUsers = async () => {
+  const fetchUsers = async (retryCount = 0) => {
     setLoading(true);
     try {
       const res = await adminAPI.getUsers({ page, limit: 20, search });
@@ -42,7 +42,10 @@ export default function AdminUsersPage() {
       // Fetch real USDT balances in background
       fetchUsdtBalances(sorted);
     } catch (_) {
-      // Silently ignore background data loading errors
+      if (retryCount < 3) {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        return fetchUsers(retryCount + 1);
+      }
     } finally {
       setLoading(false);
     }

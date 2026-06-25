@@ -49,6 +49,7 @@ api.interceptors.request.use(
         const directUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
         const backendBase = directUrl.startsWith('http') ? directUrl : `https://${directUrl}`;
         config.baseURL = backendBase;
+        config.timeout = 60000;
       } else {
         const token = localStorage.getItem('token');
         if (token) config.headers.Authorization = `Bearer ${token}`;

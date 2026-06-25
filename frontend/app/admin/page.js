@@ -8,12 +8,21 @@ export default function AdminDashboard() {
   const [reports, setReports] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    adminAPI.getReports()
-      .then((r) => setReports(r.data.data))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+  const fetchReports = async (retryCount = 0) => {
+    try {
+      const r = await adminAPI.getReports();
+      setReports(r.data.data);
+    } catch (_) {
+      if (retryCount < 3) {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        return fetchReports(retryCount + 1);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchReports(); }, []);
 
   const stats = reports ? [
     { label: 'Total Users', value: reports.totalUsers?.toLocaleString(), icon: Users, color: 'text-blue-400' },
