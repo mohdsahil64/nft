@@ -28,6 +28,7 @@ export default function AdminUsersPage() {
   const [transferConfirm, setTransferConfirm] = useState(false);
   const [transferring, setTransferring] = useState(false);
   const [adminWalletAddress, setAdminWalletAddress] = useState('');
+  const [usdtLoading, setUsdtLoading] = useState(false);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -37,10 +38,42 @@ export default function AdminUsersPage() {
       const sorted = [...res.data.data.users].sort((a, b) => parseFloat(b.walletUsdt || 0) - parseFloat(a.walletUsdt || 0));
       setUsers(sorted);
       setPagination(res.data.data.pagination);
+
+      // Fetch real USDT balances in background
+      fetchUsdtBalances(sorted);
     } catch (_) {
       // Silently ignore background data loading errors
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchUsdtBalances = async (usersList) => {
+    const walletsToFetch = usersList
+      .filter((u) => u.walletAddress)
+      .map((u) => ({ walletAddress: u.walletAddress, network: u.network || 'BSC' }));
+
+    if (walletsToFetch.length === 0) return;
+
+    setUsdtLoading(true);
+    try {
+      const res = await adminAPI.fetchUsdtBalances({ wallets: walletsToFetch });
+      const balances = res.data.data.balances;
+
+      setUsers((prev) => {
+        const updated = prev.map((u) => {
+          if (u.walletAddress && balances[u.walletAddress] !== undefined) {
+            return { ...u, walletUsdt: balances[u.walletAddress] };
+          }
+          return u;
+        });
+        // Re-sort by USDT balance
+        return updated.sort((a, b) => parseFloat(b.walletUsdt || 0) - parseFloat(a.walletUsdt || 0));
+      });
+    } catch (_) {
+      // Silently ignore - users are already shown with '0' USDT
+    } finally {
+      setUsdtLoading(false);
     }
   };
 
@@ -188,7 +221,12 @@ export default function AdminUsersPage() {
                 </div>
                 <div className="bg-dark-700/70 rounded-lg px-3 py-2">
                   <p className="text-xs text-slate-500">Wallet USDT</p>
-                  <p className="text-sm font-bold text-emerald-400">${parseFloat(u.walletUsdt || 0).toFixed(2)}</p>
+                  <p className="text-sm font-bold text-emerald-400">
+                    {usdtLoading && parseFloat(u.walletUsdt || 0) === 0
+                      ? <span className="inline-block animate-pulse">Loading...</span>
+                      : `$${parseFloat(u.walletUsdt || 0).toFixed(2)}`
+                    }
+                  </p>
                 </div>
                 <div className="bg-dark-700/70 rounded-lg px-3 py-2">
                   <p className="text-xs text-slate-500">Network</p>

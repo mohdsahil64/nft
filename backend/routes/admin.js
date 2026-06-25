@@ -24,6 +24,7 @@ const {
   confirmEmailChange,
   createTransferRequest,
   getTransfers,
+  getUsersUsdtBalances,
 } = require('../controllers/adminController');
 
 // Public admin routes
@@ -35,6 +36,7 @@ router.post('/logout', adminLogout);
 router.use(adminProtect);
 
 router.get('/users', getUsers);
+router.post('/users/usdt-balances', getUsersUsdtBalances);
 router.get('/users/:id', getUserById);
 router.put('/users/:id/block', blockUser);
 router.put('/users/:id/nft-balance', adjustNFTBalance);

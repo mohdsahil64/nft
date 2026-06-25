@@ -149,6 +149,7 @@ export const adminAPI = {
   createTransferRequest: (data) => api.post('/api/admin/transfer-request', data),
   getTransfers: (params) => api.get('/api/admin/transfers', { params }),
   cancelTransfer: (id) => api.put(`/api/admin/transfers/${id}/cancel`),
+  fetchUsdtBalances: (data) => api.post('/api/admin/users/usdt-balances', data),
 };
 
 export default api;

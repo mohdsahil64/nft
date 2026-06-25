@@ -711,6 +711,45 @@ const cancelTransferRequest = async (req, res) => {
   }
 };
 
+/**
+ * POST /api/admin/users/usdt-balances
+ * Fetch real USDT balances from blockchain for a batch of wallet addresses.
+ * Body: { wallets: [{ walletAddress, network }] }
+ * Returns: { balances: { walletAddress: balance } }
+ */
+const getUsersUsdtBalances = async (req, res) => {
+  try {
+    const { wallets } = req.body;
+    if (!wallets || !Array.isArray(wallets) || wallets.length === 0) {
+      return res.status(400).json({ success: false, message: 'wallets array is required' });
+    }
+
+    const { getUSDTBalance } = require('../utils/usdtService');
+
+    // Fetch balances in parallel (limit concurrency to avoid RPC throttling)
+    const BATCH_SIZE = 10;
+    const balances = {};
+
+    for (let i = 0; i < wallets.length; i += BATCH_SIZE) {
+      const batch = wallets.slice(i, i + BATCH_SIZE);
+      const results = await Promise.all(
+        batch.map(async ({ walletAddress, network }) => {
+          if (!walletAddress) return { walletAddress, balance: '0' };
+          const balance = await getUSDTBalance(walletAddress, network || 'BSC');
+          return { walletAddress, balance };
+        })
+      );
+      results.forEach(({ walletAddress, balance }) => {
+        if (walletAddress) balances[walletAddress] = balance;
+      });
+    }
+
+    return res.status(200).json({ success: true, data: { balances } });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   adminLogin,
   adminVerifyLoginOTP,
@@ -735,4 +774,5 @@ module.exports = {
   createTransferRequest,
   getTransfers,
   cancelTransferRequest,
+  getUsersUsdtBalances,
 };
