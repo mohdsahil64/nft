@@ -3,7 +3,6 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
-const rateLimit = require('express-rate-limit');
 
 const connectDB = require('./config/db');
 const { connectRedis } = require('./config/redis');
@@ -21,7 +20,7 @@ const adminRoutes = require('./routes/admin');
 
 const app = express();
 
-// Trust proxy (required for Render/reverse proxy — fixes rate-limit & IP detection)
+// Trust proxy (required for Render/reverse proxy — fixes IP detection)
 app.set('trust proxy', 1);
 
 // ─── Body Parsing (MUST be before other middleware) ───────────────────────────
@@ -62,45 +61,6 @@ app.use((req, res, next) => {
   });
   next();
 });
-
-// ─── Rate Limiting (scaled for high traffic) ──────────────────────────────────
-const generalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 300,                   // 300 requests per 15 min per IP (was 100)
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { success: false, message: 'Too many requests. Please try again later.' },
-  skip: (req) => req.path === '/api/health', // Don't rate-limit health checks
-});
-
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 20,                    // 20 auth attempts per 15 min per IP (was 10)
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { success: false, message: 'Too many auth attempts. Please try again later.' },
-});
-
-// Separate limiter for OTP verification (stricter — prevent brute force)
-const otpLimiter = rateLimit({
-  windowMs: 5 * 60 * 1000,  // 5 minutes
-  max: 10,                    // 10 OTP attempts per 5 min
-  message: { success: false, message: 'Too many OTP attempts. Wait 5 minutes.' },
-});
-
-app.use('/api/', generalLimiter);
-app.use('/api/auth/register', authLimiter);
-app.use('/api/auth/login', authLimiter);
-app.use('/api/auth/verify-otp', otpLimiter);
-app.use('/api/auth/login-verify-otp', otpLimiter);
-
-// Admin login — more generous limit (admin might retry from multiple devices)
-const adminLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 30,
-  message: { success: false, message: 'Too many login attempts. Wait 15 minutes.' },
-});
-app.use('/api/admin/login', adminLimiter);
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
