@@ -1,11 +1,12 @@
 import './globals.css';
 import { Inter } from 'next/font/google';
 import Providers from './providers';
+import MaintenanceGate from '../components/MaintenanceGate';
 
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata = {
-  title: 'FutureMint NFT — Earn, Grow, Withdraw',
+  title: 'FutureMint NFT Earn, Grow, Withdraw',
   description: 'Join FutureMint NFT Platform. Connect your wallet, earn NFTs through referrals and team building.',
   keywords: 'NFT, DeFi, Earn, BSC, Polygon, Referral, Web3, FutureMint',
   icons: {
@@ -32,7 +33,9 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <body className={`${inter.className} bg-dark-900 text-white min-h-screen`}>
         <Providers>
-          {children}
+          <MaintenanceGate>
+            {children}
+          </MaintenanceGate>
         </Providers>
       </body>
     </html>
