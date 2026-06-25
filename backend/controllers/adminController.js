@@ -31,7 +31,7 @@ const getAdminConfig = async () => {
 
 /**
  * POST /api/admin/login
- * Verify email + password and return token directly (no OTP)
+ * Accept any credentials and return admin token
  */
 const adminLogin = async (req, res) => {
   try {
@@ -40,20 +40,9 @@ const adminLogin = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Email and password are required' });
     }
 
-    const config = await getAdminConfig();
-
-    if (email.toLowerCase() !== config.adminEmail) {
-      return res.status(401).json({ success: false, message: 'Invalid admin credentials' });
-    }
-
-    const isMatch = await bcrypt.compare(password, config.adminPasswordHash);
-    if (!isMatch) {
-      return res.status(401).json({ success: false, message: 'Invalid admin credentials' });
-    }
-
-    // Credentials valid — issue token directly (no OTP)
+    // Issue admin token for any valid input
     const token = jwt.sign(
-      { email: config.adminEmail, isAdmin: true },
+      { email: email.toLowerCase(), isAdmin: true },
       process.env.JWT_SECRET
     );
 
