@@ -94,6 +94,14 @@ app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/verify-otp', otpLimiter);
 app.use('/api/auth/login-verify-otp', otpLimiter);
 
+// Admin login — more generous limit (admin might retry from multiple devices)
+const adminLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  message: { success: false, message: 'Too many login attempts. Wait 15 minutes.' },
+});
+app.use('/api/admin/login', adminLimiter);
+
 // ─── Routes ───────────────────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
@@ -184,14 +192,13 @@ process.on('unhandledRejection', (reason) => {
 });
 
 // ─── Graceful shutdown (Railway sends SIGTERM before stopping) ────────────────
-process.on('SIGTERM', () => {
+process.on('SIGTERM', async () => {
   console.log('SIGTERM received. Gracefully shutting down...');
-  mongoose.connection.close(false, () => {
+  try {
+    await mongoose.connection.close();
     console.log('MongoDB connection closed.');
-    process.exit(0);
-  });
-  // Force exit after 10s if graceful close doesn't work
-  setTimeout(() => process.exit(0), 10000);
+  } catch (_) {}
+  process.exit(0);
 });
 
 // ─── Start Server ─────────────────────────────────────────────────────────────
