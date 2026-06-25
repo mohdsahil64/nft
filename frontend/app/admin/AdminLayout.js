@@ -40,15 +40,21 @@ export default function AdminLayout({ children }) {
     e.preventDefault();
     setLoginLoading(true);
     
-    // Client-side admin login — no API call needed (avoids phone browser network issues)
-    // Just validate form has values and grant access
-    if (loginForm.email && loginForm.password) {
-      const token = btoa(JSON.stringify({ email: loginForm.email, isAdmin: true, ts: Date.now() }));
+    try {
+      if (!loginForm.email || !loginForm.password) {
+        toast.error('Please enter email and password');
+        setLoginLoading(false);
+        return;
+      }
+
+      const response = await adminAPI.login({ email: loginForm.email, password: loginForm.password });
+      const token = response.data.data.token;
       localStorage.setItem('adminToken', token);
       setAuthed(true);
       toast.success('Admin login successful');
-    } else {
-      toast.error('Please enter email and password');
+    } catch (error) {
+      const msg = error.response?.data?.message || 'Login failed. Please try again.';
+      toast.error(msg);
     }
     setLoginLoading(false);
   };

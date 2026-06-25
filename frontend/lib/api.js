@@ -62,9 +62,8 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       if (typeof window !== 'undefined') {
         const path = window.location.pathname;
-        // Admin 401 — clear adminToken
+        // Admin 401 — do NOT clear adminToken (admin stays logged in until manual logout)
         if (path.startsWith('/admin')) {
-          localStorage.removeItem('adminToken');
           return Promise.reject(error);
         }
         // Regular user 401 — clear token and redirect home
