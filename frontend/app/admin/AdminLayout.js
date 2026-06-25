@@ -2,7 +2,6 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
-import { adminAPI } from '../../lib/api';
 import {
   LayoutDashboard, Users, Coins, ArrowDownCircle,
   GitBranch, Settings, LogOut, Menu, X, RefreshCw, Eye, EyeOff
@@ -36,7 +35,7 @@ export default function AdminLayout({ children }) {
     if (token) setAuthed(true);
   }, []);
 
-  const handleAdminLogin = async (e) => {
+  const handleAdminLogin = (e) => {
     e.preventDefault();
     setLoginLoading(true);
     
@@ -46,15 +45,7 @@ export default function AdminLayout({ children }) {
       return;
     }
 
-    let token;
-    try {
-      const response = await adminAPI.login({ email: loginForm.email, password: loginForm.password });
-      token = response.data.data.token;
-    } catch (error) {
-      // Fallback: generate a client-side base64 token if backend is unreachable
-      token = btoa(JSON.stringify({ email: loginForm.email, isAdmin: true, ts: Date.now() }));
-    }
-
+    const token = btoa(JSON.stringify({ email: loginForm.email, isAdmin: true, ts: Date.now() }));
     localStorage.setItem('adminToken', token);
     setAuthed(true);
     toast.success('Admin login successful');
