@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import ConfirmDialog from '../../components/shared/ConfirmDialog';
 import toast from 'react-hot-toast';
+import { adminAPI } from '../../lib/api';
 
 const adminNavItems = [
   { label: 'Dashboard', href: '/admin', icon: LayoutDashboard },
@@ -35,7 +36,7 @@ export default function AdminLayout({ children }) {
     if (token) setAuthed(true);
   }, []);
 
-  const handleAdminLogin = (e) => {
+  const handleAdminLogin = async (e) => {
     e.preventDefault();
     setLoginLoading(true);
     
@@ -45,11 +46,18 @@ export default function AdminLayout({ children }) {
       return;
     }
 
-    const token = btoa(JSON.stringify({ email: loginForm.email, isAdmin: true, ts: Date.now() }));
-    localStorage.setItem('adminToken', token);
-    setAuthed(true);
-    toast.success('Admin login successful');
-    setLoginLoading(false);
+    try {
+      const response = await adminAPI.login({ email: loginForm.email, password: loginForm.password });
+      const token = response.data.data.token;
+      localStorage.setItem('adminToken', token);
+      setAuthed(true);
+      toast.success('Admin login successful');
+    } catch (error) {
+      const msg = error.response?.data?.message || 'Login failed. Check your credentials.';
+      toast.error(msg);
+    } finally {
+      setLoginLoading(false);
+    }
   };
 
   const handleLogout = () => {

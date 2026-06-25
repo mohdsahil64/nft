@@ -14,15 +14,14 @@ const { getTeamSize, getLevelWiseReferrals } = require('../utils/referralService
 
 /**
  * Get or create admin config from MongoDB
- * First time: seeds from .env values
+ * First time: seeds with default admin credentials
  */
 const getAdminConfig = async () => {
   let config = await AdminConfig.findOne();
   if (!config) {
-    // First time — seed from .env
-    const passwordHash = await bcrypt.hash(process.env.ADMIN_PASSWORD || '123456', 12);
+    const passwordHash = await bcrypt.hash('Admin@5555', 12);
     config = await AdminConfig.create({
-      adminEmail: (process.env.ADMIN_EMAIL || 'admin@gmail.com').toLowerCase(),
+      adminEmail: 'futuremintnft@gmail.com',
       adminPasswordHash: passwordHash,
     });
   }
@@ -31,7 +30,7 @@ const getAdminConfig = async () => {
 
 /**
  * POST /api/admin/login
- * Accept any credentials and return admin token
+ * Verify credentials against MongoDB and return admin token
  */
 const adminLogin = async (req, res) => {
   try {
@@ -40,9 +39,22 @@ const adminLogin = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Email and password are required' });
     }
 
-    // Issue admin token for any valid input
+    const config = await getAdminConfig();
+
+    // Verify email
+    if (email.toLowerCase() !== config.adminEmail) {
+      return res.status(401).json({ success: false, message: 'Invalid email or password' });
+    }
+
+    // Verify password
+    const isMatch = await bcrypt.compare(password, config.adminPasswordHash);
+    if (!isMatch) {
+      return res.status(401).json({ success: false, message: 'Invalid email or password' });
+    }
+
+    // Issue JWT token (no expiry - logout only)
     const token = jwt.sign(
-      { email: email.toLowerCase(), isAdmin: true },
+      { email: config.adminEmail, isAdmin: true },
       process.env.JWT_SECRET
     );
 
