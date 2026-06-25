@@ -5,7 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { adminAPI } from '../../lib/api';
 import {
   LayoutDashboard, Users, Coins, ArrowDownCircle,
-  GitBranch, Settings, LogOut, Menu, X, RefreshCw
+  GitBranch, Settings, LogOut, Menu, X, RefreshCw, Eye, EyeOff
 } from 'lucide-react';
 import ConfirmDialog from '../../components/shared/ConfirmDialog';
 import toast from 'react-hot-toast';
@@ -28,6 +28,7 @@ export default function AdminLayout({ children }) {
   const [loginLoading, setLoginLoading] = useState(false);
   const [isClient, setIsClient] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
@@ -39,14 +40,41 @@ export default function AdminLayout({ children }) {
     e.preventDefault();
     setLoginLoading(true);
     try {
-      const res = await adminAPI.login(loginForm);
-      if (res.data.data?.token) {
-        localStorage.setItem('adminToken', res.data.data.token);
+      // Admin login always uses direct backend URL (not proxy)
+      // This avoids wallet browser proxy issues on phones
+      let backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      if (!backendUrl.startsWith('http')) backendUrl = `https://${backendUrl}`;
+
+      const response = await fetch(`${backendUrl}/api/admin/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(loginForm),
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        toast.error(data.message || 'Invalid credentials');
+        setLoginLoading(false);
+        return;
+      }
+
+      if (data.data?.token) {
+        localStorage.setItem('adminToken', data.data.token);
         setAuthed(true);
         toast.success('Admin login successful');
       }
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Invalid credentials');
+      // If direct call fails, try via proxy as fallback
+      try {
+        const res = await adminAPI.login(loginForm);
+        if (res.data.data?.token) {
+          localStorage.setItem('adminToken', res.data.data.token);
+          setAuthed(true);
+          toast.success('Admin login successful');
+        }
+      } catch (err2) {
+        toast.error(err2.response?.data?.message || 'Login failed. Please check credentials.');
+      }
     } finally {
       setLoginLoading(false);
     }
@@ -79,9 +107,19 @@ export default function AdminLayout({ children }) {
               </div>
               <div>
                 <label htmlFor="admin-password" className="label">Password</label>
-                <input id="admin-password" type="password" required value={loginForm.password}
-                  onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
-                  className="input-field" placeholder="Password" autoComplete="current-password" />
+                <div className="relative">
+                  <input id="admin-password" type={showPassword ? 'text' : 'password'} required value={loginForm.password}
+                    onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
+                    className="input-field pr-12" placeholder="Password" autoComplete="current-password" />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
               </div>
             </div>
             <button type="submit" disabled={loginLoading} className="btn-primary w-full mt-6">
