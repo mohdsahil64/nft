@@ -37,7 +37,7 @@ export default function AdminSettingsPage() {
         setAdminEmail(cfg.data.data.adminEmail || '');
         setNetworkRequests(reqs.data.data);
       })
-      .catch(() => toast.error('Failed to load settings'))
+      .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 

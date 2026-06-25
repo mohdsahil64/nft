@@ -26,7 +26,7 @@ export default function AdminWithdrawalsPage() {
       setWithdrawals(res.data.data.withdrawals);
       setPagination(res.data.data.pagination);
     } catch (_) {
-      toast.error('Failed to load withdrawals');
+      // Silently ignore background data loading errors
     } finally {
       setLoading(false);
     }

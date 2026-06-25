@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react';
 import { adminAPI } from '../../lib/api';
 import AdminLayout from './AdminLayout';
 import { Users, Coins, ArrowDownCircle, TrendingUp, UserPlus, DollarSign } from 'lucide-react';
-import toast from 'react-hot-toast';
 
 export default function AdminDashboard() {
   const [reports, setReports] = useState(null);
@@ -12,7 +11,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     adminAPI.getReports()
       .then((r) => setReports(r.data.data))
-      .catch(() => toast.error('Failed to load reports'))
+      .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 

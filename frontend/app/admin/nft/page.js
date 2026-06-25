@@ -4,7 +4,6 @@ import { nftAPI } from '../../../lib/api';
 import AdminLayout from '../AdminLayout';
 import LoadingSpinner from '../../../components/shared/LoadingSpinner';
 import { Coins, TrendingUp, Package, DollarSign } from 'lucide-react';
-import toast from 'react-hot-toast';
 
 export default function AdminNFTPage() {
   const [stats, setStats] = useState(null);
@@ -13,7 +12,7 @@ export default function AdminNFTPage() {
   useEffect(() => {
     nftAPI.getStats()
       .then((r) => setStats(r.data.data))
-      .catch(() => toast.error('Failed to load NFT stats'))
+      .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 

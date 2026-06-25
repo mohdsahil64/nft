@@ -38,7 +38,7 @@ export default function AdminUsersPage() {
       setUsers(sorted);
       setPagination(res.data.data.pagination);
     } catch (_) {
-      toast.error('Failed to load users');
+      // Silently ignore background data loading errors
     } finally {
       setLoading(false);
     }
