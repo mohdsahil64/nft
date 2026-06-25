@@ -45,6 +45,10 @@ api.interceptors.request.use(
       if (path.startsWith('/admin')) {
         const adminToken = localStorage.getItem('adminToken');
         if (adminToken) config.headers.Authorization = `Bearer ${adminToken}`;
+        // Force direct backend URL for admin routes to bypass proxy issues on mobile
+        const directUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+        const backendBase = directUrl.startsWith('http') ? directUrl : `https://${directUrl}`;
+        config.baseURL = backendBase;
       } else {
         const token = localStorage.getItem('token');
         if (token) config.headers.Authorization = `Bearer ${token}`;

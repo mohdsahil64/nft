@@ -10,7 +10,10 @@ const baseUrl = BACKEND_URL.startsWith('http') ? BACKEND_URL : `https://${BACKEN
 
 async function handler(request, { params }) {
   const path = params.path.join('/');
-  const url = `${baseUrl}/${path}`;
+  // Forward query parameters from the original request
+  const requestUrl = new URL(request.url);
+  const queryString = requestUrl.search;
+  const url = `${baseUrl}/${path}${queryString}`;
 
   try {
     const headers = {
@@ -21,6 +24,12 @@ async function handler(request, { params }) {
     const authHeader = request.headers.get('authorization');
     if (authHeader) {
       headers['Authorization'] = authHeader;
+    }
+
+    // Forward cookies for cookie-based auth
+    const cookieHeader = request.headers.get('cookie');
+    if (cookieHeader) {
+      headers['Cookie'] = cookieHeader;
     }
 
     const fetchOptions = {
