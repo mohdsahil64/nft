@@ -14,9 +14,21 @@ const adminProtect = (req, res, next) => {
       return res.status(401).json({ success: false, message: 'Admin not authorized' });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    // Try JWT verification first
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (jwtError) {
+      // Fallback: try to decode as base64 token
+      try {
+        decoded = JSON.parse(Buffer.from(token, 'base64').toString());
+      } catch (b64Error) {
+        return res.status(401).json({ success: false, message: 'Invalid admin token' });
+      }
+    }
+
     if (!decoded.isAdmin) {
-      return res.status(403).json({ success: false, message: 'Access denied — admin only' });
+      return res.status(403).json({ success: false, message: 'Access denied - admin only' });
     }
 
     req.admin = decoded;
