@@ -2,7 +2,7 @@
 
 // Set to true to enable maintenance mode for users
 // Admin panel (/admin) will still be accessible
-export const MAINTENANCE_MODE = true;
+export const MAINTENANCE_MODE = false;
 
 export default function MaintenanceScreen() {
   return (
