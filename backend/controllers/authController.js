@@ -83,19 +83,6 @@ const register = async (req, res) => {
 
     const passwordHash = await bcrypt.hash(password, 12);
 
-    // Store registration data temporarily in OTP collection (not in User DB)
-    const OTP = require('../models/OTP');
-    await OTP.deleteMany({ email: email.toLowerCase(), purpose: 'verification' });
-
-    // Save pending registration data in OTP record
-    const otpRecord = await OTP.create({
-      email: email.toLowerCase(),
-      otp: Math.floor(100000 + Math.random() * 900000).toString(),
-      purpose: 'verification',
-      expiresAt: new Date(Date.now() + 10 * 60 * 1000),
-      attempts: 0,
-    });
-
     // Store registration data temporarily (we'll use a separate temp collection)
     const PendingRegistration = require('../models/PendingRegistration');
     await PendingRegistration.deleteMany({ email: email.toLowerCase() });
@@ -109,11 +96,8 @@ const register = async (req, res) => {
       referredBy: referredByUser ? referredByUser._id : null,
     });
 
-    // Send OTP email (non-blocking — don't wait for SMTP, respond immediately)
-    const { sendOTPEmail } = require('../utils/emailService');
-    sendOTPEmail(email.toLowerCase(), otpRecord.otp, 'verification').catch((err) => {
-      console.error('OTP email send failed:', err.message);
-    });
+    // Generate OTP, store in DB, and send email via otpService (uses Brevo HTTP API in production)
+    await generateAndSendOTP(email.toLowerCase(), 'verification');
 
     return res.status(201).json({
       success: true,

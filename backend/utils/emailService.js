@@ -71,19 +71,43 @@ const sendViaSMTP = async ({ to, subject, html }) => {
 };
 
 /**
- * Send email — tries Brevo HTTP API first (works on Railway), falls back to SMTP (works locally)
+ * Send email — In production, ONLY uses Brevo HTTP API (SMTP ports are blocked on Render/cloud).
+ * In development, tries Brevo first then falls back to SMTP.
  */
 const sendEmail = async ({ to, subject, html }) => {
-  // Try Brevo first (HTTP API — no port issues on cloud)
-  if (process.env.BREVO_API_KEY) {
+  const isProduction = process.env.NODE_ENV === 'production';
+
+  if (isProduction) {
+    // Production: ONLY use Brevo HTTP API (port 443)
+    // Render/cloud providers block SMTP ports (465, 587), so SMTP will never work
+    if (!process.env.BREVO_API_KEY) {
+      const errorMsg = '[CRITICAL] BREVO_API_KEY is not set in production environment. Emails cannot be sent. Please add BREVO_API_KEY to your Render environment variables.';
+      console.error(errorMsg);
+      throw new Error(errorMsg);
+    }
+
     try {
-      return await sendViaBrevo({ to, subject, html });
+      const result = await sendViaBrevo({ to, subject, html });
+      console.log(`[Email] Sent successfully via Brevo to ${to} | Subject: ${subject}`);
+      return result;
     } catch (err) {
-      console.error('Brevo email failed:', err.message, '— trying SMTP fallback');
+      console.error(`[Email] Brevo API failed in production | To: ${to} | Error: ${err.message}`);
+      throw err; // Do NOT fallback to SMTP in production - it will never work
     }
   }
 
-  // Fallback to SMTP (works locally)
+  // Development: Try Brevo first, fallback to SMTP
+  if (process.env.BREVO_API_KEY) {
+    try {
+      const result = await sendViaBrevo({ to, subject, html });
+      console.log(`[Email] Sent via Brevo to ${to}`);
+      return result;
+    } catch (err) {
+      console.error('[Email] Brevo failed in dev:', err.message, '- trying SMTP fallback');
+    }
+  }
+
+  // Fallback to SMTP (only works in development/local)
   return await sendViaSMTP({ to, subject, html });
 };
 
