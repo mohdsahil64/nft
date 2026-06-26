@@ -1,12 +1,20 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 
-// Multiple ad videos — randomly picked each time
-const AD_VIDEOS = [
-  'https://www.youtube.com/embed/NbTBkuZOJqY',
-  'https://www.youtube.com/embed/BBftv3uI2ro',
-  'https://www.youtube.com/embed/8tlXp_CGSSc',
-];
+// Multiple ad videos — picked from env or fallback defaults
+const AD_VIDEOS = (process.env.NEXT_PUBLIC_AD_URLS || '')
+  .split(',')
+  .map((url) => url.trim())
+  .filter(Boolean);
+
+// Fallback if no env configured
+if (AD_VIDEOS.length === 0) {
+  AD_VIDEOS.push(
+    'https://www.youtube.com/embed/NbTBkuZOJqY',
+    'https://www.youtube.com/embed/BBftv3uI2ro',
+    'https://www.youtube.com/embed/8tlXp_CGSSc'
+  );
+}
 
 const SKIP_DELAY = 10; // seconds before skip button appears
 

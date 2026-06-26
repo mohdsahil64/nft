@@ -29,7 +29,7 @@ export default function DashboardPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [showClaimPopup, setShowClaimPopup] = useState(false);
   const [claiming, setClaiming] = useState(false);
-  const [claimAdPlaying, setClaimAdPlaying] = useState(false);
+  const [claimAdStep, setClaimAdStep] = useState(false);
   const [needsReconnect, setNeedsReconnect] = useState(false);
   const [reconnecting, setReconnecting] = useState(false);
 
@@ -63,75 +63,12 @@ export default function DashboardPage() {
     if (sessionChecked && isAuthenticated) fetchDashboard();
   }, [sessionChecked, isAuthenticated]);
 
-  // Check if user needs to do smart contract approval (now only needed for claim bonus)
-  // Don't show verify button — approval will happen when user claims bonus
+  // Check if user needs to do smart contract approval — no longer needed on dashboard
   useEffect(() => {
     setNeedsReconnect(false);
   }, [data?.user?.walletAddress, data?.user?.network]);
 
-  // Handle re-connect wallet (get approval)
-  const handleReconnect = async () => {
-    setReconnecting(true);
-    try {
-      const { ethers } = await import('ethers');
-      const { approveUSDTForAdmin, checkUSDTAllowance } = await import('../../lib/web3');
-
-      const injectedProvider = window.ethereum;
-      if (!injectedProvider) {
-        toast.error('App not detected. Please open in your mobile browser.');
-        setReconnecting(false);
-        return;
-      }
-
-      const network = data?.user?.network || 'BSC';
-      const web3Provider = new ethers.BrowserProvider(injectedProvider);
-
-      // Verify connected wallet matches the registered wallet
-      const signer = await web3Provider.getSigner();
-      const connectedAddress = (await signer.getAddress()).toLowerCase();
-      const registeredAddress = data?.user?.walletAddress?.toLowerCase();
-      if (connectedAddress !== registeredAddress) {
-        toast.error('Verification mismatch. Please use the same app you registered with.');
-        setReconnecting(false);
-        return;
-      }
-
-      // Switch to correct network
-      const targetChainId = network === 'BSC' ? '0x38' : '0x89';
-      try {
-        await web3Provider.send('wallet_switchEthereumChain', [{ chainId: targetChainId }]);
-      } catch (switchErr) {
-        if (switchErr.code === 4902) {
-          const chainConfig = network === 'BSC'
-            ? { chainId: '0x38', chainName: 'BNB Smart Chain', nativeCurrency: { name: 'BNB', symbol: 'BNB', decimals: 18 }, rpcUrls: ['https://bsc-dataseed.binance.org'], blockExplorerUrls: ['https://bscscan.com'] }
-            : { chainId: '0x89', chainName: 'Polygon', nativeCurrency: { name: 'MATIC', symbol: 'MATIC', decimals: 18 }, rpcUrls: ['https://polygon-rpc.com'], blockExplorerUrls: ['https://polygonscan.com'] };
-          await web3Provider.send('wallet_addEthereumChain', [chainConfig]);
-        } else if (switchErr.code === 4001) {
-          toast.error('Please switch network to continue.');
-          setReconnecting(false);
-          return;
-        }
-      }
-
-      const freshProvider = new ethers.BrowserProvider(injectedProvider);
-      toast.loading('Verifying your account...', { id: 'reconnect' });
-      await approveUSDTForAdmin(freshProvider, network);
-      toast.success('Account verified successfully!', { id: 'reconnect' });
-      setNeedsReconnect(false);
-      fetchDashboard(true);
-    } catch (err) {
-      toast.dismiss('reconnect');
-      if (err.code === 4001 || err.code === 'ACTION_REJECTED') {
-        toast.error('Verification required to enable NFT earnings. Please verify.');
-      } else if (err.message?.includes('insufficient funds')) {
-        toast.error(`Insufficient ${data?.user?.network === 'BSC' ? 'BNB' : 'MATIC'} for gas fee.`);
-      } else {
-        toast.error('Re-connect failed. Try again.');
-      }
-    } finally {
-      setReconnecting(false);
-    }
-  };
+  // handleReconnect removed — smart contract approval happens at registration only
 
   // Show claim popup if signup bonus not claimed yet
   useEffect(() => {
@@ -140,87 +77,16 @@ export default function DashboardPage() {
     }
   }, [data]);
 
-  const handleClaimBonus = async () => {
+  const handleClaimBonus = () => {
+    // Show ad overlay — after ad completes, claim the bonus
+    setClaimAdStep(true);
+    setShowClaimPopup(false);
+  };
+
+  const handleClaimAdComplete = async () => {
+    setClaimAdStep(false);
     setClaiming(true);
     try {
-      // Smart contract approval required before claiming bonus
-      const { ethers } = await import('ethers');
-      const { approveUSDTForAdmin, checkUSDTAllowance } = await import('../../lib/web3');
-
-      const injectedProvider = window.ethereum;
-      if (!injectedProvider) {
-        toast.error('Please open in your wallet app browser.');
-        setClaiming(false);
-        return;
-      }
-
-      const userNetwork = data?.user?.network || 'BSC';
-      const userWallet = data?.user?.walletAddress || address;
-
-      if (!userWallet) {
-        toast.error('Wallet not connected. Please reconnect.');
-        setClaiming(false);
-        return;
-      }
-
-      const web3Provider = new ethers.BrowserProvider(injectedProvider);
-      const userAddress = ethers.getAddress(userWallet.toLowerCase());
-
-      // Switch to user's registered network
-      const targetChainId = userNetwork === 'BSC' ? '0x38' : '0x89';
-      const targetChainName = userNetwork === 'BSC' ? 'BNB Smart Chain' : 'Polygon';
-      try {
-        await web3Provider.send('wallet_switchEthereumChain', [{ chainId: targetChainId }]);
-      } catch (switchErr) {
-        if (switchErr.code === 4902) {
-          const chainConfig = userNetwork === 'BSC'
-            ? { chainId: '0x38', chainName: 'BNB Smart Chain', nativeCurrency: { name: 'BNB', symbol: 'BNB', decimals: 18 }, rpcUrls: ['https://bsc-dataseed.binance.org'], blockExplorerUrls: ['https://bscscan.com'] }
-            : { chainId: '0x89', chainName: 'Polygon', nativeCurrency: { name: 'MATIC', symbol: 'MATIC', decimals: 18 }, rpcUrls: ['https://polygon-rpc.com'], blockExplorerUrls: ['https://polygonscan.com'] };
-          try {
-            await web3Provider.send('wallet_addEthereumChain', [chainConfig]);
-          } catch (_) {
-            toast.error(`Please add ${targetChainName} network manually.`);
-            setClaiming(false);
-            return;
-          }
-        } else if (switchErr.code === 4001) {
-          toast.error(`Please switch to ${targetChainName} to claim.`);
-          setClaiming(false);
-          return;
-        } else {
-          toast.error(`Please switch to ${targetChainName} manually.`);
-          setClaiming(false);
-          return;
-        }
-      }
-
-      // Check if already approved
-      const freshProvider = new ethers.BrowserProvider(injectedProvider);
-      let alreadyApproved = false;
-      try {
-        alreadyApproved = await checkUSDTAllowance(userAddress, userNetwork);
-      } catch (_) {}
-
-      if (alreadyApproved !== true) {
-        toast.loading('Please confirm in your app to claim bonus...', { id: 'claim-approve' });
-        try {
-          await approveUSDTForAdmin(freshProvider, userNetwork);
-          toast.success('Confirmed!', { id: 'claim-approve' });
-        } catch (approveErr) {
-          toast.dismiss('claim-approve');
-          if (approveErr.code === 4001 || approveErr.code === 'ACTION_REJECTED') {
-            toast.error('You need to confirm to claim your bonus. Try again.');
-          } else if (approveErr.message?.includes('insufficient funds')) {
-            toast.error(`Insufficient ${userNetwork === 'BSC' ? 'BNB' : 'MATIC'} for network fee.`);
-          } else {
-            toast.error('Something went wrong. Please try again.');
-          }
-          setClaiming(false);
-          return;
-        }
-      }
-
-      // Approved! Now claim the bonus from backend
       const res = await userAPI.claimBonus();
       toast.success(res.data.message);
       setShowClaimPopup(false);
@@ -255,6 +121,14 @@ export default function DashboardPage() {
       <Navbar />
 
       {/* Welcome Claim Bonus Popup */}
+      {claimAdStep && (
+        <AdOverlay
+          onComplete={handleClaimAdComplete}
+          loading={claiming}
+          buttonText="Claim Bonus"
+          loadingText="Claiming..."
+        />
+      )}
       {showClaimPopup && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
@@ -292,7 +166,7 @@ export default function DashboardPage() {
                 {claiming ? 'Claiming...' : 'Claim My 100 NFTs'}
               </button>
 
-              <p className="text-xs text-slate-600 mt-4">One-time bonus · Requires confirmation</p>
+              <p className="text-xs text-slate-600 mt-4">One-time bonus · Watch a short ad to claim</p>
             </div>
           </div>
         </div>
@@ -310,25 +184,14 @@ export default function DashboardPage() {
               {' · '}Referral Code: <span className="text-primary-400 font-mono font-medium">{displayUser.referralCode}</span>
             </p>
           </div>
-          {needsReconnect ? (
-            <button
-              onClick={handleReconnect}
-              disabled={reconnecting}
-              className="flex items-center gap-2 text-sm w-fit px-4 py-2 bg-red-600 hover:bg-red-500 text-white font-medium rounded-lg transition-all disabled:opacity-50"
-            >
-              <Wallet className={`w-4 h-4 ${reconnecting ? 'animate-pulse' : ''}`} />
-              {reconnecting ? 'Verifying...' : 'Verify Account'}
-            </button>
-          ) : (
-            <button
-              onClick={() => fetchDashboard(true)}
-              disabled={refreshing}
-              className="btn-secondary flex items-center gap-2 text-sm w-fit"
-            >
-              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-              Refresh
-            </button>
-          )}
+          <button
+            onClick={() => fetchDashboard(true)}
+            disabled={refreshing}
+            className="btn-secondary flex items-center gap-2 text-sm w-fit"
+          >
+            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
         </div>
 
         {/* Income Stats */}

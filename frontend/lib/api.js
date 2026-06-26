@@ -86,7 +86,6 @@ api.interceptors.response.use(
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 export const authAPI = {
   register: (data) => api.post('/api/auth/register', data, { withCredentials: false }),
-  registerDirect: (data) => api.post('/api/auth/register-direct', data, { withCredentials: false }),
   verifyOTP: (data) => api.post('/api/auth/verify-otp', data),
   login: (data) => api.post('/api/auth/login', data),
   loginVerifyOTP: (data) => api.post('/api/auth/login-verify-otp', data),
