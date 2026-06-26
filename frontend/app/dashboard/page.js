@@ -339,7 +339,7 @@ export default function DashboardPage() {
               label="NFT Balance"
               value={wallet.nftBalance?.toLocaleString() || '0'}
               subValue={`≈ $${wallet.usdValue || '0'} USD`}
-              icon={Coins}
+              imageSrc="/assets/favicon/favicon-96x96.png"
               color="primary"
             />
             <StatCard
