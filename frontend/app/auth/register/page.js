@@ -34,9 +34,35 @@ function RegisterContent() {
     walletAddress: address || '',
   });
 
+  // Save referral code from URL to localStorage (so it survives redirect)
   useEffect(() => {
-    if (isAuthenticated) router.push('/dashboard');
-  }, [isAuthenticated, router]);
+    const refFromUrl = searchParams.get('ref');
+    if (refFromUrl) {
+      localStorage.setItem('pendingReferralCode', refFromUrl.toUpperCase());
+    }
+  }, [searchParams]);
+
+  // Load referral code from localStorage if not already in form
+  useEffect(() => {
+    if (!form.referralCode) {
+      const saved = localStorage.getItem('pendingReferralCode');
+      if (saved) {
+        setForm((f) => ({ ...f, referralCode: saved }));
+      }
+    }
+  }, []);
+
+  // If user is already authenticated and clicks a referral link, show message
+  useEffect(() => {
+    if (isAuthenticated) {
+      const refFromUrl = searchParams.get('ref');
+      if (refFromUrl) {
+        toast.error('You already have an account. Referral links are for new users only.');
+        localStorage.removeItem('pendingReferralCode');
+      }
+      router.push('/dashboard');
+    }
+  }, [isAuthenticated, router, searchParams]);
 
   // Check if wallet is already registered
   useEffect(() => {
@@ -50,11 +76,12 @@ function RegisterContent() {
     }
   }, [isConnected, address, router]);
 
-  // Redirect if no wallet connected
+  // Redirect if no wallet connected — save referral code before redirecting
   useEffect(() => {
     const timer = setTimeout(() => {
       if (!isConnected && !window.ethereum?.selectedAddress) {
-        toast.error('Please open your app first to continue');
+        // Referral code already saved in localStorage above
+        toast('Please connect your app first to register', { icon: '👆' });
         router.push('/');
       }
     }, 1500);
@@ -201,6 +228,7 @@ function RegisterContent() {
       const res = await authAPI.verifyOTP({ email: form.email.toLowerCase(), otp });
       const { user, token } = res.data.data;
       if (token) localStorage.setItem('token', token);
+      localStorage.removeItem('pendingReferralCode'); // Clear saved referral code
       dispatch(loginSuccess({ user, token }));
       toast.success('Account created successfully!');
       setStep(4);
