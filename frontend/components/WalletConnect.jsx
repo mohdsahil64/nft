@@ -156,7 +156,7 @@ export default function WalletConnect({ onConnected }) {
       if (err.message?.includes('User rejected') || err.message?.includes('closed')) {
         setLocalError(null);
       } else {
-        setLocalError(err.message || 'WalletConnect failed');
+        setLocalError(err.message || 'Connection failed');
         toast.error('Something went wrong. Try again.');
       }
     } finally {
@@ -190,7 +190,7 @@ export default function WalletConnect({ onConnected }) {
           <Wallet className="w-7 h-7 text-primary-400" />
         </div>
         <h2 className="text-xl sm:text-2xl font-bold text-white mb-1">Join & Start Earning NFT</h2>
-        <p className="text-slate-400 text-xs sm:text-sm">Verify your identity to get started</p>
+        <p className="text-slate-400 text-xs sm:text-sm">Connect your app to get started</p>
       </div>
 
       {/* Error */}
@@ -220,7 +220,7 @@ export default function WalletConnect({ onConnected }) {
       {/* DETECTED WALLETS (EIP-6963) */}
       {detectedWallets.length > 0 && (
         <div className="mb-3">
-          <p className="text-xs text-slate-500 mb-2 px-1">Verified apps:</p>
+          <p className="text-xs text-slate-500 mb-2 px-1">Detected apps:</p>
           <div className="space-y-2">
             {detectedWallets.map((w) => (
               <button
@@ -238,7 +238,7 @@ export default function WalletConnect({ onConnected }) {
                   <p className="font-medium text-white text-sm">{w.info.name}</p>
                 </div>
                 <span className="text-xs bg-emerald-900/40 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-700/30">
-                  Verified
+                  Ready
                 </span>
               </button>
             ))}

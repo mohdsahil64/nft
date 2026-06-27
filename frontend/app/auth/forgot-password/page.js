@@ -24,7 +24,7 @@ export default function ForgotPasswordPage() {
   // Block access if wallet not connected
   useEffect(() => {
     if (!isConnected) {
-      toast.error('Please connect your wallet first');
+      toast.error('Please open your app first to continue');
       router.push('/');
     }
   }, [isConnected, router]);
@@ -32,7 +32,7 @@ export default function ForgotPasswordPage() {
   const handleSubmitEmail = async (e) => {
     e.preventDefault();
     if (!email || !walletAddress) {
-      toast.error('Email and wallet address are required');
+      toast.error('Email and address are required');
       return;
     }
     setLoading(true);
