@@ -1,11 +1,11 @@
 'use client';
 import { useState, useEffect } from 'react';
 
-// Launch time: 28 June 2026, 12:00 PM IST
+// Launch time: 29 June 2026, 12:00 PM IST
 // IST is UTC+5:30, so 12:00 PM IST = 06:30 UTC
 const LAUNCH_YEAR = 2026;
 const LAUNCH_MONTH = 5; // June (0-indexed)
-const LAUNCH_DAY = 28;
+const LAUNCH_DAY = 29;
 const LAUNCH_HOUR = 12; // 12 PM
 const LAUNCH_MINUTE = 0;
 
