@@ -1,6 +1,7 @@
 'use client';
 import { usePathname } from 'next/navigation';
 import MaintenanceScreen, { MAINTENANCE_MODE } from './MaintenanceMode';
+import LaunchCountdown from './LaunchCountdown';
 
 export default function MaintenanceGate({ children }) {
   const pathname = usePathname();
@@ -15,5 +16,10 @@ export default function MaintenanceGate({ children }) {
     return <MaintenanceScreen />;
   }
 
-  return children;
+  return (
+    <>
+      <LaunchCountdown />
+      {children}
+    </>
+  );
 }

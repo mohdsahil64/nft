@@ -44,7 +44,7 @@ const taskDefinitions = [
     key: 'facebook',
     label: 'Facebook',
     description: 'Follow our Facebook page',
-    link: 'https://facebook.com/futuremintnft',
+    link: 'https://www.facebook.com/share/14jsFgXdZPH/',
     icon: '👤',
     color: 'blue',
   },
