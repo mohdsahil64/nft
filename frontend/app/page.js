@@ -432,9 +432,6 @@ export default function LandingPage() {
                 <a href="mailto:futuremintnft@gmail.com" className="flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors">
                   <span>✉️</span> futuremintnft@gmail.com
                 </a>
-                <a href="tel:+919351727145" className="flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors">
-                  <span>📱</span> +91 9351727145
-                </a>
               </div>
             </div>
           </div>
