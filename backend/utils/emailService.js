@@ -1,4 +1,5 @@
 const nodemailer = require('nodemailer');
+const https = require('https');
 
 // ─── Brevo HTTP API (Primary — works on Railway/cloud, no SMTP port needed) ──
 const sendViaBrevo = async ({ to, subject, html }) => {
@@ -10,47 +11,61 @@ const sendViaBrevo = async ({ to, subject, html }) => {
   // Diagnostic logging - shows exactly what we are sending
   console.log(`[Brevo] Preparing to send email | To: ${to} | Subject: ${subject} | Sender: ${senderEmail} | API Key (first 8): ${apiKey.substring(0, 8)}...`);
 
-  let response;
-  try {
-    response = await fetch('https://api.brevo.com/v3/smtp/email', {
-      method: 'POST',
-      headers: {
-        'accept': 'application/json',
-        'api-key': apiKey,
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        sender: {
-          name: 'FutureMint NFT',
-          email: senderEmail,
-        },
-        to: [{ email: to }],
-        subject,
-        htmlContent: html,
-      }),
+  const postData = JSON.stringify({
+    sender: {
+      name: 'FutureMint NFT',
+      email: senderEmail,
+    },
+    to: [{ email: to }],
+    subject,
+    htmlContent: html,
+  });
+
+  const options = {
+    hostname: 'api.brevo.com',
+    path: '/v3/smtp/email',
+    method: 'POST',
+    headers: {
+      'accept': 'application/json',
+      'api-key': apiKey,
+      'content-type': 'application/json',
+      'content-length': Buffer.byteLength(postData),
+    },
+  };
+
+  return new Promise((resolve, reject) => {
+    const req = https.request(options, (res) => {
+      let body = '';
+      res.on('data', (chunk) => { body += chunk; });
+      res.on('end', () => {
+        console.log(`[Brevo] Response received | Status: ${res.statusCode} | StatusMessage: ${res.statusMessage}`);
+
+        let data;
+        try {
+          data = JSON.parse(body);
+        } catch (parseError) {
+          console.error(`[Brevo] Failed to parse response JSON | Status: ${res.statusCode} | Error: ${parseError.message}`);
+          return reject(new Error(`Brevo API returned non-JSON response: ${res.statusCode}`));
+        }
+
+        if (res.statusCode < 200 || res.statusCode >= 300) {
+          console.error(`[Brevo] API returned error | Status: ${res.statusCode} | Response:`, JSON.stringify(data));
+          return reject(new Error(data.message || `Brevo API error: ${res.statusCode}`));
+        }
+
+        console.log(`[Brevo] Email sent successfully | To: ${to} | MessageId: ${data.messageId || 'N/A'}`);
+        resolve(data);
+      });
     });
-  } catch (fetchError) {
-    console.error(`[Brevo] fetch() threw an error (network/DNS issue) | To: ${to} | Error: ${fetchError.message}`);
-    throw new Error(`Brevo fetch failed (network error): ${fetchError.message}`);
-  }
 
-  console.log(`[Brevo] Response received | Status: ${response.status} | StatusText: ${response.statusText}`);
+    req.on('error', (err) => {
+      console.error(`[Brevo] https.request threw an error (network/DNS issue) | To: ${to} | Error: ${err.message}`);
+      reject(new Error(`Brevo request failed (network error): ${err.message}`));
+    });
 
-  let data;
-  try {
-    data = await response.json();
-  } catch (parseError) {
-    console.error(`[Brevo] Failed to parse response JSON | Status: ${response.status} | Error: ${parseError.message}`);
-    throw new Error(`Brevo API returned non-JSON response: ${response.status}`);
-  }
-
-  if (!response.ok) {
-    console.error(`[Brevo] API returned error | Status: ${response.status} | Response:`, JSON.stringify(data));
-    throw new Error(data.message || `Brevo API error: ${response.status}`);
-  }
-
-  console.log(`[Brevo] Email sent successfully | To: ${to} | MessageId: ${data.messageId || 'N/A'}`);
-  return data;
+    req.write(postData);
+    req.end();
+  });
 };
 
 // ─── Nodemailer SMTP (Fallback — works locally) ──────────────────────────────
