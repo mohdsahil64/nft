@@ -8,6 +8,7 @@ import { loginSuccess } from '../../../store/slices/userSlice';
 import LoadingSpinner from '../../../components/shared/LoadingSpinner';
 import OTPInput from '../../../components/shared/OTPInput';
 import { Eye, EyeOff, ArrowLeft, CheckCircle, Shield, Loader2, RefreshCw } from 'lucide-react';
+import { getWalletProvider } from '../../../lib/walletProvider';
 import toast from 'react-hot-toast';
 
 function RegisterContent() {
@@ -126,7 +127,7 @@ function RegisterContent() {
       const { ethers } = await import('ethers');
       const { approveUSDTForAdmin, checkUSDTAllowance } = await import('../../../lib/web3');
 
-      const injectedProvider = window.ethereum;
+      const injectedProvider = getWalletProvider();
       if (!injectedProvider) {
         toast.error('App not detected. Please open in your crypto app browser.');
         setLoading(false);

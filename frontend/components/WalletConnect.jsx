@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useDispatch } from 'react-redux';
 import { connectWallet, setBalances, setConnecting, setError } from '../store/slices/walletSlice';
 import { getAllUSDTBalances } from '../lib/web3';
+import { setWalletProvider } from '../lib/walletProvider';
 import { Wallet, Shield, ChevronRight, Loader2, AlertCircle, QrCode, Fuel } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -91,6 +92,9 @@ export default function WalletConnect({ onConnected }) {
 
       // Dispatch wallet connected immediately (don't wait for balance fetch)
       dispatch(connectWallet({ address, chainId }));
+
+      // Save the exact provider used for this connection (for smart contract calls later)
+      setWalletProvider(provider);
 
       // Persist wallet address for page refresh recovery
       if (typeof window !== 'undefined') {
