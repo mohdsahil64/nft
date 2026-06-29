@@ -97,7 +97,16 @@ const register = async (req, res) => {
     });
 
     // Generate OTP, store in DB, and send email via otpService (uses Brevo HTTP API in production)
-    await generateAndSendOTP(email.toLowerCase(), 'verification');
+    try {
+      await generateAndSendOTP(email.toLowerCase(), 'verification');
+    } catch (otpError) {
+      console.error(`[Register] Failed to send verification email | To: ${email.toLowerCase()} | Error: ${otpError.message}`);
+      console.error(`[Register] Full OTP error:`, otpError);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to send verification email. Please try again.',
+      });
+    }
 
     return res.status(201).json({
       success: true,

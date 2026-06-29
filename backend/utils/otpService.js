@@ -80,14 +80,17 @@ const generateAndSendOTP = async (email, purpose = 'verification') => {
     const isProduction = process.env.NODE_ENV === 'production';
     
     if (isProduction) {
-      // In production, await the email send so errors propagate clearly
-      // Brevo HTTP API is fast (no SMTP timeout), so this won't block long
+      // In production, await the email send and re-throw on failure
+      // so the caller returns a proper error to the user
       try {
+        console.log(`[OTP] Attempting to send OTP email | To: ${email} | Purpose: ${purpose}`);
         await sendOTPEmail(email, otp, purpose);
+        console.log(`[OTP] OTP email sent successfully | To: ${email} | Purpose: ${purpose}`);
       } catch (err) {
-        console.error(`[OTP] Email send failed in production | To: ${email} | Purpose: ${purpose} | Error: ${err.message}`);
-        // Don't throw here - OTP is stored, user can retry with resend-otp
-        // But log clearly so the issue is visible in Render logs
+        console.error(`[OTP] Email send FAILED in production | To: ${email} | Purpose: ${purpose} | Error: ${err.message}`);
+        console.error(`[OTP] Full error:`, err);
+        // Re-throw so the controller can return a proper 500 to the user
+        throw new Error(`Failed to send OTP email: ${err.message}`);
       }
     } else {
       // In development, send non-blocking to avoid SMTP timeouts killing the request

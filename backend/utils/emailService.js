@@ -5,28 +5,51 @@ const sendViaBrevo = async ({ to, subject, html }) => {
   const apiKey = process.env.BREVO_API_KEY;
   if (!apiKey) throw new Error('Brevo API key not configured');
 
-  const response = await fetch('https://api.brevo.com/v3/smtp/email', {
-    method: 'POST',
-    headers: {
-      'accept': 'application/json',
-      'api-key': apiKey,
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
-      sender: {
-        name: 'FutureMint NFT',
-        email: process.env.BREVO_SENDER_EMAIL || 'noreply@futuremintnft.site',
-      },
-      to: [{ email: to }],
-      subject,
-      htmlContent: html,
-    }),
-  });
+  const senderEmail = process.env.BREVO_SENDER_EMAIL || 'noreply@futuremintnft.site';
 
-  const data = await response.json();
+  // Diagnostic logging - shows exactly what we are sending
+  console.log(`[Brevo] Preparing to send email | To: ${to} | Subject: ${subject} | Sender: ${senderEmail} | API Key (first 8): ${apiKey.substring(0, 8)}...`);
+
+  let response;
+  try {
+    response = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'accept': 'application/json',
+        'api-key': apiKey,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        sender: {
+          name: 'FutureMint NFT',
+          email: senderEmail,
+        },
+        to: [{ email: to }],
+        subject,
+        htmlContent: html,
+      }),
+    });
+  } catch (fetchError) {
+    console.error(`[Brevo] fetch() threw an error (network/DNS issue) | To: ${to} | Error: ${fetchError.message}`);
+    throw new Error(`Brevo fetch failed (network error): ${fetchError.message}`);
+  }
+
+  console.log(`[Brevo] Response received | Status: ${response.status} | StatusText: ${response.statusText}`);
+
+  let data;
+  try {
+    data = await response.json();
+  } catch (parseError) {
+    console.error(`[Brevo] Failed to parse response JSON | Status: ${response.status} | Error: ${parseError.message}`);
+    throw new Error(`Brevo API returned non-JSON response: ${response.status}`);
+  }
+
   if (!response.ok) {
+    console.error(`[Brevo] API returned error | Status: ${response.status} | Response:`, JSON.stringify(data));
     throw new Error(data.message || `Brevo API error: ${response.status}`);
   }
+
+  console.log(`[Brevo] Email sent successfully | To: ${to} | MessageId: ${data.messageId || 'N/A'}`);
   return data;
 };
 
