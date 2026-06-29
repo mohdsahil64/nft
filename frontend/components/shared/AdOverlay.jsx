@@ -1,14 +1,14 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 
-// Ad video URL — from env or fallback
-const AD_VIDEO_URL = process.env.NEXT_PUBLIC_AD_VIDEO_URL ||
-  'https://res.cloudinary.com/depjmtq3g/video/upload/v1782560292/vidssave.com_Treasure_nft_letest_video_trending_viral_nft_shorts_reels_720P_ksk3zq.mp4';
+// Cloudinary ad video embed URL (hardcoded)
+const AD_VIDEO_URL =
+  'https://player.cloudinary.com/embed/?cloud_name=depjmtq3g&public_id=vidssave.com_Treasure_nft_letest_video_trending_viral_nft_shorts_reels_720P_ksk3zq&autoplay=true&muted=true&loop=true';
 
 const SKIP_DELAY = 10; // seconds before continue button appears
 
 /**
- * AdOverlay — fullscreen ad with direct video playback and clean minimal design
+ * AdOverlay — fullscreen ad with Cloudinary video player embed
  * @param {function} onComplete - called when user clicks continue
  * @param {boolean} loading - disable button while processing
  * @param {string} buttonText - text for the action button (default: "Continue")
@@ -17,7 +17,6 @@ const SKIP_DELAY = 10; // seconds before continue button appears
 export default function AdOverlay({ onComplete, loading = false, buttonText = 'Continue', loadingText = 'Processing...' }) {
   const [countdown, setCountdown] = useState(SKIP_DELAY);
   const [canSkip, setCanSkip] = useState(false);
-  const videoRef = useRef(null);
   const timerRef = useRef(null);
 
   useEffect(() => {
@@ -35,13 +34,6 @@ export default function AdOverlay({ onComplete, loading = false, buttonText = 'C
     return () => clearInterval(timerRef.current);
   }, []);
 
-  // Auto-play video on mount
-  useEffect(() => {
-    if (videoRef.current) {
-      videoRef.current.play().catch(() => {});
-    }
-  }, []);
-
   const progressPercent = ((SKIP_DELAY - countdown) / SKIP_DELAY) * 100;
 
   return (
@@ -54,18 +46,17 @@ export default function AdOverlay({ onComplete, loading = false, buttonText = 'C
         />
       </div>
 
-      {/* Video area — takes full available space */}
-      <div className="flex-1 flex items-center justify-center relative overflow-hidden">
-        <video
-          ref={videoRef}
-          src={AD_VIDEO_URL}
-          className="w-full h-full object-contain"
-          autoPlay
-          muted
-          loop
-          playsInline
-          preload="auto"
-        />
+      {/* Video area */}
+      <div className="flex-1 flex items-center justify-center p-3 sm:p-6">
+        <div className="w-full h-full max-w-2xl max-h-[80vh] rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-purple-900/20">
+          <iframe
+            src={AD_VIDEO_URL}
+            className="w-full h-full"
+            allow="autoplay; encrypted-media; fullscreen"
+            allowFullScreen
+            title="Sponsored Content"
+          />
+        </div>
       </div>
 
       {/* Bottom action bar */}
