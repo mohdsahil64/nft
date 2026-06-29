@@ -20,7 +20,7 @@ const taskDefinitions = [
     key: 'telegram_group',
     label: 'Telegram Group',
     description: 'Join our Telegram community group',
-    link: 'https://t.me/futuremintnftgroup',
+    link: 'https://t.me/+OVzl_4GF1lQwZWU1',
     icon: '💬',
     color: 'blue',
   },
