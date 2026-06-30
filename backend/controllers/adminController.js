@@ -114,13 +114,22 @@ const adminVerifyLoginOTP = async (req, res) => {
 
 /**
  * GET /api/admin/users
+ * Cached for 15 seconds (only when no search query)
  */
 const getUsers = async (req, res) => {
   try {
+    const { redisGet, redisSet, isRedisAvailable } = require('../config/redis');
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 20;
     const skip = (page - 1) * limit;
     const search = req.query.search || '';
+
+    // Cache only non-search requests
+    const cacheKey = !search ? `admin:users:p${page}` : null;
+    if (cacheKey && isRedisAvailable()) {
+      const cached = await redisGet(cacheKey);
+      if (cached) return res.status(200).json({ success: true, data: cached });
+    }
 
     const query = search
       ? {
@@ -158,10 +167,14 @@ const getUsers = async (req, res) => {
       return u;
     });
 
-    return res.status(200).json({
-      success: true,
-      data: { users: usersWithBalance, pagination: { total, page, pages: Math.ceil(total / limit), limit } },
-    });
+    const responseData = { users: usersWithBalance, pagination: { total, page, pages: Math.ceil(total / limit), limit } };
+
+    // Cache for 15 seconds (non-search only)
+    if (cacheKey && isRedisAvailable()) {
+      redisSet(cacheKey, responseData, 15).catch(() => {});
+    }
+
+    return res.status(200).json({ success: true, data: responseData });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }

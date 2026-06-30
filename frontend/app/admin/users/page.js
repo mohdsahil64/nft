@@ -11,6 +11,7 @@ export default function AdminUsersPage() {
   const [users, setUsers] = useState([]);
   const [pagination, setPagination] = useState({});
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [selectedUser, setSelectedUser] = useState(null);
@@ -32,20 +33,25 @@ export default function AdminUsersPage() {
 
   const fetchUsers = async (retryCount = 0) => {
     setLoading(true);
+    setLoadError(false);
     try {
       const res = await adminAPI.getUsers({ page, limit: 20, search });
-      // Sort users by USDT balance (highest first)
+      if (!res.data?.data?.users) throw new Error('Invalid response');
       const sorted = [...res.data.data.users].sort((a, b) => parseFloat(b.walletUsdt || 0) - parseFloat(a.walletUsdt || 0));
       setUsers(sorted);
       setPagination(res.data.data.pagination);
 
       // Fetch real USDT balances in background
       fetchUsdtBalances(sorted);
-    } catch (_) {
-      if (retryCount < 3) {
-        await new Promise(resolve => setTimeout(resolve, 2000));
+    } catch (err) {
+      if (retryCount < 4) {
+        // Wait longer each retry: 1s, 2s, 3s, 4s
+        await new Promise(resolve => setTimeout(resolve, (retryCount + 1) * 1000));
         return fetchUsers(retryCount + 1);
       }
+      // All retries failed
+      console.error('Failed to load users after retries:', err.message);
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -186,6 +192,15 @@ export default function AdminUsersPage() {
       {/* Users List */}
       {loading ? (
         <div className="space-y-3">{Array(4).fill(0).map((_, i) => <div key={i} className="card h-32 animate-pulse bg-dark-700" />)}</div>
+      ) : loadError ? (
+        <div className="card text-center py-16">
+          <AlertTriangle className="w-12 h-12 mx-auto mb-3 text-yellow-500" />
+          <p className="text-white font-medium mb-1">Failed to load users</p>
+          <p className="text-slate-500 text-sm mb-4">Server is slow or not responding. Try again.</p>
+          <button onClick={() => fetchUsers()} className="btn-primary text-sm px-6">
+            Retry
+          </button>
+        </div>
       ) : users.length === 0 ? (
         <div className="card text-center py-16">
           <Users className="w-12 h-12 mx-auto mb-3 text-slate-600" />
