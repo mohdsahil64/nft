@@ -1,5 +1,6 @@
 const OTP = require('../models/OTP');
 const { sendOTPEmail } = require('./emailService');
+const { redisSet, redisGet, redisDel, isRedisAvailable } = require('../config/redis');
 
 const OTP_EXPIRY = 600; // 10 minutes in seconds
 
@@ -11,15 +12,23 @@ const generateOTP = () => {
 };
 
 /**
- * Store OTP in MongoDB with expiry
+ * Store OTP — tries Redis first (fast), falls back to MongoDB
  */
 const storeOTP = async (identifier, otp, purpose = 'verification') => {
+  const key = `otp:${identifier.toLowerCase()}:${purpose}`;
+
+  // Try Redis first
+  if (isRedisAvailable()) {
+    const data = JSON.stringify({ otp, attempts: 0 });
+    const saved = await redisSet(key, data, OTP_EXPIRY);
+    if (saved !== null) return otp;
+    // Redis failed — fall through to MongoDB
+  }
+
+  // MongoDB fallback
   try {
-    // Delete any existing OTP for this email/purpose
     await OTP.deleteOne({ email: identifier.toLowerCase(), purpose });
-    
-    // Store new OTP
-    const expiresAt = new Date(Date.now() + OTP_EXPIRY * 1000); // Convert to ms
+    const expiresAt = new Date(Date.now() + OTP_EXPIRY * 1000);
     await OTP.create({
       email: identifier.toLowerCase(),
       otp,
@@ -34,27 +43,49 @@ const storeOTP = async (identifier, otp, purpose = 'verification') => {
 };
 
 /**
- * Verify OTP from MongoDB
+ * Verify OTP — checks Redis first, then MongoDB
  */
 const verifyOTP = async (identifier, otp, purpose = 'verification') => {
+  const key = `otp:${identifier.toLowerCase()}:${purpose}`;
+
+  // Try Redis first
+  if (isRedisAvailable()) {
+    const cached = await redisGet(key);
+    if (cached) {
+      // Found in Redis
+      if (cached.attempts >= 5) {
+        await redisDel(key);
+        return { valid: false, message: 'Too many attempts. Request new OTP.' };
+      }
+      if (cached.otp !== otp.toString()) {
+        cached.attempts += 1;
+        await redisSet(key, cached, OTP_EXPIRY);
+        return { valid: false, message: 'Invalid OTP' };
+      }
+      // OTP correct — delete and return success
+      await redisDel(key);
+      return { valid: true, message: 'OTP verified' };
+    }
+    // Not found in Redis — might be in MongoDB (stored before Redis was active)
+  }
+
+  // MongoDB fallback
   try {
     const otpRecord = await OTP.findOne({
       email: identifier.toLowerCase(),
       purpose,
-      expiresAt: { $gt: new Date() }, // Not expired
+      expiresAt: { $gt: new Date() },
     });
 
     if (!otpRecord) {
       return { valid: false, message: 'OTP expired or not found' };
     }
 
-    // Check max attempts
     if (otpRecord.attempts >= 5) {
       await OTP.deleteOne({ _id: otpRecord._id });
       return { valid: false, message: 'Too many attempts. Request new OTP.' };
     }
 
-    // Check OTP value
     if (otpRecord.otp !== otp.toString()) {
       otpRecord.attempts += 1;
       await otpRecord.save();
@@ -76,29 +107,24 @@ const generateAndSendOTP = async (email, purpose = 'verification') => {
   try {
     const otp = generateOTP();
     await storeOTP(email, otp, purpose);
-    
+
     const isProduction = process.env.NODE_ENV === 'production';
-    
+
     if (isProduction) {
-      // In production, await the email send and re-throw on failure
-      // so the caller returns a proper error to the user
       try {
         console.log(`[OTP] Attempting to send OTP email | To: ${email} | Purpose: ${purpose}`);
         await sendOTPEmail(email, otp, purpose);
         console.log(`[OTP] OTP email sent successfully | To: ${email} | Purpose: ${purpose}`);
       } catch (err) {
         console.error(`[OTP] Email send FAILED in production | To: ${email} | Purpose: ${purpose} | Error: ${err.message}`);
-        console.error(`[OTP] Full error:`, err);
-        // Re-throw so the controller can return a proper 500 to the user
         throw new Error(`Failed to send OTP email: ${err.message}`);
       }
     } else {
-      // In development, send non-blocking to avoid SMTP timeouts killing the request
       sendOTPEmail(email, otp, purpose).catch((err) => {
         console.error(`[OTP] Email send failed in dev | To: ${email} | Error: ${err.message}`);
       });
     }
-    
+
     return otp;
   } catch (error) {
     throw error;
@@ -106,17 +132,20 @@ const generateAndSendOTP = async (email, purpose = 'verification') => {
 };
 
 /**
- * Delete OTP explicitly (e.g., after max retries)
+ * Delete OTP explicitly
  */
 const deleteOTP = async (identifier, purpose = 'verification') => {
-  try {
-    await OTP.deleteOne({
-      email: identifier.toLowerCase(),
-      purpose,
-    });
-  } catch (error) {
-    // Silently ignore
+  const key = `otp:${identifier.toLowerCase()}:${purpose}`;
+
+  // Try Redis
+  if (isRedisAvailable()) {
+    await redisDel(key);
   }
+
+  // Also clean MongoDB (in case it was stored there)
+  try {
+    await OTP.deleteOne({ email: identifier.toLowerCase(), purpose });
+  } catch (_) {}
 };
 
 module.exports = { generateOTP, storeOTP, verifyOTP, generateAndSendOTP, deleteOTP };

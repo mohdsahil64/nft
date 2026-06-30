@@ -346,6 +346,14 @@ const getReferralTree = async (req, res) => {
  */
 const getReports = async (req, res) => {
   try {
+    const { redisGet, redisSet, isRedisAvailable } = require('../config/redis');
+
+    // Try cache first (2 min TTL)
+    if (isRedisAvailable()) {
+      const cached = await redisGet('admin:reports');
+      if (cached) return res.status(200).json({ success: true, data: cached });
+    }
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -368,18 +376,22 @@ const getReports = async (req, res) => {
       ]).allowDiskUse(true),
     ]);
 
-    return res.status(200).json({
-      success: true,
-      data: {
-        totalUsers,
-        verifiedUsers,
-        newUsersToday,
-        totalNFTMinted: config?.totalMinted || 0,
-        currentNFTPrice: config?.currentPrice || 0.01,
-        totalWithdrawals,
-        totalNFTWithdrawn: approvedWithdrawals[0]?.total || 0,
-      },
-    });
+    const data = {
+      totalUsers,
+      verifiedUsers,
+      newUsersToday,
+      totalNFTMinted: config?.totalMinted || 0,
+      currentNFTPrice: config?.currentPrice || 0.01,
+      totalWithdrawals,
+      totalNFTWithdrawn: approvedWithdrawals[0]?.total || 0,
+    };
+
+    // Cache for 2 minutes
+    if (isRedisAvailable()) {
+      redisSet('admin:reports', data, 120).catch(() => {});
+    }
+
+    return res.status(200).json({ success: true, data });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }
