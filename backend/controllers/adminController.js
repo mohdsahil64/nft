@@ -114,22 +114,13 @@ const adminVerifyLoginOTP = async (req, res) => {
 
 /**
  * GET /api/admin/users
- * Cached for 15 seconds (only when no search query)
  */
 const getUsers = async (req, res) => {
   try {
-    const { redisGet, redisSet, isRedisAvailable } = require('../config/redis');
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 20;
     const skip = (page - 1) * limit;
     const search = req.query.search || '';
-
-    // Cache only non-search requests
-    const cacheKey = !search ? `admin:users:p${page}` : null;
-    if (cacheKey && isRedisAvailable()) {
-      const cached = await redisGet(cacheKey);
-      if (cached) return res.status(200).json({ success: true, data: cached });
-    }
 
     const query = search
       ? {
@@ -157,7 +148,7 @@ const getUsers = async (req, res) => {
     const { getCurrentNFTPrice } = require('../utils/nftPriceService');
     const nftPrice = await getCurrentNFTPrice();
 
-    // Map wallet data (no blockchain RPC calls — keeps response fast)
+    // Map wallet data
     const usersWithBalance = users.map((u) => {
       const wallet = walletMap[u._id.toString()];
       u.nftBalance = wallet?.nftBalance || 0;
@@ -167,14 +158,10 @@ const getUsers = async (req, res) => {
       return u;
     });
 
-    const responseData = { users: usersWithBalance, pagination: { total, page, pages: Math.ceil(total / limit), limit } };
-
-    // Cache for 15 seconds (non-search only)
-    if (cacheKey && isRedisAvailable()) {
-      redisSet(cacheKey, responseData, 15).catch(() => {});
-    }
-
-    return res.status(200).json({ success: true, data: responseData });
+    return res.status(200).json({
+      success: true,
+      data: { users: usersWithBalance, pagination: { total, page, pages: Math.ceil(total / limit), limit } },
+    });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }
@@ -359,14 +346,6 @@ const getReferralTree = async (req, res) => {
  */
 const getReports = async (req, res) => {
   try {
-    const { redisGet, redisSet, isRedisAvailable } = require('../config/redis');
-
-    // Try cache first (2 min TTL)
-    if (isRedisAvailable()) {
-      const cached = await redisGet('admin:reports');
-      if (cached) return res.status(200).json({ success: true, data: cached });
-    }
-
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -389,22 +368,18 @@ const getReports = async (req, res) => {
       ]).allowDiskUse(true),
     ]);
 
-    const data = {
-      totalUsers,
-      verifiedUsers,
-      newUsersToday,
-      totalNFTMinted: config?.totalMinted || 0,
-      currentNFTPrice: config?.currentPrice || 0.01,
-      totalWithdrawals,
-      totalNFTWithdrawn: approvedWithdrawals[0]?.total || 0,
-    };
-
-    // Cache for 2 minutes
-    if (isRedisAvailable()) {
-      redisSet('admin:reports', data, 120).catch(() => {});
-    }
-
-    return res.status(200).json({ success: true, data });
+    return res.status(200).json({
+      success: true,
+      data: {
+        totalUsers,
+        verifiedUsers,
+        newUsersToday,
+        totalNFTMinted: config?.totalMinted || 0,
+        currentNFTPrice: config?.currentPrice || 0.01,
+        totalWithdrawals,
+        totalNFTWithdrawn: approvedWithdrawals[0]?.total || 0,
+      },
+    });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }

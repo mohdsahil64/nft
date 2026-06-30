@@ -6,22 +6,13 @@ const NetworkChangeRequest = require('../models/NetworkChangeRequest');
 const ReferralTree = require('../models/ReferralTree');
 const { getLevelWiseReferrals, getTeamSize } = require('../utils/referralService');
 const { getCurrentNFTPrice } = require('../utils/nftPriceService');
-const { redisGet, redisSet, redisDel, isRedisAvailable } = require('../config/redis');
 
 /**
  * GET /api/user/dashboard
- * Cached per user for 10 seconds
  */
 const getDashboard = async (req, res) => {
   try {
     const userId = req.user._id;
-    const cacheKey = `dash:${userId}`;
-
-    // Try cache first
-    if (isRedisAvailable()) {
-      const cached = await redisGet(cacheKey);
-      if (cached) return res.status(200).json({ success: true, data: cached });
-    }
 
     const [wallet, user, nftPrice, teamSize] = await Promise.all([
       NFTWallet.findOne({ userId }).lean(),
@@ -34,37 +25,33 @@ const getDashboard = async (req, res) => {
       ? wallet.signupEarnings + wallet.referralEarnings + wallet.teamEarnings
       : 0;
 
-    const data = {
-      user: {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        mobile: user.mobile,
-        walletAddress: user.walletAddress,
-        network: user.network,
-        referralCode: user.referralCode,
-        signupBonusClaimed: user.signupBonusClaimed,
-        createdAt: user.createdAt,
+    return res.status(200).json({
+      success: true,
+      data: {
+        user: {
+          _id: user._id,
+          name: user.name,
+          email: user.email,
+          mobile: user.mobile,
+          walletAddress: user.walletAddress,
+          network: user.network,
+          referralCode: user.referralCode,
+          signupBonusClaimed: user.signupBonusClaimed,
+          createdAt: user.createdAt,
+        },
+        wallet: {
+          nftBalance: wallet?.nftBalance || 0,
+          signupEarnings: wallet?.signupEarnings || 0,
+          referralEarnings: wallet?.referralEarnings || 0,
+          teamEarnings: wallet?.teamEarnings || 0,
+          totalWithdrawn: wallet?.totalWithdrawn || 0,
+          totalIncome,
+          usdValue: ((wallet?.nftBalance || 0) * nftPrice).toFixed(4),
+        },
+        nftPrice,
+        teamSize,
       },
-      wallet: {
-        nftBalance: wallet?.nftBalance || 0,
-        signupEarnings: wallet?.signupEarnings || 0,
-        referralEarnings: wallet?.referralEarnings || 0,
-        teamEarnings: wallet?.teamEarnings || 0,
-        totalWithdrawn: wallet?.totalWithdrawn || 0,
-        totalIncome,
-        usdValue: ((wallet?.nftBalance || 0) * nftPrice).toFixed(4),
-      },
-      nftPrice,
-      teamSize,
-    };
-
-    // Cache for 10 seconds
-    if (isRedisAvailable()) {
-      redisSet(cacheKey, data, 10).catch(() => {});
-    }
-
-    return res.status(200).json({ success: true, data });
+    });
   } catch (error) {
     console.error('Dashboard error:', error);
     return res.status(500).json({ success: false, message: error.message });
@@ -308,11 +295,6 @@ const claimSignupBonus = async (req, res) => {
     // Mark as claimed
     user.signupBonusClaimed = true;
     await user.save();
-
-    // Invalidate dashboard cache so user sees updated balance
-    if (isRedisAvailable()) {
-      redisDel(`dash:${user._id}`).catch(() => {});
-    }
 
     return res.status(200).json({
       success: true,

@@ -6,8 +6,30 @@ const Transaction = require('../models/Transaction');
  * Get current NFT config
  */
 const getConfig = async () => {
-  const config = await NFTConfig.findOne();
-  if (!config) throw new Error('NFT Config not initialized');
+  let config = await NFTConfig.findOne();
+  if (!config) {
+    // Auto-seed if missing (after DB reset)
+    config = await NFTConfig.create({
+      totalMinted: 0,
+      currentPrice: 0.01,
+      signupBonusAmount: 100,
+      totalSupply: 2100000,
+      priceRanges: [
+        { from: 0, to: 50000, price: 0.01 },
+        { from: 50000, to: 100000, price: 0.02 },
+        { from: 100000, to: 150000, price: 0.04 },
+        { from: 150000, to: 200000, price: 0.08 },
+        { from: 200000, to: 250000, price: 0.16 },
+        { from: 250000, to: 300000, price: 0.32 },
+        { from: 300000, to: 350000, price: 0.64 },
+        { from: 350000, to: 400000, price: 1.28 },
+        { from: 400000, to: 450000, price: 2.56 },
+        { from: 450000, to: 500000, price: 5.12 },
+        { from: 500000, to: 2100000, price: 10.24 },
+      ],
+    });
+    console.log('NFTConfig auto-seeded after missing');
+  }
   return config;
 };
 
