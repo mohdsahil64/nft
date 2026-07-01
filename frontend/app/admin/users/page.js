@@ -258,11 +258,11 @@ export default function AdminUsersPage() {
                 {u.walletAddress && (
                   <button
                     onClick={() => { navigator.clipboard.writeText(u.walletAddress); toast.success('Address copied!'); }}
-                    className="flex items-center gap-1 font-mono hover:text-primary-400 transition-colors"
-                    title={u.walletAddress}
+                    className="flex items-center gap-1.5 font-mono hover:text-primary-400 transition-colors break-all text-left"
+                    title="Click to copy"
                   >
-                    🔗 {u.walletAddress.slice(0, 6)}...{u.walletAddress.slice(-4)}
-                    <Copy className="w-3 h-3" />
+                    🔗 <span className="break-all">{u.walletAddress}</span>
+                    <Copy className="w-3 h-3 flex-shrink-0" />
                   </button>
                 )}
                 <span>📅 {new Date(u.createdAt).toLocaleDateString()}</span>
