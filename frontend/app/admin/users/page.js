@@ -4,7 +4,7 @@ import { adminAPI } from '../../../lib/api';
 import AdminLayout from '../AdminLayout';
 import Modal from '../../../components/shared/Modal';
 import ConfirmDialog from '../../../components/shared/ConfirmDialog';
-import { Search, Ban, CheckCircle, Edit2, Users, ChevronLeft, ChevronRight, Coins, Wallet, Send, AlertTriangle } from 'lucide-react';
+import { Search, Ban, CheckCircle, Edit2, Users, ChevronLeft, ChevronRight, Coins, Wallet, Send, AlertTriangle, Copy } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function AdminUsersPage() {
@@ -255,7 +255,16 @@ export default function AdminUsersPage() {
               {/* Row 3: Phone + Wallet + Date */}
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 mb-3">
               
-                {u.walletAddress && <span className="font-mono">🔗 {u.walletAddress.slice(0, 6)}...{u.walletAddress.slice(-4)}</span>}
+                {u.walletAddress && (
+                  <button
+                    onClick={() => { navigator.clipboard.writeText(u.walletAddress); toast.success('Address copied!'); }}
+                    className="flex items-center gap-1 font-mono hover:text-primary-400 transition-colors"
+                    title={u.walletAddress}
+                  >
+                    🔗 {u.walletAddress.slice(0, 6)}...{u.walletAddress.slice(-4)}
+                    <Copy className="w-3 h-3" />
+                  </button>
+                )}
                 <span>📅 {new Date(u.createdAt).toLocaleDateString()}</span>
               </div>
 
