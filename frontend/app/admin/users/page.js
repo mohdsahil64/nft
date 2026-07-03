@@ -28,7 +28,9 @@ export default function AdminUsersPage() {
   const [transferAmount, setTransferAmount] = useState('');
   const [transferConfirm, setTransferConfirm] = useState(false);
   const [transferring, setTransferring] = useState(false);
-  const [adminWalletAddress, setAdminWalletAddress] = useState(''); = async (retryCount = 0) => {
+  const [adminWalletAddress, setAdminWalletAddress] = useState('');
+
+  const fetchUsers = async (retryCount = 0) => {
     setLoading(true);
     setLoadError(false);
     try {
