@@ -76,7 +76,7 @@ export default function AdminUsersPage() {
           }
           return u;
         });
-        // Re-sort by USDT balance
+        // Sort by USDT balance highest first (any network)
         return updated.sort((a, b) => parseFloat(b.walletUsdt || 0) - parseFloat(a.walletUsdt || 0));
       });
     } catch (_) {
@@ -177,14 +177,14 @@ export default function AdminUsersPage() {
           <h1 className="page-title mb-0">Users</h1>
           <p className="text-xs text-slate-500 mt-1">{pagination.total || 0} registered</p>
         </div>
-        <div className="relative">
+        <div className="relative w-full sm:w-56">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
-            placeholder="Search..."
+            placeholder="Search name, email, mobile..."
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            className="input-field pl-10 w-full sm:w-56"
+            className="input-field pl-10 w-full"
           />
         </div>
       </div>

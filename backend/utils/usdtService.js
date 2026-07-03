@@ -3,7 +3,7 @@ const { ethers } = require('ethers');
 const ERC20_ABI = ['function balanceOf(address) view returns (uint256)', 'function decimals() view returns (uint8)'];
 
 const BSC_RPC = process.env.BSC_RPC || 'https://bsc-dataseed.binance.org';
-const POLYGON_RPC = process.env.POLYGON_RPC || 'https://polygon-rpc.com';
+const POLYGON_RPC = process.env.POLYGON_RPC || 'https://polygon-bor-rpc.publicnode.com';
 const USDT_BSC = process.env.USDT_BSC_CONTRACT || '0x55d398326f99059fF775485246999027B3197955';
 const USDT_POLYGON = process.env.USDT_POLYGON_CONTRACT || '0xc2132D05D31c914a87C6611C10748AEb04B58e8F';
 

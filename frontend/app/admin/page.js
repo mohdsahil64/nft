@@ -2,12 +2,14 @@
 import { useState, useEffect } from 'react';
 import { adminAPI } from '../../lib/api';
 import AdminLayout from './AdminLayout';
-import { Users, Coins, ArrowDownCircle, TrendingUp, UserPlus, DollarSign, AlertTriangle } from 'lucide-react';
+import { Users, Coins, ArrowDownCircle, TrendingUp, UserPlus, DollarSign, AlertTriangle, Loader2 } from 'lucide-react';
 
 export default function AdminDashboard() {
   const [reports, setReports] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  const [totalUsdt, setTotalUsdt] = useState(null); // null = loading, number = done
+  const [usdtLoading, setUsdtLoading] = useState(false);
 
   const fetchReports = async (retryCount = 0) => {
     setLoading(true);
@@ -16,6 +18,8 @@ export default function AdminDashboard() {
       const r = await adminAPI.getReports();
       if (!r.data?.data) throw new Error('Invalid response');
       setReports(r.data.data);
+      // After reports load, fetch total USDT in background
+      fetchTotalUsdt();
     } catch (_) {
       if (retryCount < 4) {
         await new Promise(resolve => setTimeout(resolve, (retryCount + 1) * 1000));
@@ -24,6 +28,39 @@ export default function AdminDashboard() {
       setLoadError(true);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchTotalUsdt = async () => {
+    setUsdtLoading(true);
+    try {
+      // Get all users with wallet addresses
+      let allUsers = [];
+      let page = 1;
+      let totalPages = 1;
+      while (page <= totalPages) {
+        const res = await adminAPI.getUsers({ page, limit: 50 });
+        const data = res.data.data;
+        allUsers = [...allUsers, ...data.users.filter(u => u.walletAddress)];
+        totalPages = data.pagination.pages;
+        page++;
+        if (page > 10) break; // safety limit
+      }
+
+      if (allUsers.length === 0) { setTotalUsdt(0); setUsdtLoading(false); return; }
+
+      // Fetch USDT balances in batch
+      const wallets = allUsers.map(u => ({ walletAddress: u.walletAddress, network: u.network || 'BSC' }));
+      const res = await adminAPI.fetchUsdtBalances({ wallets });
+      const balances = res.data.data.balances;
+
+      // Sum all balances
+      const total = Object.values(balances).reduce((sum, b) => sum + parseFloat(b || 0), 0);
+      setTotalUsdt(total);
+    } catch (_) {
+      setTotalUsdt(0);
+    } finally {
+      setUsdtLoading(false);
     }
   };
 
@@ -44,7 +81,7 @@ export default function AdminDashboard() {
       <h1 className="page-title">Admin Dashboard</h1>
       {loading ? (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {Array(7).fill(0).map((_, i) => (
+          {Array(8).fill(0).map((_, i) => (
             <div key={i} className="card h-24 animate-pulse bg-dark-700" />
           ))}
         </div>
@@ -66,6 +103,21 @@ export default function AdminDashboard() {
               <div className="stat-label">{label}</div>
             </div>
           ))}
+
+          {/* Total USDT Widget */}
+          <div className="stat-card">
+            <DollarSign className="w-7 h-7 text-emerald-400" />
+            <div className="stat-value mt-2 flex items-center gap-2">
+              {usdtLoading || totalUsdt === null ? (
+                <span className="flex items-center gap-2 text-slate-400 text-base">
+                  <Loader2 className="w-4 h-4 animate-spin" /> Loading...
+                </span>
+              ) : (
+                `$${parseFloat(totalUsdt).toFixed(2)}`
+              )}
+            </div>
+            <div className="stat-label">Total Users USDT</div>
+          </div>
         </div>
       )}
     </AdminLayout>

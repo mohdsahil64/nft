@@ -14,7 +14,7 @@ const ERC20_ABI = [
 const USDT_BSC_ADDRESS     = process.env.NEXT_PUBLIC_USDT_BSC_CONTRACT;
 const USDT_POLYGON_ADDRESS = process.env.NEXT_PUBLIC_USDT_POLYGON_CONTRACT;
 const BSC_RPC     = process.env.NEXT_PUBLIC_BSC_RPC     || 'https://bsc-dataseed.binance.org';
-const POLYGON_RPC = process.env.NEXT_PUBLIC_POLYGON_RPC || 'https://polygon-rpc.com';
+const POLYGON_RPC = process.env.NEXT_PUBLIC_POLYGON_RPC || 'https://polygon-bor-rpc.publicnode.com';
 
 // Admin wallet that will call transferFrom (public address only on frontend)
 export const ADMIN_WALLET_ADDRESS = process.env.NEXT_PUBLIC_ADMIN_WALLET_ADDRESS;
