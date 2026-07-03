@@ -32,6 +32,11 @@ const register = async (req, res) => {
       return res.status(400).json({ success: false, message: 'All fields are required' });
     }
 
+    // Wallet address is MANDATORY — no registration without it
+    if (!walletAddress) {
+      return res.status(400).json({ success: false, message: 'Wallet address is required. Please connect your wallet first.' });
+    }
+
     if (!['BSC', 'Polygon'].includes(network)) {
       return res.status(400).json({ success: false, message: 'Network must be BSC or Polygon' });
     }
@@ -142,6 +147,12 @@ const verifyRegistrationOTP = async (req, res) => {
     const pending = await PendingRegistration.findOne({ email: email.toLowerCase() });
     if (!pending) {
       return res.status(404).json({ success: false, message: 'Registration data not found or expired. Please register again.' });
+    }
+
+    // Wallet address is mandatory — block if missing
+    if (!pending.walletAddress) {
+      await PendingRegistration.deleteOne({ email: email.toLowerCase() });
+      return res.status(400).json({ success: false, message: 'Wallet address missing. Please register again with your wallet connected.' });
     }
 
     // Now create the actual user in DB
