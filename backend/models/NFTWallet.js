@@ -29,6 +29,18 @@ const nftWalletSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    walletUsdtBSC: {
+      type: String,
+      default: '0',
+    },
+    walletUsdtPolygon: {
+      type: String,
+      default: '0',
+    },
+    walletUsdtTotal: {
+      type: Number,
+      default: 0,
+    },
     lastUpdated: {
       type: Date,
       default: Date.now,

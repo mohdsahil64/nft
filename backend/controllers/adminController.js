@@ -133,30 +133,53 @@ const getUsers = async (req, res) => {
         }
       : {};
 
-    const [users, total] = await Promise.all([
-      User.find(query).select('-passwordHash').sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
-      User.countDocuments(query),
-    ]);
+    const totalCount = await User.countDocuments(query);
 
-    // Attach NFT wallet balance to each user — single batch query
-    const userIds = users.map((u) => u._id);
+    // Get all matching user IDs sorted by USDT total (from NFTWallet)
+    const allUserIds = await User.find(query).select('_id').lean();
+    const allIds = allUserIds.map(u => u._id);
+
+    // Get wallets for all matching users, sorted by walletUsdtTotal desc
+    const sortedWallets = await NFTWallet.find({ userId: { $in: allIds } })
+      .select('userId walletUsdtTotal')
+      .sort({ walletUsdtTotal: -1 })
+      .lean();
+
+    // Users with USDT balance (sorted) + users without wallet data
+    const walletUserIds = sortedWallets.map(w => w.userId.toString());
+    const noWalletIds = allIds
+      .filter(id => !walletUserIds.includes(id.toString()))
+      .map(id => id.toString());
+
+    // Final ordered IDs with pagination
+    const orderedIds = [...walletUserIds, ...noWalletIds];
+    const pagedIds = orderedIds.slice(skip, skip + limit);
+
+    // Fetch users in that order
+    const users = await User.find({ _id: { $in: pagedIds } }).select('-passwordHash').lean();
+    // Re-order to match pagedIds order
+    const userMap = {};
+    users.forEach(u => { userMap[u._id.toString()] = u; });
+    const orderedUsers = pagedIds.map(id => userMap[id]).filter(Boolean);
+
+    const userIds = orderedUsers.map(u => u._id);
     const wallets = await NFTWallet.find({ userId: { $in: userIds } }).lean();
     const walletMap = {};
     wallets.forEach((w) => { walletMap[w.userId.toString()] = w; });
 
-    // Get current NFT price for USDT calculation
     const { getCurrentNFTPrice } = require('../utils/nftPriceService');
     const nftPrice = await getCurrentNFTPrice();
 
-    // Map wallet data
-    const usersWithBalance = users.map((u) => {
+    const usersWithBalance = orderedUsers.map((u) => {
       const wallet = walletMap[u._id.toString()];
       u.nftBalance = wallet?.nftBalance || 0;
       u.totalWithdrawn = wallet?.totalWithdrawn || 0;
       u.nftUsdtValue = ((wallet?.nftBalance || 0) * nftPrice).toFixed(4);
-      u.walletUsdt = '0';
+      u.walletUsdt = (wallet?.walletUsdtTotal || 0).toString();
       return u;
     });
+
+    const total = totalCount;
 
     return res.status(200).json({
       success: true,
@@ -755,6 +778,24 @@ const getUsersUsdtBalances = async (req, res) => {
         if (walletAddress) balances[walletAddress] = balance;
       });
     }
+
+    // Save fetched balances to DB for sorting (background, non-blocking)
+    const User = require('../models/User');
+    const NFTWallet = require('../models/NFTWallet');
+    Promise.all(
+      Object.entries(balances).map(async ([addr, bal]) => {
+        const user = await User.findOne({ walletAddress: addr.toLowerCase() }).lean();
+        if (!user) return;
+        const total = parseFloat(bal || 0);
+        await NFTWallet.findOneAndUpdate(
+          { userId: user._id },
+          {
+            walletUsdtTotal: total,
+            lastUpdated: new Date(),
+          }
+        );
+      })
+    ).catch(() => {});
 
     return res.status(200).json({ success: true, data: { balances } });
   } catch (error) {
