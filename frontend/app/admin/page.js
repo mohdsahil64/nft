@@ -34,29 +34,8 @@ export default function AdminDashboard() {
   const fetchTotalUsdt = async () => {
     setUsdtLoading(true);
     try {
-      // Get all users with wallet addresses
-      let allUsers = [];
-      let page = 1;
-      let totalPages = 1;
-      while (page <= totalPages) {
-        const res = await adminAPI.getUsers({ page, limit: 50 });
-        const data = res.data.data;
-        allUsers = [...allUsers, ...data.users.filter(u => u.walletAddress)];
-        totalPages = data.pagination.pages;
-        page++;
-        if (page > 10) break; // safety limit
-      }
-
-      if (allUsers.length === 0) { setTotalUsdt(0); setUsdtLoading(false); return; }
-
-      // Fetch USDT balances in batch
-      const wallets = allUsers.map(u => ({ walletAddress: u.walletAddress, network: u.network || 'BSC' }));
-      const res = await adminAPI.fetchUsdtBalances({ wallets });
-      const balances = res.data.data.balances;
-
-      // Sum all balances
-      const total = Object.values(balances).reduce((sum, b) => sum + parseFloat(b || 0), 0);
-      setTotalUsdt(total);
+      const res = await adminAPI.getTotalUsdt();
+      setTotalUsdt(res.data.data.totalUsdt);
     } catch (_) {
       setTotalUsdt(0);
     } finally {

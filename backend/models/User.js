@@ -29,9 +29,16 @@ const userSchema = new mongoose.Schema(
     },
     walletAddress: {
       type: String,
+      required: [true, 'Wallet address is required'],
       trim: true,
       lowercase: true,
       index: true,
+      validate: {
+        validator: function(v) {
+          return v && v.startsWith('0x') && v.length === 42;
+        },
+        message: 'Valid wallet address (0x...) is required'
+      }
     },
     network: {
       type: String,

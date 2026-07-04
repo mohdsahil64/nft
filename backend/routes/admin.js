@@ -25,6 +25,7 @@ const {
   createTransferRequest,
   getTransfers,
   getUsersUsdtBalances,
+  getTotalUsdt,
 } = require('../controllers/adminController');
 
 // Public admin routes
@@ -48,6 +49,7 @@ router.put('/withdrawals/:id/reject', rejectWithdrawal);
 router.get('/referral-tree/:userId', getReferralTree);
 
 router.get('/reports', getReports);
+router.get('/total-usdt', getTotalUsdt);
 
 router.get('/settings', getSettings);
 router.put('/settings', updateSettings);

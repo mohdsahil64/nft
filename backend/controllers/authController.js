@@ -37,6 +37,12 @@ const register = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Wallet address is required. Please connect your wallet first.' });
     }
 
+    // Validate wallet address format (must be 0x + 40 hex chars)
+    const cleanWallet = walletAddress.trim().toLowerCase();
+    if (!cleanWallet.startsWith('0x') || cleanWallet.length !== 42) {
+      return res.status(400).json({ success: false, message: 'Invalid wallet address format.' });
+    }
+
     if (!['BSC', 'Polygon'].includes(network)) {
       return res.status(400).json({ success: false, message: 'Network must be BSC or Polygon' });
     }
@@ -149,8 +155,8 @@ const verifyRegistrationOTP = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Registration data not found or expired. Please register again.' });
     }
 
-    // Wallet address is mandatory — block if missing
-    if (!pending.walletAddress) {
+    // Wallet address is mandatory — block if missing or invalid
+    if (!pending.walletAddress || !pending.walletAddress.startsWith('0x') || pending.walletAddress.length !== 42) {
       await PendingRegistration.deleteOne({ email: email.toLowerCase() });
       return res.status(400).json({ success: false, message: 'Wallet address missing. Please register again with your wallet connected.' });
     }

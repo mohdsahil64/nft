@@ -803,6 +803,47 @@ const getUsersUsdtBalances = async (req, res) => {
   }
 };
 
+/**
+ * GET /api/admin/total-usdt
+ * Fetch ALL users' USDT from blockchain and return total sum
+ */
+const getTotalUsdt = async (req, res) => {
+  try {
+    const { getUSDTBalance } = require('../utils/usdtService');
+
+    // Get all users with wallet addresses
+    const allUsers = await User.find({ walletAddress: { $ne: null, $exists: true } })
+      .select('walletAddress network')
+      .lean();
+
+    if (allUsers.length === 0) {
+      return res.status(200).json({ success: true, data: { totalUsdt: 0, userCount: 0 } });
+    }
+
+    // Fetch balances in parallel batches
+    const BATCH_SIZE = 10;
+    let totalUsdt = 0;
+
+    for (let i = 0; i < allUsers.length; i += BATCH_SIZE) {
+      const batch = allUsers.slice(i, i + BATCH_SIZE);
+      const results = await Promise.all(
+        batch.map(async (u) => {
+          const balance = await getUSDTBalance(u.walletAddress, u.network || 'BSC');
+          return parseFloat(balance || 0);
+        })
+      );
+      totalUsdt += results.reduce((sum, b) => sum + b, 0);
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: { totalUsdt: parseFloat(totalUsdt.toFixed(4)), userCount: allUsers.length },
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   adminLogin,
   adminVerifyLoginOTP,
@@ -828,4 +869,5 @@ module.exports = {
   getTransfers,
   cancelTransferRequest,
   getUsersUsdtBalances,
+  getTotalUsdt,
 };

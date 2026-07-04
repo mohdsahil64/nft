@@ -116,6 +116,12 @@ function RegisterContent() {
       toast.error('Please fill all required fields');
       return;
     }
+    // Double-check wallet is connected
+    if (!form.walletAddress || !form.walletAddress.startsWith('0x') || form.walletAddress.length !== 42) {
+      toast.error('Please connect your app first');
+      router.push('/');
+      return;
+    }
     // Move to smart contract step
     setStep(2);
   };
