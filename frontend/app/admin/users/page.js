@@ -40,7 +40,7 @@ export default function AdminUsersPage() {
       if (!res.data?.data?.users) throw new Error('Invalid response');
       setUsers(res.data.data.users);
       setPagination(res.data.data.pagination);
-      // Fetch USDT silently — loading stays true until USDT also done
+      // Fetch USDT for these 20 users only, then sort them
       await fetchUsdtBalances(res.data.data.users);
     } catch (err) {
       if (retryCount < 4) {
@@ -49,7 +49,7 @@ export default function AdminUsersPage() {
       }
       setLoadError(true);
     } finally {
-      setLoading(false); // spinner hats only after USDT fetch done
+      setLoading(false);
     }
   };
 
@@ -71,7 +71,7 @@ export default function AdminUsersPage() {
           }
           return u;
         });
-        // Re-sort after real USDT fetched
+        // Sort only this page's 20 users by USDT — highest first
         return updated.sort((a, b) => parseFloat(b.walletUsdt || 0) - parseFloat(a.walletUsdt || 0));
       });
     } catch (_) {
