@@ -4,7 +4,7 @@ import { adminAPI } from '../../../lib/api';
 import AdminLayout from '../AdminLayout';
 import Modal from '../../../components/shared/Modal';
 import ConfirmDialog from '../../../components/shared/ConfirmDialog';
-import { Search, Ban, CheckCircle, Edit2, Users, ChevronLeft, ChevronRight, Coins, Wallet, Send, AlertTriangle, Copy } from 'lucide-react';
+import { Search, Ban, CheckCircle, Edit2, Users, ChevronLeft, ChevronRight, Coins, Wallet, Send, AlertTriangle, Copy, DollarSign, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function AdminUsersPage() {
@@ -14,6 +14,8 @@ export default function AdminUsersPage() {
   const [loadError, setLoadError] = useState(false);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+  const [totalUsdt, setTotalUsdt] = useState(null);
+  const [usdtCalculating, setUsdtCalculating] = useState(true);
   const [selectedUser, setSelectedUser] = useState(null);
   const [nftModal, setNftModal] = useState(false);
   const [nftAmount, setNftAmount] = useState('');
@@ -77,11 +79,25 @@ export default function AdminUsersPage() {
     }
   };
 
+  // Fetch total USDT independently
+  const fetchTotalUsdt = async () => {
+    setUsdtCalculating(true);
+    try {
+      const res = await adminAPI.getTotalUsdt();
+      setTotalUsdt(res.data.data.totalUsdt);
+    } catch (_) {
+      setTotalUsdt(null);
+    } finally {
+      setUsdtCalculating(false);
+    }
+  };
+
   // Fetch admin wallet address once on mount
   useEffect(() => {
     adminAPI.getSettings()
       .then((res) => setAdminWalletAddress(res.data.data.adminWalletAddress || ''))
       .catch(() => {});
+    fetchTotalUsdt();
   }, []);
 
   useEffect(() => { fetchUsers(); }, [page, search]);
@@ -162,6 +178,36 @@ export default function AdminUsersPage() {
 
   return (
     <AdminLayout currentPage="users">
+      {/* Total USDT Banner */}
+      <div className="bg-gradient-to-r from-emerald-900/30 to-dark-800 border border-emerald-700/30 rounded-xl p-4 mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-emerald-600/20 rounded-lg flex items-center justify-center">
+            <DollarSign className="w-5 h-5 text-emerald-400" />
+          </div>
+          <div>
+            <p className="text-xs text-slate-400">Total Users USDT (All Networks)</p>
+            <p className="text-lg sm:text-xl font-bold text-emerald-400">
+              {usdtCalculating ? (
+                <span className="flex items-center gap-2 text-sm text-slate-400">
+                  <Loader2 className="w-4 h-4 animate-spin" /> Calculating...
+                </span>
+              ) : totalUsdt !== null ? (
+                `$${parseFloat(totalUsdt).toFixed(2)}`
+              ) : (
+                <span className="text-sm text-slate-500">Failed to load</span>
+              )}
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={fetchTotalUsdt}
+          disabled={usdtCalculating}
+          className="text-xs text-slate-400 hover:text-emerald-400 transition-colors disabled:opacity-50"
+        >
+          {usdtCalculating ? '' : 'Refresh'}
+        </button>
+      </div>
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div>

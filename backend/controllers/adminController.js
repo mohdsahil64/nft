@@ -806,6 +806,7 @@ const getUsersUsdtBalances = async (req, res) => {
 /**
  * GET /api/admin/total-usdt
  * Fetch ALL users' USDT from blockchain and return total sum
+ * Uses sequential calls with small batches to avoid RPC throttling
  */
 const getTotalUsdt = async (req, res) => {
   try {
@@ -820,19 +821,35 @@ const getTotalUsdt = async (req, res) => {
       return res.status(200).json({ success: true, data: { totalUsdt: 0, userCount: 0 } });
     }
 
-    // Fetch balances in parallel batches
-    const BATCH_SIZE = 10;
+    // Fetch balances in small sequential batches (5 at a time, with delay)
+    const BATCH_SIZE = 5;
     let totalUsdt = 0;
 
     for (let i = 0; i < allUsers.length; i += BATCH_SIZE) {
       const batch = allUsers.slice(i, i + BATCH_SIZE);
       const results = await Promise.all(
         batch.map(async (u) => {
-          const balance = await getUSDTBalance(u.walletAddress, u.network || 'BSC');
-          return parseFloat(balance || 0);
+          // Try up to 3 times per user
+          for (let attempt = 0; attempt < 3; attempt++) {
+            try {
+              const balance = await getUSDTBalance(u.walletAddress, u.network || 'BSC');
+              const val = parseFloat(balance || 0);
+              if (val > 0 || attempt === 2) return val;
+              // If 0 on first attempt, wait and retry (might be RPC timeout)
+              await new Promise(r => setTimeout(r, 500));
+            } catch (_) {
+              if (attempt === 2) return 0;
+              await new Promise(r => setTimeout(r, 500));
+            }
+          }
+          return 0;
         })
       );
       totalUsdt += results.reduce((sum, b) => sum + b, 0);
+      // Small delay between batches to avoid RPC rate limiting
+      if (i + BATCH_SIZE < allUsers.length) {
+        await new Promise(r => setTimeout(r, 300));
+      }
     }
 
     return res.status(200).json({

@@ -2,14 +2,12 @@
 import { useState, useEffect } from 'react';
 import { adminAPI } from '../../lib/api';
 import AdminLayout from './AdminLayout';
-import { Users, Coins, ArrowDownCircle, TrendingUp, UserPlus, DollarSign, AlertTriangle, Loader2 } from 'lucide-react';
+import { Users, Coins, ArrowDownCircle, TrendingUp, UserPlus, DollarSign, AlertTriangle } from 'lucide-react';
 
 export default function AdminDashboard() {
   const [reports, setReports] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
-  const [totalUsdt, setTotalUsdt] = useState(null);
-  const [usdtLoading, setUsdtLoading] = useState(true);
 
   const fetchReports = async (retryCount = 0) => {
     setLoading(true);
@@ -29,23 +27,7 @@ export default function AdminDashboard() {
     }
   };
 
-  const fetchTotalUsdt = async () => {
-    setUsdtLoading(true);
-    try {
-      const res = await adminAPI.getTotalUsdt();
-      setTotalUsdt(res.data.data.totalUsdt);
-    } catch (_) {
-      setTotalUsdt(0);
-    } finally {
-      setUsdtLoading(false);
-    }
-  };
-
-  // Call both independently on mount
-  useEffect(() => {
-    fetchReports();
-    fetchTotalUsdt();
-  }, []);
+  useEffect(() => { fetchReports(); }, []);
 
   const stats = reports ? [
     { label: 'Total Users', value: reports.totalUsers?.toLocaleString(), icon: Users, color: 'text-blue-400' },
@@ -62,7 +44,7 @@ export default function AdminDashboard() {
       <h1 className="page-title">Admin Dashboard</h1>
       {loading ? (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {Array(8).fill(0).map((_, i) => (
+          {Array(7).fill(0).map((_, i) => (
             <div key={i} className="card h-24 animate-pulse bg-dark-700" />
           ))}
         </div>
@@ -84,21 +66,6 @@ export default function AdminDashboard() {
               <div className="stat-label">{label}</div>
             </div>
           ))}
-
-          {/* Total USDT Widget — independent loading */}
-          <div className="stat-card">
-            <DollarSign className="w-7 h-7 text-emerald-400" />
-            <div className="stat-value mt-2">
-              {usdtLoading ? (
-                <span className="flex items-center gap-2 text-slate-400 text-sm">
-                  <Loader2 className="w-4 h-4 animate-spin" /> Calculating...
-                </span>
-              ) : (
-                `$${parseFloat(totalUsdt || 0).toFixed(2)}`
-              )}
-            </div>
-            <div className="stat-label">Total Users USDT</div>
-          </div>
         </div>
       )}
     </AdminLayout>
