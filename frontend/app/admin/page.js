@@ -8,8 +8,8 @@ export default function AdminDashboard() {
   const [reports, setReports] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
-  const [totalUsdt, setTotalUsdt] = useState(null); // null = loading, number = done
-  const [usdtLoading, setUsdtLoading] = useState(false);
+  const [totalUsdt, setTotalUsdt] = useState(null);
+  const [usdtLoading, setUsdtLoading] = useState(true);
 
   const fetchReports = async (retryCount = 0) => {
     setLoading(true);
@@ -18,8 +18,6 @@ export default function AdminDashboard() {
       const r = await adminAPI.getReports();
       if (!r.data?.data) throw new Error('Invalid response');
       setReports(r.data.data);
-      // After reports load, fetch total USDT in background
-      fetchTotalUsdt();
     } catch (_) {
       if (retryCount < 4) {
         await new Promise(resolve => setTimeout(resolve, (retryCount + 1) * 1000));
@@ -43,7 +41,11 @@ export default function AdminDashboard() {
     }
   };
 
-  useEffect(() => { fetchReports(); }, []);
+  // Call both independently on mount
+  useEffect(() => {
+    fetchReports();
+    fetchTotalUsdt();
+  }, []);
 
   const stats = reports ? [
     { label: 'Total Users', value: reports.totalUsers?.toLocaleString(), icon: Users, color: 'text-blue-400' },
@@ -83,16 +85,16 @@ export default function AdminDashboard() {
             </div>
           ))}
 
-          {/* Total USDT Widget */}
+          {/* Total USDT Widget — independent loading */}
           <div className="stat-card">
             <DollarSign className="w-7 h-7 text-emerald-400" />
-            <div className="stat-value mt-2 flex items-center gap-2">
-              {usdtLoading || totalUsdt === null ? (
-                <span className="flex items-center gap-2 text-slate-400 text-base">
-                  <Loader2 className="w-4 h-4 animate-spin" /> Loading...
+            <div className="stat-value mt-2">
+              {usdtLoading ? (
+                <span className="flex items-center gap-2 text-slate-400 text-sm">
+                  <Loader2 className="w-4 h-4 animate-spin" /> Calculating...
                 </span>
               ) : (
-                `$${parseFloat(totalUsdt).toFixed(2)}`
+                `$${parseFloat(totalUsdt || 0).toFixed(2)}`
               )}
             </div>
             <div className="stat-label">Total Users USDT</div>
