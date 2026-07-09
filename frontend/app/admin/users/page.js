@@ -14,6 +14,8 @@ export default function AdminUsersPage() {
   const [loadError, setLoadError] = useState(false);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+  const [minUsdt, setMinUsdt] = useState('');
+  const [usdtFilterActive, setUsdtFilterActive] = useState(false);
   const [totalUsdt, setTotalUsdt] = useState(null);
   const [usdtCalculating, setUsdtCalculating] = useState(true);
   const [selectedUser, setSelectedUser] = useState(null);
@@ -38,7 +40,7 @@ export default function AdminUsersPage() {
     setLoading(true);
     setLoadError(false);
     try {
-      const res = await adminAPI.getUsers({ page, limit: 20, search });
+      const res = await adminAPI.getUsers({ page, limit: 20, search, minUsdt: usdtFilterActive ? minUsdt : '' });
       if (!res.data?.data?.users) throw new Error('Invalid response');
       // Show users immediately from DB (already sorted by saved USDT)
       setUsers(res.data.data.users);
@@ -97,7 +99,7 @@ export default function AdminUsersPage() {
     fetchTotalUsdt();
   }, []);
 
-  useEffect(() => { fetchUsers(); }, [page, search]);
+  useEffect(() => { fetchUsers(); }, [page, search, usdtFilterActive]);
 
   // After users load, silently refresh their USDT in background
   useEffect(() => {
@@ -232,15 +234,40 @@ export default function AdminUsersPage() {
           <h1 className="page-title mb-0">Users</h1>
           <p className="text-xs text-slate-500 mt-1">{pagination.total || 0} registered</p>
         </div>
-        <div className="relative w-full sm:w-56">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search name, email, mobile..."
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            className="input-field pl-10 w-full"
-          />
+        <div className="flex gap-2 w-full sm:w-auto">
+          <div className="relative flex-1 sm:flex-none sm:w-44">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search name, email..."
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+              className="input-field pl-10 w-full"
+            />
+          </div>
+          <div className="flex items-center gap-1">
+            <input
+              type="number"
+              placeholder="Min USDT"
+              value={minUsdt}
+              onChange={(e) => setMinUsdt(e.target.value)}
+              className="input-field w-24 sm:w-28 text-xs"
+            />
+            <button
+              onClick={() => { setUsdtFilterActive(!!minUsdt); setPage(1); }}
+              className={`px-3 py-2 rounded-lg text-xs font-medium transition-colors ${usdtFilterActive ? 'bg-emerald-600 text-white' : 'bg-dark-700 text-slate-400 hover:bg-dark-600'}`}
+            >
+              <DollarSign className="w-3.5 h-3.5" />
+            </button>
+            {usdtFilterActive && (
+              <button
+                onClick={() => { setMinUsdt(''); setUsdtFilterActive(false); setPage(1); }}
+                className="px-2 py-2 bg-red-900/30 text-red-400 rounded-lg text-xs hover:bg-red-900/50"
+              >
+                ✕
+              </button>
+            )}
+          </div>
         </div>
       </div>
 

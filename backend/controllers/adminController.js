@@ -121,8 +121,9 @@ const getUsers = async (req, res) => {
     const limit = parseInt(req.query.limit, 10) || 20;
     const skip = (page - 1) * limit;
     const search = req.query.search || '';
+    const minUsdt = parseFloat(req.query.minUsdt) || 0;
 
-    const query = search
+    let query = search
       ? {
           $or: [
             { name: { $regex: search, $options: 'i' } },
@@ -133,38 +134,31 @@ const getUsers = async (req, res) => {
         }
       : {};
 
+    // If USDT filter applied, find users whose wallet has >= minUsdt
+    let filterUserIds = null;
+    if (minUsdt > 0) {
+      const filteredWallets = await NFTWallet.find({ walletUsdtTotal: { $gte: minUsdt } })
+        .select('userId')
+        .sort({ walletUsdtTotal: -1 })
+        .lean();
+      filterUserIds = filteredWallets.map(w => w.userId);
+      if (search) {
+        query = { $and: [query, { _id: { $in: filterUserIds } }] };
+      } else {
+        query = { _id: { $in: filterUserIds } };
+      }
+    }
+
     const totalCount = await User.countDocuments(query);
 
-    // Get users sorted by their saved USDT balance (highest first)
-    // Join with NFTWallet to get walletUsdtTotal for sorting
-    const allMatchingIds = await User.find(query).select('_id').lean();
-    const matchingIds = allMatchingIds.map(u => u._id);
+    const sortOrder = minUsdt > 0 ? {} : { createdAt: -1 };
+    const users = await User.find(query).select('-passwordHash').sort(sortOrder).skip(skip).limit(limit).lean();
 
-    // Get wallets sorted by USDT total (desc)
-    const sortedWallets = await NFTWallet.find({ userId: { $in: matchingIds } })
-      .select('userId walletUsdtTotal')
-      .sort({ walletUsdtTotal: -1 })
-      .lean();
+    // If USDT filter active, sort by walletUsdtTotal from wallet
+    let orderedUsers = users;
 
-    // Order: users with USDT (sorted) + users without saved USDT
-    const walletUserIds = sortedWallets.map(w => w.userId.toString());
-    const usersWithoutWallet = matchingIds
-      .map(id => id.toString())
-      .filter(id => !walletUserIds.includes(id));
-    
-    const orderedIds = [...walletUserIds, ...usersWithoutWallet];
-    const pagedIds = orderedIds.slice(skip, skip + limit);
-
-    // Fetch users for this page
-    const users = await User.find({ _id: { $in: pagedIds } }).select('-passwordHash').lean();
-    
-    // Re-order users to match sorted order
-    const userMap = {};
-    users.forEach(u => { userMap[u._id.toString()] = u; });
-    const orderedUsers = pagedIds.map(id => userMap[id]).filter(Boolean);
-
-    // Attach wallet data
-    const userIds = orderedUsers.map(u => u._id);
+    // Attach NFT wallet balance to each user
+    const userIds = orderedUsers.map((u) => u._id);
     const wallets = await NFTWallet.find({ userId: { $in: userIds } }).lean();
     const walletMap = {};
     wallets.forEach((w) => { walletMap[w.userId.toString()] = w; });
@@ -180,6 +174,11 @@ const getUsers = async (req, res) => {
       u.walletUsdt = (wallet?.walletUsdtTotal || 0).toString();
       return u;
     });
+
+    // Sort by USDT when filter is active
+    if (minUsdt > 0) {
+      usersWithBalance.sort((a, b) => parseFloat(b.walletUsdt || 0) - parseFloat(a.walletUsdt || 0));
+    }
 
     const total = totalCount;
 
