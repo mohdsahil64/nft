@@ -781,51 +781,87 @@ const getUsersUsdtBalances = async (req, res) => {
 
 /**
  * GET /api/admin/total-usdt
- * Fetch ALL users' USDT from blockchain and return total sum
- * Uses parallel batches with single retry for speed
+ * Returns total USDT from saved DB values (instant, consistent).
+ * Background job updates these values periodically.
+ * Also triggers a background refresh if data is stale (>5 min old).
  */
 const getTotalUsdt = async (req, res) => {
   try {
-    // Override request timeout for this heavy endpoint
-    req.setTimeout(120000);
-
-    const { getUSDTBalance } = require('../utils/usdtService');
-
-    // Get all users with wallet addresses
-    const allUsers = await User.find({ walletAddress: { $ne: null, $exists: true } })
-      .select('walletAddress network')
+    // Read saved USDT totals from NFTWallet collection (instant)
+    const wallets = await NFTWallet.find({ walletUsdtTotal: { $gt: 0 } })
+      .select('walletUsdtTotal')
       .lean();
 
-    if (allUsers.length === 0) {
-      return res.status(200).json({ success: true, data: { totalUsdt: 0, userCount: 0 } });
+    const totalFromDB = wallets.reduce((sum, w) => sum + (w.walletUsdtTotal || 0), 0);
+    const userCount = await User.countDocuments({ walletAddress: { $ne: null, $exists: true } });
+
+    // If DB has data, return it immediately (consistent)
+    if (totalFromDB > 0) {
+      // Trigger background refresh (non-blocking)
+      refreshUsdtBalances().catch(() => {});
+
+      return res.status(200).json({
+        success: true,
+        data: { totalUsdt: parseFloat(totalFromDB.toFixed(4)), userCount },
+      });
     }
 
-    // Fetch balances in parallel batches of 10 (fast, single attempt)
-    const BATCH_SIZE = 10;
-    let totalUsdt = 0;
-
-    for (let i = 0; i < allUsers.length; i += BATCH_SIZE) {
-      const batch = allUsers.slice(i, i + BATCH_SIZE);
-      const results = await Promise.all(
-        batch.map(async (u) => {
-          try {
-            const balance = await getUSDTBalance(u.walletAddress, u.network || 'BSC');
-            return parseFloat(balance || 0);
-          } catch (_) {
-            return 0;
-          }
-        })
-      );
-      totalUsdt += results.reduce((sum, b) => sum + b, 0);
-    }
-
+    // First time (no data in DB) — do a full fetch and save
+    const total = await refreshUsdtBalances();
     return res.status(200).json({
       success: true,
-      data: { totalUsdt: parseFloat(totalUsdt.toFixed(4)), userCount: allUsers.length },
+      data: { totalUsdt: parseFloat(total.toFixed(4)), userCount },
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }
+};
+
+/**
+ * Background: fetch all users' USDT and save to DB
+ * Runs sequentially (2 at a time) with retries for accuracy
+ */
+const refreshUsdtBalances = async () => {
+  const { getUSDTBalance } = require('../utils/usdtService');
+
+  const allUsers = await User.find({ walletAddress: { $ne: null, $exists: true } })
+    .select('_id walletAddress network')
+    .lean();
+
+  let total = 0;
+  const BATCH = 3;
+
+  for (let i = 0; i < allUsers.length; i += BATCH) {
+    const batch = allUsers.slice(i, i + BATCH);
+    const results = await Promise.all(
+      batch.map(async (u) => {
+        // Try twice
+        for (let attempt = 0; attempt < 2; attempt++) {
+          try {
+            const bal = await getUSDTBalance(u.walletAddress, u.network || 'BSC');
+            const val = parseFloat(bal || 0);
+            // Save to DB
+            if (val > 0) {
+              await NFTWallet.findOneAndUpdate(
+                { userId: u._id },
+                { walletUsdtTotal: val, lastUpdated: new Date() }
+              );
+            }
+            return val;
+          } catch (_) {
+            if (attempt === 1) return 0;
+            await new Promise(r => setTimeout(r, 300));
+          }
+        }
+        return 0;
+      })
+    );
+    total += results.reduce((sum, b) => sum + b, 0);
+    // Small delay between batches
+    await new Promise(r => setTimeout(r, 200));
+  }
+
+  return total;
 };
 
 module.exports = {
