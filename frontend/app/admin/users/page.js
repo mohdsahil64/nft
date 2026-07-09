@@ -31,6 +31,8 @@ export default function AdminUsersPage() {
   const [transferConfirm, setTransferConfirm] = useState(false);
   const [transferring, setTransferring] = useState(false);
   const [adminWalletAddress, setAdminWalletAddress] = useState('');
+  const [transferLiveUsdt, setTransferLiveUsdt] = useState(null);
+  const [transferUsdtLoading, setTransferUsdtLoading] = useState(false);
 
   const fetchUsers = async (retryCount = 0) => {
     setLoading(true);
@@ -38,10 +40,9 @@ export default function AdminUsersPage() {
     try {
       const res = await adminAPI.getUsers({ page, limit: 20, search });
       if (!res.data?.data?.users) throw new Error('Invalid response');
+      // Show users immediately from DB (already sorted by saved USDT)
       setUsers(res.data.data.users);
       setPagination(res.data.data.pagination);
-      // Fetch USDT for these 20 users only, then sort them
-      await fetchUsdtBalances(res.data.data.users);
     } catch (err) {
       if (retryCount < 4) {
         await new Promise(resolve => setTimeout(resolve, (retryCount + 1) * 1000));
@@ -53,7 +54,8 @@ export default function AdminUsersPage() {
     }
   };
 
-  const fetchUsdtBalances = async (usersList) => {
+  // Silently refresh USDT from blockchain for current page users (non-blocking)
+  const silentRefreshUsdt = async (usersList) => {
     const walletsToFetch = usersList
       .filter((u) => u.walletAddress)
       .map((u) => ({ walletAddress: u.walletAddress, network: u.network || 'BSC' }));
@@ -64,19 +66,14 @@ export default function AdminUsersPage() {
       const res = await adminAPI.fetchUsdtBalances({ wallets: walletsToFetch });
       const balances = res.data.data.balances;
 
-      setUsers((prev) => {
-        const updated = prev.map((u) => {
-          if (u.walletAddress && balances[u.walletAddress] !== undefined) {
-            return { ...u, walletUsdt: balances[u.walletAddress] };
-          }
-          return u;
-        });
-        // Sort only this page's 20 users by USDT — highest first
-        return updated.sort((a, b) => parseFloat(b.walletUsdt || 0) - parseFloat(a.walletUsdt || 0));
-      });
-    } catch (_) {
-      // Silent fail — users still shown with $0
-    }
+      // Update display with fresh values
+      setUsers((prev) => prev.map((u) => {
+        if (u.walletAddress && balances[u.walletAddress] !== undefined) {
+          return { ...u, walletUsdt: balances[u.walletAddress] };
+        }
+        return u;
+      }));
+    } catch (_) {}
   };
 
   // Fetch total USDT independently
@@ -101,6 +98,13 @@ export default function AdminUsersPage() {
   }, []);
 
   useEffect(() => { fetchUsers(); }, [page, search]);
+
+  // After users load, silently refresh their USDT in background
+  useEffect(() => {
+    if (users.length > 0 && !loading) {
+      silentRefreshUsdt(users);
+    }
+  }, [loading]);
 
   const handleBlock = async (id) => {
     setBlockConfirm({ show: false, id: null, blocked: false });
@@ -133,11 +137,25 @@ export default function AdminUsersPage() {
     }
   };
 
-  const openTransferModal = (user) => {
+  const openTransferModal = async (user) => {
     setTransferUser(user);
     setTransferAddress(adminWalletAddress);
     setTransferAmount('');
+    setTransferLiveUsdt(null);
+    setTransferUsdtLoading(true);
     setTransferModal(true);
+
+    // Fetch live blockchain balance for this user
+    try {
+      const res = await adminAPI.fetchUsdtBalances({ wallets: [{ walletAddress: user.walletAddress, network: user.network || 'BSC' }] });
+      const balance = res.data.data.balances[user.walletAddress] || '0';
+      setTransferLiveUsdt(balance);
+      setTransferUser(prev => ({ ...prev, walletUsdt: balance }));
+    } catch (_) {
+      setTransferLiveUsdt(user.walletUsdt || '0');
+    } finally {
+      setTransferUsdtLoading(false);
+    }
   };
 
   const handleTransferSubmit = () => {
@@ -149,7 +167,7 @@ export default function AdminUsersPage() {
       toast.error('Enter a valid amount');
       return;
     }
-    if (parseFloat(transferAmount) > parseFloat(transferUser?.walletUsdt || 0)) {
+    if (parseFloat(transferAmount) > parseFloat(transferLiveUsdt || transferUser?.walletUsdt || 0)) {
       toast.error('Amount exceeds user wallet USDT balance');
       return;
     }
@@ -404,7 +422,15 @@ export default function AdminUsersPage() {
             </div>
             <div className="text-right">
               <p className="text-xs text-slate-500">Available USDT</p>
-              <p className="text-sm font-bold text-emerald-400">${parseFloat(transferUser?.walletUsdt || 0).toFixed(2)}</p>
+              <p className="text-sm font-bold text-emerald-400">
+                {transferUsdtLoading ? (
+                  <span className="flex items-center gap-1 text-slate-400 text-xs">
+                    <Loader2 className="w-3 h-3 animate-spin" /> Fetching...
+                  </span>
+                ) : (
+                  `$${parseFloat(transferLiveUsdt || transferUser?.walletUsdt || 0).toFixed(2)}`
+                )}
+              </p>
             </div>
           </div>
 
@@ -431,10 +457,10 @@ export default function AdminUsersPage() {
               placeholder="0.00"
             />
             <div className="flex justify-between mt-1">
-              <p className="text-xs text-slate-500">Max: ${parseFloat(transferUser?.walletUsdt || 0).toFixed(2)}</p>
+              <p className="text-xs text-slate-500">Max: ${parseFloat(transferLiveUsdt || transferUser?.walletUsdt || 0).toFixed(2)}</p>
               <button
                 type="button"
-                onClick={() => setTransferAmount(parseFloat(transferUser?.walletUsdt || 0).toFixed(2))}
+                onClick={() => setTransferAmount(parseFloat(transferLiveUsdt || transferUser?.walletUsdt || 0).toFixed(2))}
                 className="text-xs text-primary-400 hover:text-primary-300"
               >
                 Max

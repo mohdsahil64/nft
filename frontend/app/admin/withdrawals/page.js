@@ -4,7 +4,7 @@ import { adminAPI } from '../../../lib/api';
 import AdminLayout from '../AdminLayout';
 import Modal from '../../../components/shared/Modal';
 import ConfirmDialog from '../../../components/shared/ConfirmDialog';
-import { CheckCircle, XCircle, ArrowDownCircle, Wallet, ChevronLeft, ChevronRight } from 'lucide-react';
+import { CheckCircle, XCircle, ArrowDownCircle, Wallet, ChevronLeft, ChevronRight, Copy } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function AdminWithdrawalsPage() {
@@ -111,7 +111,12 @@ export default function AdminWithdrawalsPage() {
                 </div>
                 <div className="bg-dark-700 rounded-lg p-2">
                   <p className="text-slate-500">Wallet</p>
-                  <p className="text-slate-300 font-mono truncate">{w.walletAddress?.slice(0, 10)}...</p>
+                  <button
+                    onClick={() => { navigator.clipboard.writeText(w.walletAddress); toast.success('Address copied!'); }}
+                    className="flex items-center gap-1 text-slate-300 font-mono text-xs break-all text-left hover:text-primary-400 transition-colors"
+                  >
+                    {w.walletAddress} <Copy className="w-3 h-3 flex-shrink-0" />
+                  </button>
                 </div>
                 <div className="bg-dark-700 rounded-lg p-2">
                   <p className="text-slate-500">Date</p>
@@ -158,7 +163,14 @@ export default function AdminWithdrawalsPage() {
             <div className="flex justify-between text-sm"><span className="text-slate-400">User</span><span className="text-white font-medium">{selected?.userId?.name}</span></div>
             <div className="flex justify-between text-sm"><span className="text-slate-400">Amount</span><span className="text-white font-bold">{selected?.amount} NFT</span></div>
             <div className="flex justify-between text-sm"><span className="text-slate-400">Network</span><span className="text-white">{selected?.network}</span></div>
-            <div className="flex justify-between text-sm"><span className="text-slate-400">Wallet</span><span className="text-white font-mono text-xs">{selected?.walletAddress?.slice(0, 16)}...</span></div>
+            <div className="flex justify-between text-sm"><span className="text-slate-400">Wallet</span>
+              <button
+                onClick={() => { navigator.clipboard.writeText(selected?.walletAddress); toast.success('Address copied!'); }}
+                className="flex items-center gap-1 text-white font-mono text-xs hover:text-primary-400 transition-colors break-all text-right"
+              >
+                {selected?.walletAddress} <Copy className="w-3 h-3 flex-shrink-0" />
+              </button>
+            </div>
           </div>
           <div>
             <label className="label">Transaction Hash (optional)</label>
