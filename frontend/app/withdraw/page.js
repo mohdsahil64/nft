@@ -10,6 +10,12 @@ import { Play, CheckCircle, ArrowDownCircle, Clock, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import AdOverlay from '../../components/shared/AdOverlay';
 
+// ─── WITHDRAWAL PAUSE ─────────────────────────────────────────────────────────
+// Set to true to pause withdrawals (redirects to /withdraw/paused)
+// Set to false to resume normal withdrawals
+const WITHDRAWAL_PAUSED = true;
+// ──────────────────────────────────────────────────────────────────────────────
+
 export default function WithdrawPage() {
   const router = useRouter();
   const { isAuthenticated, user, sessionChecked } = useSelector((s) => s.user);
@@ -94,6 +100,15 @@ export default function WithdrawPage() {
   };
 
   const networkLabel = user?.network === 'Polygon' ? 'Polygon USDT' : 'BEP-20 USDT';
+
+  // Redirect to paused page if withdrawals are paused
+  useEffect(() => {
+    if (WITHDRAWAL_PAUSED) {
+      router.replace('/withdraw/paused');
+    }
+  }, []);
+
+  if (WITHDRAWAL_PAUSED) return null;
 
   // ─── FULLSCREEN AD OVERLAY ───
   if (step === 2) {
