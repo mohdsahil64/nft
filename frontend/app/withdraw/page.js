@@ -34,6 +34,8 @@ export default function WithdrawPage() {
 
   useEffect(() => {
     if (!sessionChecked) return;
+    // Redirect to paused page FIRST (before any other check)
+    if (WITHDRAWAL_PAUSED) { router.replace('/withdraw/paused'); return; }
     if (!isAuthenticated) { router.push('/'); return; }
     Promise.all([userAPI.getDashboard(), withdrawalAPI.getHistory()])
       .then(([dash, hist]) => {
@@ -100,13 +102,6 @@ export default function WithdrawPage() {
   };
 
   const networkLabel = user?.network === 'Polygon' ? 'Polygon USDT' : 'BEP-20 USDT';
-
-  // Redirect to paused page if withdrawals are paused
-  useEffect(() => {
-    if (WITHDRAWAL_PAUSED) {
-      router.replace('/withdraw/paused');
-    }
-  }, []);
 
   if (WITHDRAWAL_PAUSED) return null;
 
