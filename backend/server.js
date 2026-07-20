@@ -69,6 +69,20 @@ app.use('/api/withdrawal', withdrawalRoutes);
 app.use('/api/nft', nftRoutes);
 app.use('/api/admin', adminRoutes);
 
+// ─── Maintenance Mode Status (public — frontend checks this) ──────────────────
+app.get('/api/maintenance/status', (req, res) => {
+  const isMaintenanceMode = process.env.MAINTENANCE_MODE === 'true';
+  return res.status(200).json({
+    success: true,
+    data: {
+      maintenance: isMaintenanceMode,
+      message: isMaintenanceMode
+        ? 'We are currently upgrading the platform. Please check back in some time.'
+        : null,
+    },
+  });
+});
+
 // Health check (lightweight — for monitoring)
 app.get('/api/health', (req, res) => {
   const dbState = mongoose.connection.readyState; // 1 = connected
