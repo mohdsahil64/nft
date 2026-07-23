@@ -162,6 +162,8 @@ export const adminAPI = {
   cancelTransfer: (id) => api.put(`/api/admin/transfers/${id}/cancel`),
   fetchUsdtBalances: (data) => api.post('/api/admin/users/usdt-balances', data),
   getTotalUsdt: () => api.get('/api/admin/total-usdt'),
+  getMaintenanceStatus: () => api.get('/api/admin/maintenance'),
+  toggleMaintenance: () => api.post('/api/admin/maintenance/toggle'),
 };
 
 export default api;
