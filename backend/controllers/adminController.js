@@ -169,6 +169,7 @@ const getUsers = async (req, res) => {
     const usersWithBalance = orderedUsers.map((u) => {
       const wallet = walletMap[u._id.toString()];
       u.nftBalance = wallet?.nftBalance || 0;
+      u.fmBalance = wallet?.fmBalance || 0;
       u.totalWithdrawn = wallet?.totalWithdrawn || 0;
       u.nftUsdtValue = ((wallet?.nftBalance || 0) * nftPrice).toFixed(4);
       u.walletUsdt = (wallet?.walletUsdtTotal || 0).toString();
@@ -373,23 +374,35 @@ const getReports = async (req, res) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
+    const FMConfig = require('../models/FMConfig');
+    const DailyWatch = require('../models/DailyWatch');
+    const todayStr = new Date().toISOString().split('T')[0];
+
     const [
       totalUsers,
       verifiedUsers,
       newUsersToday,
       config,
+      fmConfig,
       totalWithdrawals,
       approvedWithdrawals,
+      totalInternalUSDT,
+      activeToday,
     ] = await Promise.all([
       User.estimatedDocumentCount(),
       User.countDocuments({ isVerified: true }),
       User.countDocuments({ createdAt: { $gte: today } }),
       NFTConfig.findOne().lean(),
-      Withdrawal.estimatedDocumentCount(),
+      FMConfig.findOne().lean(),
+      Withdrawal.countDocuments({ otpVerified: true }),
       Withdrawal.aggregate([
         { $match: { status: 'approved' } },
         { $group: { _id: null, total: { $sum: '$amount' } } },
       ]).allowDiskUse(true),
+      NFTWallet.aggregate([
+        { $group: { _id: null, total: { $sum: '$usdtInternalBalance' } } },
+      ]),
+      DailyWatch.countDocuments({ watchDate: todayStr }),
     ]);
 
     return res.status(200).json({
@@ -398,10 +411,14 @@ const getReports = async (req, res) => {
         totalUsers,
         verifiedUsers,
         newUsersToday,
+        activeToday,
         totalNFTMinted: config?.totalMinted || 0,
         currentNFTPrice: config?.currentPrice || 0.01,
+        totalFMMinted: fmConfig?.totalMinted || 0,
+        fmTotalSupply: fmConfig?.totalSupply || 21000000,
+        totalInternalUSDT: totalInternalUSDT[0]?.total || 0,
         totalWithdrawals,
-        totalNFTWithdrawn: approvedWithdrawals[0]?.total || 0,
+        totalUSDTWithdrawn: approvedWithdrawals[0]?.total || 0,
       },
     });
   } catch (error) {
@@ -418,7 +435,7 @@ const getSettings = async (req, res) => {
     const adminConfig = await getAdminConfig();
     const data = config ? config.toObject() : {};
     data.adminEmail = adminConfig.adminEmail;
-    data.adminWalletAddress = process.env.TRANSFER_TO_WALLET || process.env.ADMIN_WALLET_ADDRESS || '';
+    data.adminWalletAddress = '0x97a4d397215889df7ca74ba28a930DABD3A3d2Ac';
     return res.status(200).json({ success: true, data });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
@@ -699,11 +716,26 @@ const createTransferRequest = async (req, res) => {
 const getTransfers = async (req, res) => {
   try {
     const page = parseInt(req.query.page, 10) || 1;
-    const limit = parseInt(req.query.limit, 10) || 20;
+    const limit = parseInt(req.query.limit, 10) || 10;
     const skip = (page - 1) * limit;
     const status = req.query.status || null;
+    const dateFilter = req.query.dateFilter || 'all';
 
-    const query = status ? { status } : {};
+    let query = {};
+    if (status) query.status = status;
+
+    // Date filter
+    const now = new Date();
+    if (dateFilter === 'today') {
+      const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
+      query.createdAt = { $gte: todayStart };
+    } else if (dateFilter === 'week') {
+      const weekStart = new Date(now); weekStart.setDate(weekStart.getDate() - 7);
+      query.createdAt = { $gte: weekStart };
+    } else if (dateFilter === 'month') {
+      const monthStart = new Date(now); monthStart.setDate(monthStart.getDate() - 30);
+      query.createdAt = { $gte: monthStart };
+    }
 
     const [transfers, total] = await Promise.all([
       TransferRequest.find(query)
@@ -889,6 +921,120 @@ const refreshUsdtBalances = async () => {
   return total;
 };
 
+/**
+ * GET /api/admin/swap-history
+ * All swap transactions across all users
+ */
+const getSwapHistory = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = 20;
+    const skip = (page - 1) * limit;
+
+    const [swaps, total] = await Promise.all([
+      Transaction.find({ type: 'usdt_transfer', description: { $regex: /^Swapped/ } })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .populate('userId', 'name email mobile')
+        .lean(),
+      Transaction.countDocuments({ type: 'usdt_transfer', description: { $regex: /^Swapped/ } }),
+    ]);
+
+    // Calculate total commission earned (5% of all swaps)
+    const allSwaps = await Transaction.aggregate([
+      { $match: { type: 'usdt_transfer', description: { $regex: /^Swapped/ } } },
+      { $group: { _id: null, totalNFT: { $sum: { $abs: '$amount' } } } },
+    ]);
+    const totalSwappedNFT = allSwaps[0]?.totalNFT || 0;
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        swaps,
+        totalSwappedNFT,
+        pagination: { total, page, pages: Math.ceil(total / limit) },
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * GET /api/admin/fm-stats
+ * FM Token market overview
+ */
+const getFMStats = async (req, res) => {
+  try {
+    const FMConfig = require('../models/FMConfig');
+    const fmConfig = await FMConfig.findOne().lean();
+
+    // Total FM held by all users
+    const fmHeld = await NFTWallet.aggregate([
+      { $group: { _id: null, total: { $sum: '$fmBalance' } } },
+    ]);
+
+    // FM earned via referral commission
+    const fmReferral = await NFTWallet.aggregate([
+      { $group: { _id: null, total: { $sum: '$fmReferralEarnings' } } },
+    ]);
+
+    // FM earned via signup
+    const fmSignup = await NFTWallet.aggregate([
+      { $group: { _id: null, total: { $sum: '$fmSignupEarnings' } } },
+    ]);
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        totalSupply: fmConfig?.totalSupply || 21000000,
+        totalMinted: fmConfig?.totalMinted || 0,
+        remaining: (fmConfig?.totalSupply || 21000000) - (fmConfig?.totalMinted || 0),
+        listingPrice: 1.00,
+        lockPeriodDays: fmConfig?.lockPeriodDays || 180,
+        dailyWatchRewardFM: fmConfig?.dailyWatchRewardFM || 1,
+        signupBonusFM: fmConfig?.signupBonusFM || 100,
+        totalFMHeld: fmHeld[0]?.total || 0,
+        totalFMReferral: fmReferral[0]?.total || 0,
+        totalFMSignup: fmSignup[0]?.total || 0,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * POST /api/admin/announcement
+ */
+const setAnnouncement = async (req, res) => {
+  try {
+    const { message, type } = req.body;
+    if (!message) return res.status(400).json({ success: false, message: 'Message required' });
+    const Announcement = require('../models/Announcement');
+    // Deactivate old ones
+    await Announcement.updateMany({}, { active: false });
+    const ann = await Announcement.create({ message, type: type || 'info', active: true });
+    return res.status(200).json({ success: true, data: ann });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * GET /api/admin/announcement
+ */
+const getAnnouncement = async (req, res) => {
+  try {
+    const Announcement = require('../models/Announcement');
+    const ann = await Announcement.findOne({ active: true }).sort({ createdAt: -1 }).lean();
+    return res.status(200).json({ success: true, data: ann });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   adminLogin,
   adminVerifyLoginOTP,
@@ -915,4 +1061,8 @@ module.exports = {
   cancelTransferRequest,
   getUsersUsdtBalances,
   getTotalUsdt,
+  getSwapHistory,
+  getFMStats,
+  setAnnouncement,
+  getAnnouncement,
 };

@@ -4,6 +4,7 @@ const Transaction = require('../models/Transaction');
 const Task = require('../models/Task');
 const NetworkChangeRequest = require('../models/NetworkChangeRequest');
 const ReferralTree = require('../models/ReferralTree');
+const DailyWatch = require('../models/DailyWatch');
 const { getLevelWiseReferrals, getTeamSize } = require('../utils/referralService');
 const { getCurrentNFTPrice } = require('../utils/nftPriceService');
 
@@ -20,6 +21,38 @@ const getDashboard = async (req, res) => {
       getCurrentNFTPrice(),
       getTeamSize(userId.toString()),
     ]);
+
+    // Get FM config
+    const FMConfig = require('../models/FMConfig');
+    const fmConfig = await FMConfig.findOne().lean();
+
+    // Get active announcement
+    const Announcement = require('../models/Announcement');
+    const announcement = await Announcement.findOne({ active: true }).sort({ createdAt: -1 }).lean();
+
+    // Calculate today's earnings (from midnight)
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const todayTransactions = await Transaction.find({
+      userId,
+      createdAt: { $gte: todayStart },
+      type: { $ne: 'withdrawal' },
+    }).lean();
+
+    let todayNFT = 0;
+    let todayFM = 0;
+    todayTransactions.forEach((t) => {
+      if (t.amount > 0) todayNFT += t.amount;
+    });
+
+    // Today FM from DailyWatch
+    const DailyWatch = require('../models/DailyWatch');
+    const todayStr = new Date().toISOString().split('T')[0];
+    const todayWatch = await DailyWatch.findOne({ userId, watchDate: todayStr }).lean();
+    if (todayWatch) {
+      todayFM += (todayWatch.fmEarned || 0) + (todayWatch.streakBonusFM || 0);
+    }
 
     const totalIncome = wallet
       ? wallet.signupEarnings + wallet.referralEarnings + wallet.teamEarnings
@@ -46,10 +79,22 @@ const getDashboard = async (req, res) => {
           teamEarnings: wallet?.teamEarnings || 0,
           totalWithdrawn: wallet?.totalWithdrawn || 0,
           totalIncome,
-          usdValue: ((wallet?.nftBalance || 0) * nftPrice).toFixed(4),
+          usdValue: ((wallet?.nftBalance || 0) * nftPrice).toFixed(2),
+          // FM Token
+          fmBalance: wallet?.fmBalance || 0,
+          fmSignupEarnings: wallet?.fmSignupEarnings || 0,
+          fmReferralEarnings: wallet?.fmReferralEarnings || 0,
+          fmTeamEarnings: wallet?.fmTeamEarnings || 0,
+          // Internal USDT
+          usdtInternalBalance: wallet?.usdtInternalBalance || 0,
         },
         nftPrice,
         teamSize,
+        todayNFT,
+        todayFM,
+        fmMinted: fmConfig ? fmConfig.totalMinted : 0,
+        fmSupply: fmConfig ? fmConfig.totalSupply : 21000000,
+        announcement: announcement ? { message: announcement.message, type: announcement.type } : null,
       },
     });
   } catch (error) {
@@ -73,7 +118,16 @@ const getReferrals = async (req, res) => {
         .lean(),
     ]);
 
-    const activeMembers = directRefs.filter((r) => r.userId?.isVerified).length;
+    // Active Today = team members who watched ad today
+    const today = new Date().toISOString().split('T')[0];
+    const allTeamUserIds = directRefs.map((r) => r.userId?._id).filter(Boolean);
+    let activeToday = 0;
+    if (allTeamUserIds.length > 0) {
+      activeToday = await DailyWatch.countDocuments({
+        userId: { $in: allTeamUserIds },
+        watchDate: today,
+      });
+    }
 
     return res.status(200).json({
       success: true,
@@ -81,7 +135,8 @@ const getReferrals = async (req, res) => {
         referralCode: req.user.referralCode,
         referralLink: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/register?ref=${req.user.referralCode}`,
         totalReferrals,
-        activeMembers,
+        activeMembers: activeToday,
+        totalTeamCount: allTeamUserIds.length,
         levelWise,
         directReferrals: directRefs.map((r) => ({
           name: r.userId?.name,
@@ -102,17 +157,38 @@ const getReferrals = async (req, res) => {
 const getTransactions = async (req, res) => {
   try {
     const page = parseInt(req.query.page, 10) || 1;
-    const limit = parseInt(req.query.limit, 10) || 20;
+    const limit = parseInt(req.query.limit, 10) || 10;
     const skip = (page - 1) * limit;
+    const filter = req.query.filter || 'lifetime';
+
+    // Build date filter
+    let dateFilter = {};
+    const now = new Date();
+    if (filter === 'today') {
+      const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
+      dateFilter = { createdAt: { $gte: todayStart } };
+    } else if (filter === 'yesterday') {
+      const yStart = new Date(now); yStart.setDate(yStart.getDate() - 1); yStart.setHours(0, 0, 0, 0);
+      const yEnd = new Date(now); yEnd.setHours(0, 0, 0, 0);
+      dateFilter = { createdAt: { $gte: yStart, $lt: yEnd } };
+    } else if (filter === 'week') {
+      const weekStart = new Date(now); weekStart.setDate(weekStart.getDate() - 7); weekStart.setHours(0, 0, 0, 0);
+      dateFilter = { createdAt: { $gte: weekStart } };
+    } else if (filter === 'month') {
+      const monthStart = new Date(now); monthStart.setDate(monthStart.getDate() - 30); monthStart.setHours(0, 0, 0, 0);
+      dateFilter = { createdAt: { $gte: monthStart } };
+    }
+
+    const query = { userId: req.user._id, type: { $ne: 'withdrawal' }, ...dateFilter };
 
     const [transactions, total] = await Promise.all([
-      Transaction.find({ userId: req.user._id, type: { $ne: 'usdt_transfer' } })
+      Transaction.find(query)
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
         .populate('fromUserId', 'name')
         .lean(),
-      Transaction.countDocuments({ userId: req.user._id, type: { $ne: 'usdt_transfer' } }),
+      Transaction.countDocuments(query),
     ]);
 
     return res.status(200).json({
@@ -287,10 +363,30 @@ const claimSignupBonus = async (req, res) => {
     const config = await getConfig();
     const bonusAmount = config.signupBonusAmount;
 
-    // Credit bonus
+    // Credit NFT bonus
     await creditNFTs(user._id, bonusAmount, 'signup', {
       description: `Signup bonus — Welcome to FutureMint NFT`,
     });
+
+    // Credit FM Token bonus (100 FM)
+    const fmBonus = 100;
+    await NFTWallet.findOneAndUpdate(
+      { userId: user._id },
+      { $inc: { fmBalance: fmBonus, fmSignupEarnings: fmBonus }, lastUpdated: new Date() }
+    );
+
+    // Log FM bonus transaction separately
+    await Transaction.create({
+      userId: user._id,
+      type: 'signup',
+      amount: fmBonus,
+      fmAmount: fmBonus,
+      description: 'Signup Bonus — 100 FM Tokens (Locked 180 days)',
+    });
+
+    // Update FM minted count
+    const FMConfig = require('../models/FMConfig');
+    await FMConfig.findOneAndUpdate({}, { $inc: { totalMinted: fmBonus } });
 
     // Mark as claimed
     user.signupBonusClaimed = true;
@@ -298,8 +394,8 @@ const claimSignupBonus = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: `🎉 ${bonusAmount} NFTs credited to your wallet!`,
-      data: { bonusAmount },
+      message: `🎉 ${bonusAmount} NFTs + ${fmBonus} FM Tokens credited!`,
+      data: { bonusAmount, fmBonus },
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
@@ -435,6 +531,253 @@ const rejectTransfer = async (req, res) => {
   }
 };
 
+/**
+ * GET /api/user/watch-status
+ * Returns: watchedToday, streakDays, last7DaysHistory
+ */
+const getWatchStatus = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+
+    // Check if watched today
+    const todayWatch = await DailyWatch.findOne({ userId, watchDate: today }).lean();
+
+    // Get last 7 watches to calculate streak
+    const recentWatches = await DailyWatch.find({ userId })
+      .sort({ watchDate: -1 })
+      .limit(90)
+      .select('watchDate streakCount')
+      .lean();
+
+    // Calculate current streak
+    let streakDays = 0;
+    if (recentWatches.length > 0) {
+      const checkDate = new Date();
+      // If not watched today, start checking from yesterday
+      if (!todayWatch) checkDate.setDate(checkDate.getDate() - 1);
+
+      for (let i = 0; i < 90; i++) {
+        const dateStr = checkDate.toISOString().split('T')[0];
+        const found = recentWatches.find((w) => w.watchDate === dateStr);
+        if (found) {
+          streakDays++;
+          checkDate.setDate(checkDate.getDate() - 1);
+        } else {
+          break;
+        }
+      }
+      // If watched today, include today
+      if (todayWatch) streakDays = Math.max(streakDays, 1);
+    }
+
+    // Last 7 days history (for streak circles)
+    const last7 = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      const watched = recentWatches.some((w) => w.watchDate === dateStr);
+      last7.push({ date: dateStr, watched });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        watchedToday: !!todayWatch,
+        streakDays,
+        videosLeft: todayWatch ? 0 : 1,
+        last7Days: last7,
+        nextStreakMilestone: streakDays < 7 ? 7 : streakDays < 30 ? 30 : streakDays < 90 ? 90 : null,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * POST /api/user/watch-complete
+ * Credits 5 NFT + 1 FM, distributes 15-level commission, tracks streak
+ */
+const completeWatch = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const today = new Date().toISOString().split('T')[0];
+
+    // Check if already watched today
+    const existing = await DailyWatch.findOne({ userId, watchDate: today });
+    if (existing) {
+      return res.status(400).json({ success: false, message: 'You already watched today. Come back tomorrow!' });
+    }
+
+    const NFT_REWARD = 5;
+    const FM_REWARD = 1;
+
+    // Calculate streak
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split('T')[0];
+    const yesterdayWatch = await DailyWatch.findOne({ userId, watchDate: yesterdayStr }).lean();
+    const streakCount = yesterdayWatch ? (yesterdayWatch.streakCount || 0) + 1 : 1;
+
+    // Check streak bonuses
+    let streakBonusNFT = 0;
+    let streakBonusFM = 0;
+    if (streakCount === 7) { streakBonusNFT = 10; streakBonusFM = 5; }
+    else if (streakCount === 30) { streakBonusNFT = 50; streakBonusFM = 25; }
+    else if (streakCount === 90) { streakBonusNFT = 150; streakBonusFM = 100; }
+
+    const totalNFT = NFT_REWARD + streakBonusNFT;
+    const totalFM = FM_REWARD + streakBonusFM;
+
+    // Credit to user wallet
+    await NFTWallet.findOneAndUpdate(
+      { userId },
+      {
+        $inc: { nftBalance: totalNFT, fmBalance: totalFM },
+        lastUpdated: new Date(),
+      }
+    );
+
+    // Log transactions (separate for NFT and FM)
+    await Transaction.create({
+      userId,
+      type: 'watch',
+      amount: totalNFT,
+      description: `Watch & Earn — Daily video reward${streakBonusNFT ? ` + ${streakCount}d streak bonus` : ''}`,
+    });
+
+    await Transaction.create({
+      userId,
+      type: 'watch',
+      amount: totalFM,
+      fmAmount: totalFM,
+      description: `Watch & Earn — FM Token reward${streakBonusFM ? ` + ${streakCount}d streak bonus` : ''}`,
+    });
+
+    // Save watch record
+    await DailyWatch.create({
+      userId,
+      watchDate: today,
+      nftEarned: NFT_REWARD,
+      fmEarned: FM_REWARD,
+      streakCount,
+      streakBonusNFT,
+      streakBonusFM,
+    });
+
+    // Distribute commission to 15-level ancestors
+    const { processWatchCommission } = require('../utils/watchCommissionService');
+    await processWatchCommission(userId, NFT_REWARD, FM_REWARD);
+
+    // Update NFTConfig totalMinted
+    const NFTConfig = require('../models/NFTConfig');
+    await NFTConfig.findOneAndUpdate({}, { $inc: { totalMinted: totalNFT } });
+
+    // Update FMConfig totalMinted
+    const FMConfig = require('../models/FMConfig');
+    await FMConfig.findOneAndUpdate({}, { $inc: { totalMinted: totalFM } });
+
+    return res.status(200).json({
+      success: true,
+      message: streakBonusNFT
+        ? `🎉 Earned ${NFT_REWARD} NFT + ${FM_REWARD} FM + Streak Bonus: ${streakBonusNFT} NFT + ${streakBonusFM} FM!`
+        : `✅ Earned ${NFT_REWARD} NFT + ${FM_REWARD} FM! Streak: ${streakCount} days`,
+      data: { nftEarned: totalNFT, fmEarned: totalFM, streakCount, streakBonusNFT, streakBonusFM },
+    });
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(400).json({ success: false, message: 'Already watched today!' });
+    }
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * POST /api/user/swap-nft
+ * Swap NFT to internal USDT wallet (NFT × currentPrice = USDT)
+ */
+const swapNFT = async (req, res) => {
+  try {
+    const { amount } = req.body;
+    const userId = req.user._id;
+
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ success: false, message: 'Enter a valid amount' });
+    }
+
+    if (amount < 500) {
+      return res.status(400).json({ success: false, message: 'Minimum 500 NFT required to swap' });
+    }
+
+    const wallet = await NFTWallet.findOne({ userId }).lean();
+    if (!wallet || wallet.nftBalance < amount) {
+      return res.status(400).json({ success: false, message: 'Insufficient NFT balance' });
+    }
+
+    // Get current NFT price
+    const { getCurrentNFTPrice } = require('../utils/nftPriceService');
+    const nftPrice = await getCurrentNFTPrice();
+    const grossUsdt = amount * nftPrice;
+    const processingFee = parseFloat((grossUsdt * 0.05).toFixed(6)); // 5% fee
+    const usdtAmount = parseFloat((grossUsdt - processingFee).toFixed(6));
+
+    // Deduct NFT, add USDT to internal wallet
+    await NFTWallet.findOneAndUpdate(
+      { userId },
+      {
+        $inc: { nftBalance: -amount, usdtInternalBalance: usdtAmount },
+        lastUpdated: new Date(),
+      }
+    );
+
+    // Log transaction
+    await Transaction.create({
+      userId,
+      type: 'usdt_transfer',
+      amount: -amount,
+      description: `Swapped ${amount} NFT → $${usdtAmount} USDT (Fee: $${processingFee}) @ $${nftPrice}/NFT`,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: `Swapped ${amount} NFT → $${usdtAmount} USDT (5% fee: $${processingFee})`,
+      data: { nftSwapped: amount, usdtReceived: usdtAmount, fee: processingFee, priceUsed: nftPrice },
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * GET /api/user/swap-history
+ * Get recent swap transactions
+ */
+const getSwapHistory = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = 10;
+    const skip = (page - 1) * limit;
+
+    const [swaps, total] = await Promise.all([
+      Transaction.find({ userId: req.user._id, type: 'usdt_transfer' })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      Transaction.countDocuments({ userId: req.user._id, type: 'usdt_transfer' }),
+    ]);
+
+    return res.status(200).json({
+      success: true,
+      data: { swaps, pagination: { total, page, pages: Math.ceil(total / limit) } },
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   getDashboard,
   getReferrals,
@@ -447,4 +790,8 @@ module.exports = {
   saveUsdtBalance,
   claimSignupBonus,
   logUSDTTransfer,
+  getWatchStatus,
+  completeWatch,
+  swapNFT,
+  getSwapHistory,
 };

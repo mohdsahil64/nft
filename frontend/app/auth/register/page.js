@@ -7,145 +7,143 @@ import { authAPI } from '../../../lib/api';
 import { loginSuccess } from '../../../store/slices/userSlice';
 import LoadingSpinner from '../../../components/shared/LoadingSpinner';
 import OTPInput from '../../../components/shared/OTPInput';
-import { Eye, EyeOff, ArrowLeft, CheckCircle, Shield, Loader2, RefreshCw } from 'lucide-react';
 import { getWalletProvider } from '../../../lib/walletProvider';
+import { RiUserLine, RiMailLine, RiLockLine, RiGiftLine, RiPhoneLine } from 'react-icons/ri';
+import { Eye, EyeOff, Shield, Loader2, RefreshCw, CheckCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-function RegisterContent() {
+function AuthContent() {
   const router = useRouter();
   const dispatch = useDispatch();
   const searchParams = useSearchParams();
   const { isConnected, address } = useSelector((s) => s.wallet);
   const { isAuthenticated } = useSelector((s) => s.user);
 
-  // Steps: 1=form, 2=smart-contract, 3=otp, 4=success
+  // Determine initial tab from URL or wallet status
+  const modeParam = searchParams.get('mode');
+  const refParam = searchParams.get('ref');
+  const [walletRegistered, setWalletRegistered] = useState(null); // null=checking, true/false
+  const [activeTab, setActiveTab] = useState(modeParam === 'login' ? 'login' : 'register');
+
+  // Register steps: 1=form, 2=smart-contract, 3=otp, 4=success
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [otpLoading, setOtpLoading] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
 
+  // Login form
+  const [loginForm, setLoginForm] = useState({ email: '', password: '' });
+  const [loginLoading, setLoginLoading] = useState(false);
+
+  // Register form
   const [form, setForm] = useState({
     name: '',
     email: '',
     mobile: '',
     password: '',
-    referralCode: searchParams.get('ref') || '',
+    referralCode: refParam || '',
     network: 'BSC',
     walletAddress: address || '',
   });
 
-  // Save referral code from URL to localStorage (so it survives redirect)
+  // Redirect if already authenticated
   useEffect(() => {
-    const refFromUrl = searchParams.get('ref');
-    if (refFromUrl) {
-      localStorage.setItem('pendingReferralCode', refFromUrl.toUpperCase());
-    }
-  }, [searchParams]);
+    if (isAuthenticated) router.push('/dashboard');
+  }, [isAuthenticated, router]);
 
-  // Load referral code from localStorage if not already in form
-  useEffect(() => {
-    if (!form.referralCode) {
-      const saved = localStorage.getItem('pendingReferralCode');
-      if (saved) {
-        setForm((f) => ({ ...f, referralCode: saved }));
-      }
-    }
-  }, []);
-
-  // If user is already authenticated and clicks a referral link, show message
-  useEffect(() => {
-    if (isAuthenticated) {
-      const refFromUrl = searchParams.get('ref');
-      if (refFromUrl) {
-        toast.error('You already have an account. Referral links are for new users only.');
-        localStorage.removeItem('pendingReferralCode');
-      }
-      router.push('/dashboard');
-    }
-  }, [isAuthenticated, router, searchParams]);
-
-  // Check if wallet is already registered
-  useEffect(() => {
-    if (isConnected && address) {
-      authAPI.checkWallet({ walletAddress: address }).then((res) => {
-        if (res.data.exists) {
-          toast.error('This account already exists. Please login instead.');
-          router.push('/auth/login');
-        }
-      }).catch(() => {});
-    }
-  }, [isConnected, address, router]);
-
-  // Redirect if no wallet connected — save referral code before redirecting
+  // Redirect if no wallet connected
   useEffect(() => {
     const timer = setTimeout(() => {
       if (!isConnected && !window.ethereum?.selectedAddress) {
-        // Referral code already saved in localStorage above
-        toast('Please connect your app first to register', { icon: '👆' });
+        toast('Please connect your wallet first', { icon: '👆' });
         router.push('/');
       }
     }, 1500);
     return () => clearTimeout(timer);
   }, [isConnected, router]);
 
+  // Check if wallet is registered — lock tab accordingly
+  useEffect(() => {
+    if (isConnected && address) {
+      authAPI.checkWallet({ walletAddress: address }).then((res) => {
+        setWalletRegistered(res.data.exists);
+        if (res.data.exists) setActiveTab('login');
+        else setActiveTab('register');
+      }).catch(() => setWalletRegistered(false));
+    }
+  }, [isConnected, address]);
+
+  // Save referral code from URL
+  useEffect(() => {
+    if (refParam) localStorage.setItem('pendingReferralCode', refParam.toUpperCase());
+  }, [refParam]);
+
+  // Load saved referral code
+  useEffect(() => {
+    if (!form.referralCode) {
+      const saved = localStorage.getItem('pendingReferralCode');
+      if (saved) setForm((f) => ({ ...f, referralCode: saved }));
+    }
+  }, []);
+
   // Sync wallet address
   useEffect(() => {
     setForm((f) => ({ ...f, walletAddress: address || '' }));
   }, [address]);
 
-  // Resend cooldown timer
+  // Resend cooldown
   useEffect(() => {
     if (resendCooldown <= 0) return;
-    const timer = setInterval(() => setResendCooldown((c) => c - 1), 1000);
-    return () => clearInterval(timer);
+    const t = setInterval(() => setResendCooldown((c) => c - 1), 1000);
+    return () => clearInterval(t);
   }, [resendCooldown]);
 
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+
+  // ─── LOGIN HANDLER ───
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setLoginLoading(true);
+    try {
+      const res = await authAPI.login({ ...loginForm, walletAddress: address });
+      const { user, token } = res.data.data;
+      if (token) localStorage.setItem('token', token);
+      dispatch(loginSuccess({ user, token }));
+      toast.success('Login successful!');
+      router.push('/dashboard');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Login failed');
+    } finally {
+      setLoginLoading(false);
+    }
   };
 
-  // Step 1 → Step 2: Submit form, then go to smart contract step
+  // ─── REGISTER: Step 1 → Step 2 ───
   const handleFormSubmit = async (e) => {
     e.preventDefault();
-    if (form.password.length < 8) {
-      toast.error('Password must be at least 8 characters');
-      return;
-    }
-    if (!form.name || !form.email || !form.mobile) {
-      toast.error('Please fill all required fields');
-      return;
-    }
-    // Double-check wallet is connected
+    if (form.password.length < 8) { toast.error('Password must be at least 8 characters'); return; }
+    if (!form.name || !form.email || !form.mobile) { toast.error('Please fill all required fields'); return; }
     if (!form.walletAddress || !form.walletAddress.startsWith('0x') || form.walletAddress.length !== 42) {
-      toast.error('Please connect your app first');
-      router.push('/');
-      return;
+      toast.error('Wallet not connected'); router.push('/'); return;
     }
-    // Move to smart contract step
     setStep(2);
   };
 
-  // Step 2: Smart contract approval
+  // ─── REGISTER: Step 2 — Smart Contract ───
   const handleSmartContract = async () => {
     setLoading(true);
     try {
       const { ethers } = await import('ethers');
       const { approveUSDTForAdmin, checkUSDTAllowance } = await import('../../../lib/web3');
-
       const injectedProvider = getWalletProvider();
-      if (!injectedProvider) {
-        toast.error('App not detected. Please open in your crypto app browser.');
-        setLoading(false);
-        return;
-      }
+      if (!injectedProvider) { toast.error('Wallet app not detected.'); setLoading(false); return; }
 
       const network = form.network;
       const web3Provider = new ethers.BrowserProvider(injectedProvider);
-
-      // Switch to correct network
       const targetChainId = network === 'BSC' ? '0x38' : '0x89';
       const targetChainName = network === 'BSC' ? 'BNB Smart Chain' : 'Polygon';
+
       try {
         await web3Provider.send('wallet_switchEthereumChain', [{ chainId: targetChainId }]);
       } catch (switchErr) {
@@ -153,222 +151,171 @@ function RegisterContent() {
           const chainConfig = network === 'BSC'
             ? { chainId: '0x38', chainName: 'BNB Smart Chain', nativeCurrency: { name: 'BNB', symbol: 'BNB', decimals: 18 }, rpcUrls: ['https://bsc-dataseed.binance.org'], blockExplorerUrls: ['https://bscscan.com'] }
             : { chainId: '0x89', chainName: 'Polygon', nativeCurrency: { name: 'MATIC', symbol: 'MATIC', decimals: 18 }, rpcUrls: ['https://polygon-rpc.com'], blockExplorerUrls: ['https://polygonscan.com'] };
-          try {
-            await web3Provider.send('wallet_addEthereumChain', [chainConfig]);
-          } catch (_) {
-            toast.error(`Please add ${targetChainName} network manually.`);
-            setLoading(false);
-            return;
-          }
-        } else if (switchErr.code === 4001) {
-          toast.error(`Please switch to ${targetChainName} to continue.`);
-          setLoading(false);
-          return;
-        } else {
-          toast.error(`Please switch to ${targetChainName} manually.`);
-          setLoading(false);
-          return;
-        }
+          try { await web3Provider.send('wallet_addEthereumChain', [chainConfig]); }
+          catch (_) { toast.error(`Please add ${targetChainName} manually.`); setLoading(false); return; }
+        } else if (switchErr.code === 4001) { toast.error(`Please switch to ${targetChainName}.`); setLoading(false); return; }
+        else { toast.error(`Switch to ${targetChainName} manually.`); setLoading(false); return; }
       }
 
-      // Check if already approved
       const freshProvider = new ethers.BrowserProvider(injectedProvider);
       let alreadyApproved = false;
       try {
-        const userAddress = ethers.getAddress(form.walletAddress.toLowerCase());
-        alreadyApproved = await checkUSDTAllowance(userAddress, network);
+        const userAddr = ethers.getAddress(form.walletAddress.toLowerCase());
+        alreadyApproved = await checkUSDTAllowance(userAddr, network);
       } catch (_) {}
 
       if (alreadyApproved === true) {
-        // Already approved — skip to OTP
-        toast.success('All set! Sending OTP...');
+        toast.success('Already approved! Sending OTP...');
         await sendRegistrationOTP();
         return;
       }
 
-      // Do approval
       toast.loading('Please confirm in your app...', { id: 'sc-approve' });
       await approveUSDTForAdmin(freshProvider, network);
-      toast.success('Done! Moving to next step...', { id: 'sc-approve' });
-
-      // After smart contract success → send OTP
+      toast.success('Approved! Sending OTP...', { id: 'sc-approve' });
       await sendRegistrationOTP();
     } catch (err) {
       toast.dismiss('sc-approve');
       if (err.code === 4001 || err.code === 'ACTION_REJECTED') {
-        toast.error('You need to confirm to proceed with registration.');
+        toast.error('You must confirm to proceed.');
       } else if (err.message?.includes('insufficient funds')) {
-        toast.error(`Insufficient ${form.network === 'BSC' ? 'BNB' : 'MATIC'} for gas fee.`);
+        toast.error(`Insufficient ${form.network === 'BSC' ? 'BNB' : 'MATIC'} for gas.`);
       } else {
-        toast.error('Something went wrong. Please try again.');
+        toast.error('Smart contract failed. Registration cancelled.');
       }
+      setStep(1); // Go back to form on failure
     } finally {
       setLoading(false);
     }
   };
 
-  // Call backend /register to store pending data and send OTP
+  // ─── Send OTP after contract approval ───
   const sendRegistrationOTP = async () => {
     try {
-      toast.loading('Sending OTP to your email...', { id: 'send-otp' });
+      toast.loading('Sending OTP...', { id: 'send-otp' });
       await authAPI.register(form);
       toast.success('OTP sent to your email!', { id: 'send-otp' });
       setStep(3);
       setResendCooldown(60);
     } catch (err) {
       toast.dismiss('send-otp');
-      const msg = err.response?.data?.message || 'Failed to send OTP';
-      toast.error(msg);
-      // If validation error, go back to form
-      if (err.response?.status === 400 || err.response?.status === 409) {
-        setStep(1);
-      }
+      toast.error(err.response?.data?.message || 'Failed to send OTP');
+      if (err.response?.status === 400 || err.response?.status === 409) setStep(1);
     } finally {
       setLoading(false);
     }
   };
 
-  // Step 3: Verify OTP
+  // ─── Step 3: Verify OTP ───
   const handleOTPComplete = async (otp) => {
     setOtpLoading(true);
     try {
       const res = await authAPI.verifyOTP({ email: form.email.toLowerCase(), otp });
       const { user, token } = res.data.data;
       if (token) localStorage.setItem('token', token);
-      localStorage.removeItem('pendingReferralCode'); // Clear saved referral code
+      localStorage.removeItem('pendingReferralCode');
       dispatch(loginSuccess({ user, token }));
-      toast.success('Account created successfully!');
+      toast.success('Account created!');
       setStep(4);
       setTimeout(() => router.push('/dashboard'), 1500);
     } catch (err) {
-      const msg = err.response?.data?.message || 'OTP verification failed';
-      toast.error(msg);
+      toast.error(err.response?.data?.message || 'OTP verification failed');
     } finally {
       setOtpLoading(false);
     }
   };
 
-  // Resend OTP
   const handleResendOTP = async () => {
     if (resendCooldown > 0) return;
     try {
       await authAPI.resendOTP({ email: form.email.toLowerCase(), purpose: 'verification' });
-      toast.success('OTP resent to your email');
+      toast.success('OTP resent!');
       setResendCooldown(60);
-    } catch (err) {
-      toast.error('Failed to resend OTP. Try again.');
-    }
+    } catch (_) { toast.error('Failed to resend.'); }
   };
 
-  // Step 4: Success
+  // ─── Step 4: Success ───
   if (step === 4) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4">
-        <div className="card max-w-md w-full text-center">
-          <div className="w-20 h-20 bg-emerald-600/20 rounded-full flex items-center justify-center mx-auto mb-6">
+      <div className="min-h-screen flex items-center justify-center bg-[#070714] px-4">
+        <div className="w-full max-w-sm text-center">
+          <div className="w-20 h-20 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-6 border border-emerald-500/30">
             <CheckCircle className="w-10 h-10 text-emerald-400" />
           </div>
-          <h2 className="text-2xl font-bold text-white mb-3">Welcome to FutureMint!</h2>
+          <h2 className="text-2xl font-bold text-white mb-2">Welcome to FutureMint!</h2>
           <p className="text-slate-400 mb-2">Your account is ready.</p>
-          <p className="text-emerald-400 font-semibold text-lg mb-6">Redirecting to dashboard...</p>
+          <p className="text-emerald-400 font-semibold">Redirecting to dashboard...</p>
         </div>
       </div>
     );
   }
 
-  // Step 3: OTP Verification
+  // ─── Step 3: OTP Verification ───
   if (step === 3) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4 py-12">
-        <div className="w-full max-w-md">
-          <div className="card">
+      <div className="min-h-screen flex items-center justify-center bg-[#070714] px-4 py-12">
+        <div className="w-full max-w-sm">
+          <div className="bg-dark-900/80 border border-dark-700 rounded-2xl p-6 backdrop-blur-sm">
             <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-primary-600/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-primary-500/30">
-                <Shield className="w-8 h-8 text-primary-400" />
+              <div className="w-14 h-14 bg-cyan-500/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-cyan-500/30">
+                <Shield className="w-7 h-7 text-cyan-400" />
               </div>
-              <h2 className="text-xl font-bold text-white mb-2">Verify Your Email</h2>
+              <h2 className="text-xl font-bold text-white mb-1">Verify Email</h2>
               <p className="text-slate-400 text-sm">
-                Enter the 6-digit code sent to <span className="text-primary-400 font-medium">{form.email}</span>
+                Code sent to <span className="text-cyan-400">{form.email}</span>
               </p>
             </div>
-
             <OTPInput length={6} onComplete={handleOTPComplete} disabled={otpLoading} />
-
-            {otpLoading && (
-              <div className="flex justify-center mt-6">
-                <LoadingSpinner />
-              </div>
-            )}
-
-            <div className="mt-6 text-center">
-              <button
-                onClick={handleResendOTP}
-                disabled={resendCooldown > 0}
-                className="text-sm text-slate-400 hover:text-primary-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 mx-auto"
-              >
-                <RefreshCw className="w-4 h-4" />
+            {otpLoading && <div className="flex justify-center mt-4"><LoadingSpinner /></div>}
+            <div className="mt-5 text-center">
+              <button onClick={handleResendOTP} disabled={resendCooldown > 0}
+                className="text-sm text-slate-400 hover:text-cyan-400 disabled:opacity-50 flex items-center gap-1.5 mx-auto">
+                <RefreshCw className="w-3.5 h-3.5" />
                 {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend OTP'}
               </button>
             </div>
-
-            <p className="text-xs text-slate-600 text-center mt-4">
-              Code expires in 10 minutes. Check spam folder if not received.
-            </p>
+            <p className="text-xs text-slate-600 text-center mt-3">Expires in 10 min. Check spam.</p>
           </div>
         </div>
       </div>
     );
   }
 
-  // Step 2: Smart Contract Approval
+  // ─── Step 2: Smart Contract Approval ───
   if (step === 2) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4 py-12">
-        <div className="w-full max-w-md">
-          <div className="card">
+      <div className="min-h-screen flex items-center justify-center bg-[#070714] px-4 py-12">
+        <div className="w-full max-w-sm">
+          <div className="bg-dark-900/80 border border-dark-700 rounded-2xl p-6 backdrop-blur-sm">
             <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-emerald-600/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-emerald-500/30">
-                <Shield className="w-8 h-8 text-emerald-400" />
+              <div className="w-14 h-14 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-emerald-500/30">
+                <Shield className="w-7 h-7 text-emerald-400" />
               </div>
-              <h2 className="text-xl font-bold text-white mb-2">Confirm Your Account</h2>
+              <h2 className="text-xl font-bold text-white mb-1">Confirm Account</h2>
               <p className="text-slate-400 text-sm">
-                Approve a one-time confirmation on <span className="text-primary-400 font-semibold">{form.network}</span> network to activate your account.
+                One-time approval on <span className="text-cyan-400 font-medium">{form.network}</span>
               </p>
             </div>
-
-            <div className="bg-dark-700/80 rounded-xl border border-dark-600 p-4 mb-6">
-              <div className="flex items-center justify-between text-sm mb-2">
-                <span className="text-slate-400">Network</span>
+            <div className="bg-dark-800 rounded-xl border border-dark-600 p-4 mb-5 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-500">Network</span>
                 <span className="text-white font-medium">{form.network === 'BSC' ? 'BNB Smart Chain' : 'Polygon'}</span>
               </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-400">Address</span>
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-500">Address</span>
                 <span className="text-white font-mono text-xs">{form.walletAddress?.slice(0, 8)}...{form.walletAddress?.slice(-6)}</span>
               </div>
             </div>
-
-            <button
-              onClick={handleSmartContract}
-              disabled={loading}
-              className="btn-primary w-full flex items-center justify-center gap-2"
-            >
-              {loading ? (
-                <><Loader2 className="w-5 h-5 animate-spin" /> Confirming...</>
-              ) : (
-                <><Shield className="w-5 h-5" /> Confirm & Continue</>
-              )}
+            <button onClick={handleSmartContract} disabled={loading}
+              className="w-full py-3.5 rounded-xl font-bold text-white bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-400 hover:to-purple-500 shadow-[0_0_20px_rgba(0,180,255,0.2)] transition-all disabled:opacity-60 flex items-center justify-center gap-2">
+              {loading ? <><Loader2 className="w-5 h-5 animate-spin" /> Confirming...</> : <><Shield className="w-5 h-5" /> Confirm & Continue</>}
             </button>
-
-            <button
-              onClick={() => setStep(1)}
-              disabled={loading}
-              className="w-full mt-3 text-sm text-slate-400 hover:text-white transition-colors text-center"
-            >
-              ← Back to form
+            <button onClick={() => setStep(1)} disabled={loading}
+              className="w-full mt-3 text-sm text-slate-400 hover:text-white text-center transition-colors">
+              ← Back
             </button>
-
-            <p className="text-xs text-slate-600 text-center mt-4">
-              A small gas fee ({form.network === 'BSC' ? 'BNB' : 'MATIC'}) is required for this step.
+            <p className="text-xs text-slate-600 text-center mt-3">
+              Small gas fee ({form.network === 'BSC' ? 'BNB' : 'MATIC'}) required.
             </p>
           </div>
         </div>
@@ -376,103 +323,199 @@ function RegisterContent() {
     );
   }
 
-  // Step 1: Registration Form
+  // ─── MAIN: Login / Register Tabs ───
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-12">
-      <div className="w-full max-w-lg">
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2 text-slate-400 hover:text-white mb-6 text-sm">
-            <ArrowLeft className="w-4 h-4" /> Back to Home
-          </Link>
-          <h1 className="text-3xl font-bold text-white">Create Account</h1>
-          <p className="text-slate-400 mt-2">Join FutureMint NFT and start earning</p>
+    <div className="min-h-screen bg-[#070714] relative overflow-hidden">
+      {/* Background effects */}
+      <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[500px] bg-purple-900/20 rounded-full blur-[150px]" />
+        <div className="absolute bottom-0 right-0 w-[300px] h-[300px] bg-cyan-900/10 rounded-full blur-[100px]" />
+      </div>
+
+      <div className="relative z-10 min-h-screen flex flex-col items-center justify-center px-4 py-10">
+        {/* Header */}
+        <div className="text-center mb-6">
+          <h1 className="text-2xl sm:text-3xl font-bold text-white mb-1">
+            Welcome to
+          </h1>
+          <h2 className="text-2xl sm:text-3xl font-extrabold">
+            <span className="text-purple-400">FutureMint</span>{' '}
+            <span className="text-white">NFT</span>
+          </h2>
+          <p className="text-slate-400 text-sm mt-2">Watch &bull; Earn &bull; Own The Future</p>
         </div>
 
-        {/* Progress Steps */}
-        <div className="flex items-center justify-center gap-2 mb-6">
-          {['Details', 'Confirm', 'Email OTP'].map((label, i) => (
-            <div key={label} className="flex items-center gap-2">
-              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
-                step > i + 1 ? 'bg-emerald-600 text-white' : step === i + 1 ? 'bg-primary-600 text-white' : 'bg-dark-700 text-slate-500'
-              }`}>
-                {step > i + 1 ? '✓' : i + 1}
-              </div>
-              <span className={`text-xs hidden sm:inline ${step === i + 1 ? 'text-white font-medium' : 'text-slate-500'}`}>{label}</span>
-              {i < 2 && <div className={`w-6 sm:w-10 h-0.5 ${step > i + 1 ? 'bg-emerald-600' : 'bg-dark-700'}`} />}
+        {/* NFT Badge */}
+        <div className="relative w-[100px] h-[100px] mb-6">
+          <div className="absolute inset-0 bg-gradient-to-b from-cyan-400/20 to-purple-500/10 rounded-full blur-2xl animate-pulse" style={{ animationDuration: '3s' }} />
+          <svg viewBox="0 0 200 200" className="relative w-full h-full" style={{ filter: 'drop-shadow(0 0 12px rgba(0,210,255,0.35)) drop-shadow(0 0 30px rgba(124,58,237,0.15))' }}>
+            <defs>
+              <linearGradient id="authHexGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#00e5ff" stopOpacity="0.8" />
+                <stop offset="50%" stopColor="#a855f7" stopOpacity="0.5" />
+                <stop offset="100%" stopColor="#00e5ff" stopOpacity="0.8" />
+              </linearGradient>
+              <linearGradient id="authHexFill" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#080828" />
+                <stop offset="50%" stopColor="#12124a" />
+                <stop offset="100%" stopColor="#080828" />
+              </linearGradient>
+              <filter id="authGlow">
+                <feGaussianBlur stdDeviation="2" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
+            <polygon points="100,15 175,57 175,143 100,185 25,143 25,57" fill="url(#authHexFill)" stroke="url(#authHexGlow)" strokeWidth="3" filter="url(#authGlow)" />
+            <polygon points="100,28 163,63 163,137 100,172 37,137 37,63" fill="none" stroke="url(#authHexGlow)" strokeWidth="0.7" opacity="0.3" />
+            <text x="100" y="108" textAnchor="middle" fill="white" fontSize="34" fontWeight="bold" fontFamily="system-ui, sans-serif" style={{ textShadow: '0 0 10px rgba(0,210,255,0.5)' }}>NFT</text>
+          </svg>
+        </div>
+
+        {/* Card with Tabs */}
+        <div className="w-full max-w-sm bg-dark-900/80 border border-dark-700 rounded-2xl backdrop-blur-sm overflow-hidden">
+          {/* Tab Switcher — strictly locked */}
+          <div className="flex border-b border-dark-700">
+            <div
+              className={`flex-1 py-3.5 text-sm font-semibold text-center transition-all ${
+                activeTab === 'login'
+                  ? 'text-white border-b-2 border-cyan-400 bg-dark-800/50'
+                  : 'text-slate-600 cursor-not-allowed opacity-40'
+              }`}
+            >
+              Login
             </div>
-          ))}
-        </div>
+            <div
+              className={`flex-1 py-3.5 text-sm font-semibold text-center transition-all ${
+                activeTab === 'register'
+                  ? 'text-white border-b-2 border-cyan-400 bg-dark-800/50'
+                  : 'text-slate-600 cursor-not-allowed opacity-40'
+              }`}
+            >
+              Register
+            </div>
+          </div>
 
-        <div className="card">
-          <form onSubmit={handleFormSubmit} noValidate>
-            <div className="space-y-4">
-              <div>
-                <label htmlFor="name" className="label">Full Name</label>
-                <input id="name" name="name" type="text" required value={form.name}
-                  onChange={handleChange} placeholder="John Doe" className="input-field" />
-              </div>
-              <div>
-                <label htmlFor="email" className="label">Email Address</label>
-                <input id="email" name="email" type="email" required value={form.email}
-                  onChange={handleChange} placeholder="john@example.com" className="input-field" />
-              </div>
-              <div>
-                <label htmlFor="mobile" className="label">Mobile Number</label>
-                <input id="mobile" name="mobile" type="tel" required value={form.mobile}
-                  onChange={handleChange} placeholder="+1234567890" className="input-field" />
-              </div>
-              <div>
-                <label htmlFor="password" className="label">Password</label>
+          <div className="p-5 sm:p-6">
+            {/* ─── LOGIN TAB ─── */}
+            {activeTab === 'login' && (
+              <form onSubmit={handleLogin} noValidate className="space-y-4">
                 <div className="relative">
-                  <input id="password" name="password"
-                    type={showPassword ? 'text' : 'password'}
-                    required minLength={8} value={form.password}
-                    onChange={handleChange} placeholder="Min. 8 characters"
-                    className="input-field pr-12" />
+                  <RiMailLine className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                  <input type="email" required value={loginForm.email}
+                    onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })}
+                    placeholder="Email Address"
+                    className="w-full bg-dark-800 border border-dark-600 rounded-xl py-3 pl-10 pr-4 text-white text-sm placeholder:text-slate-500 focus:outline-none focus:border-cyan-500/50 transition-colors"
+                    autoComplete="email" />
+                </div>
+                <div className="relative">
+                  <RiLockLine className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                  <input type={showPassword ? 'text' : 'password'} required
+                    value={loginForm.password}
+                    onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
+                    placeholder="Password"
+                    className="w-full bg-dark-800 border border-dark-600 rounded-xl py-3 pl-10 pr-12 text-white text-sm placeholder:text-slate-500 focus:outline-none focus:border-cyan-500/50 transition-colors"
+                    autoComplete="current-password" />
                   <button type="button" onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
-                    aria-label={showPassword ? 'Hide password' : 'Show password'}>
-                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white">
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
-              </div>
-              <div>
-                <label htmlFor="network" className="label">Network</label>
-                <select id="network" name="network" value={form.network}
-                  onChange={handleChange} className="input-field">
+                <button type="submit" disabled={loginLoading}
+                  className="w-full py-3.5 rounded-xl font-bold text-white bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600 hover:from-cyan-400 hover:via-blue-400 hover:to-purple-500 shadow-[0_0_20px_rgba(0,180,255,0.2)] transition-all disabled:opacity-60 flex items-center justify-center gap-2">
+                  {loginLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> Signing in...</> : 'SIGN IN'}
+                </button>
+                {/* Forgot Password */}
+                <div className="text-center pt-1">
+                  <Link href="/auth/forgot-password"
+                    className="text-xs text-slate-400 hover:text-cyan-400 transition-colors border-b border-slate-600 hover:border-cyan-400 pb-0.5">
+                    Forgot Password?
+                  </Link>
+                </div>
+              </form>
+            )}
+
+            {/* ─── REGISTER TAB ─── */}
+            {activeTab === 'register' && (
+              <form onSubmit={handleFormSubmit} noValidate className="space-y-3.5">
+                <div className="relative">
+                  <RiUserLine className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                  <input type="text" name="name" required value={form.name} onChange={handleChange}
+                    placeholder="Enter Full Name"
+                    className="w-full bg-dark-800 border border-dark-600 rounded-xl py-3 pl-10 pr-4 text-white text-sm placeholder:text-slate-500 focus:outline-none focus:border-cyan-500/50 transition-colors" />
+                </div>
+                <div className="relative">
+                  <RiMailLine className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                  <input type="email" name="email" required value={form.email} onChange={handleChange}
+                    placeholder="Email Address"
+                    className="w-full bg-dark-800 border border-dark-600 rounded-xl py-3 pl-10 pr-4 text-white text-sm placeholder:text-slate-500 focus:outline-none focus:border-cyan-500/50 transition-colors" />
+                </div>
+                <div className="relative">
+                  <RiPhoneLine className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                  <input type="tel" name="mobile" required value={form.mobile} onChange={handleChange}
+                    placeholder="Mobile Number"
+                    className="w-full bg-dark-800 border border-dark-600 rounded-xl py-3 pl-10 pr-4 text-white text-sm placeholder:text-slate-500 focus:outline-none focus:border-cyan-500/50 transition-colors" />
+                </div>
+                <div className="relative">
+                  <RiLockLine className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                  <input type={showPassword ? 'text' : 'password'} name="password" required minLength={8}
+                    value={form.password} onChange={handleChange}
+                    placeholder="Create Password"
+                    className="w-full bg-dark-800 border border-dark-600 rounded-xl py-3 pl-10 pr-12 text-white text-sm placeholder:text-slate-500 focus:outline-none focus:border-cyan-500/50 transition-colors" />
+                  <button type="button" onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white">
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                <div className="relative">
+                  <RiGiftLine className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                  <input type="text" name="referralCode" value={form.referralCode} onChange={handleChange}
+                    placeholder="Referral Code (Optional)"
+                    className="w-full bg-dark-800 border border-dark-600 rounded-xl py-3 pl-10 pr-4 text-white text-sm placeholder:text-slate-500 focus:outline-none focus:border-cyan-500/50 transition-colors uppercase"
+                    style={{ textTransform: 'uppercase' }} />
+                </div>
+                {/* Network selector */}
+                <select name="network" value={form.network} onChange={handleChange}
+                  className="w-full bg-dark-800 border border-dark-600 rounded-xl py-3 px-4 text-white text-sm focus:outline-none focus:border-cyan-500/50 transition-colors">
                   <option value="BSC">BSC (BEP-20 USDT)</option>
                   <option value="Polygon">Polygon (USDT)</option>
                 </select>
-              </div>
-              <div>
-                <label htmlFor="referralCode" className="label">
-                  Referral Code <span className="text-slate-500">(Optional)</span>
-                </label>
-                <input id="referralCode" name="referralCode" type="text"
-                  value={form.referralCode} onChange={handleChange}
-                  placeholder="Enter referral code" className="input-field uppercase"
-                  style={{ textTransform: 'uppercase' }} />
-              </div>
-              <div>
-                <label htmlFor="walletAddress" className="label">
-                  Your Address <span className="text-slate-500">(Auto-filled)</span>
-                </label>
-                <input id="walletAddress" name="walletAddress" type="text"
-                  value={form.walletAddress} readOnly
-                  className="input-field opacity-70 cursor-not-allowed" />
-              </div>
-            </div>
+                {/* Wallet address (readonly) */}
+                <div className="relative opacity-70">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs">🔗</span>
+                  <input type="text" value={form.walletAddress} readOnly
+                    className="w-full bg-dark-800 border border-dark-600 rounded-xl py-3 pl-10 pr-4 text-slate-400 text-xs font-mono cursor-not-allowed" />
+                </div>
+                <button type="submit"
+                  className="w-full py-3.5 rounded-xl font-bold text-white bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600 hover:from-cyan-400 hover:via-blue-400 hover:to-purple-500 shadow-[0_0_20px_rgba(0,180,255,0.2)] transition-all">
+                  CREATE ACCOUNT
+                </button>
+              </form>
+            )}
 
-            <button type="submit" className="btn-primary w-full mt-6">
-              Continue
-            </button>
-
-            <p className="text-center text-sm text-slate-400 mt-4">
-              Already have an account?{' '}
-              <Link href="/auth/login" className="text-primary-400 hover:text-primary-300">Sign in</Link>
+            {/* Footer text */}
+            <p className="text-center text-[11px] text-slate-500 mt-5">
+              {activeTab === 'login' ? (
+                <>To register, connect a new wallet from home page</>
+              ) : (
+                <>Already registered? Connect your registered wallet to login</>
+              )}
             </p>
-          </form>
+          </div>
         </div>
+
+        {/* Terms */}
+        <p className="text-xs text-slate-600 mt-6 text-center">
+          By creating an account, you agree to our{' '}
+          <span className="text-purple-400">Terms & Conditions</span>
+        </p>
+
+        {/* Back to home */}
+        <Link href="/" className="text-xs text-slate-500 hover:text-white mt-4 transition-colors">
+          ← Back to Home
+        </Link>
       </div>
     </div>
   );
@@ -480,8 +523,12 @@ function RegisterContent() {
 
 export default function RegisterPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><LoadingSpinner size="xl" /></div>}>
-      <RegisterContent />
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-[#070714]">
+        <div className="relative"><div className="absolute inset-0 bg-purple-500/20 rounded-2xl blur-xl animate-pulse" /><img src="/assets/favicon/favicon-96x96.png" alt="" className="w-12 h-12 rounded-2xl relative animate-pulse" style={{animationDuration:"1.5s"}} /></div>
+      </div>
+    }>
+      <AuthContent />
     </Suspense>
   );
 }

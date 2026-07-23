@@ -3,14 +3,16 @@ const router = express.Router();
 const { protect } = require('../middleware/auth');
 const {
   initiateWithdrawal,
-  verifyWithdrawalOTP,
+  verifyEmailOTP,
+  verifyMobileOTP,
   getWithdrawalHistory,
 } = require('../controllers/withdrawalController');
 
 router.use(protect);
 
 router.post('/initiate', initiateWithdrawal);
-router.post('/verify-otp', verifyWithdrawalOTP);
+router.post('/verify-email', verifyEmailOTP);
+router.post('/verify-mobile', verifyMobileOTP);
 router.get('/history', getWithdrawalHistory);
 
 module.exports = router;

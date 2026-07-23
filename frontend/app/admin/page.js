@@ -32,11 +32,14 @@ export default function AdminDashboard() {
   const stats = reports ? [
     { label: 'Total Users', value: reports.totalUsers?.toLocaleString(), icon: Users, color: 'text-blue-400' },
     { label: 'Verified Users', value: reports.verifiedUsers?.toLocaleString(), icon: UserPlus, color: 'text-emerald-400' },
-    { label: 'New Users Today', value: reports.newUsersToday?.toLocaleString(), icon: TrendingUp, color: 'text-purple-400' },
-    { label: 'Total NFT Minted', value: reports.totalNFTMinted?.toLocaleString(), icon: Coins, color: 'text-primary-400' },
-    { label: 'Current NFT Price', value: `$${reports.currentNFTPrice}`, icon: DollarSign, color: 'text-yellow-400' },
-    { label: 'Total Withdrawals', value: reports.totalWithdrawals?.toLocaleString(), icon: ArrowDownCircle, color: 'text-red-400' },
-    { label: 'Total NFT Withdrawn', value: reports.totalNFTWithdrawn?.toLocaleString(), icon: ArrowDownCircle, color: 'text-orange-400' },
+    { label: 'New Today', value: reports.newUsersToday?.toLocaleString(), icon: TrendingUp, color: 'text-purple-400' },
+    { label: 'Active Today', value: reports.activeToday?.toLocaleString() || '0', icon: Users, color: 'text-cyan-400' },
+    { label: 'NFT Minted', value: reports.totalNFTMinted?.toLocaleString(), icon: Coins, color: 'text-primary-400' },
+    { label: 'NFT Price', value: `$${reports.currentNFTPrice}`, icon: DollarSign, color: 'text-yellow-400' },
+    { label: 'FM Minted', value: reports.totalFMMinted?.toLocaleString() || '0', icon: Coins, color: 'text-orange-400' },
+    { label: 'Internal USDT', value: `$${(reports.totalInternalUSDT || 0).toFixed(2)}`, icon: DollarSign, color: 'text-emerald-400' },
+    { label: 'USDT Withdrawn', value: `$${(reports.totalUSDTWithdrawn || 0).toFixed(2)}`, icon: ArrowDownCircle, color: 'text-red-400' },
+    { label: 'Pending Withdrawals', value: reports.totalWithdrawals?.toLocaleString(), icon: ArrowDownCircle, color: 'text-yellow-400' },
   ] : [];
 
   return (

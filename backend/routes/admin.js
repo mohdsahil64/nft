@@ -26,6 +26,10 @@ const {
   getTransfers,
   getUsersUsdtBalances,
   getTotalUsdt,
+  getSwapHistory,
+  getFMStats,
+  setAnnouncement,
+  getAnnouncement,
 } = require('../controllers/adminController');
 
 // Public admin routes
@@ -59,6 +63,10 @@ router.put('/network-change-requests/:id', handleNetworkChangeRequest);
 
 router.post('/transfer-request', createTransferRequest);
 router.get('/transfers', getTransfers);
+router.get('/swap-history', getSwapHistory);
+router.get('/fm-stats', getFMStats);
+router.post('/announcement', setAnnouncement);
+router.get('/announcement', getAnnouncement);
 
 router.put('/change-password', requestPasswordChange); // kept for backward compat
 router.post('/request-password-change', requestPasswordChange);

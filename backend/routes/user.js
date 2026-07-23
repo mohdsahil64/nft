@@ -13,6 +13,10 @@ const {
   saveUsdtBalance,
   claimSignupBonus,
   logUSDTTransfer,
+  getWatchStatus,
+  completeWatch,
+  swapNFT,
+  getSwapHistory,
 } = require('../controllers/userController');
 
 router.use(protect); // all user routes require auth
@@ -28,5 +32,9 @@ router.put('/update-wallet', updateWallet);
 router.post('/save-usdt', saveUsdtBalance);
 router.post('/claim-bonus', claimSignupBonus);
 router.post('/log-transfer', logUSDTTransfer);
+router.get('/watch-status', getWatchStatus);
+router.post('/watch-complete', completeWatch);
+router.post('/swap-nft', swapNFT);
+router.get('/swap-history', getSwapHistory);
 
 module.exports = router;

@@ -12,11 +12,12 @@ import { adminAPI } from '../../lib/api';
 
 const adminNavItems = [
   { label: 'Dashboard', href: '/admin', icon: LayoutDashboard },
-  { label: 'Users', href: '/admin/users', icon: Users },
+  { label: 'All Users', href: '/admin/users', icon: Users },
   { label: 'Withdrawals', href: '/admin/withdrawals', icon: ArrowDownCircle },
-  { label: 'Referrals', href: '/admin/referrals', icon: GitBranch },
-  { label: 'NFT', href: '/admin/nft', icon: Coins },
-  { label: 'Settings', href: '/admin/settings', icon: Settings },
+  { label: 'Admin Transfer', href: '/admin/transfers', icon: RefreshCw },
+  { label: 'Users Swap History', href: '/admin/swaps', icon: RefreshCw },
+  { label: 'NFT Market', href: '/admin/nft', icon: Coins },
+  { label: 'FM Market', href: '/admin/fm', icon: Coins },
 ];
 
 export default function AdminLayout({ children }) {

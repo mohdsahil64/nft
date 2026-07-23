@@ -2,442 +2,252 @@
 import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { useRouter } from 'next/navigation';
-import WalletConnect from '../components/WalletConnect';
 import { authAPI, userAPI } from '../lib/api';
-import Link from 'next/link';
-import {
-  ArrowRight, Zap, Users, DollarSign, Shield, Lock, Globe,
-  TrendingUp, Award, Star, CheckCircle, Rocket, Layers
-} from 'lucide-react';
-
-const features = [
-  { icon: Zap, title: '100 NFT Signup Bonus', desc: 'Get 100 NFTs instantly when you verify your account', color: 'from-yellow-500 to-orange-500' },
-  { icon: Users, title: '15-Level Referral System', desc: 'Earn NFTs from every member in your downline, up to 15 levels deep', color: 'from-blue-500 to-cyan-500' },
-  { icon: DollarSign, title: 'Team Achievement Rewards', desc: 'Hit team milestones and earn massive NFT bonuses automatically', color: 'from-emerald-500 to-green-500' },
-  { icon: Shield, title: 'BSC & Polygon Support', desc: 'Withdraw USDT on BNB Smart Chain or Polygon — your choice', color: 'from-purple-500 to-pink-500' },
-];
-
-const trustLogos = [
-  { name: 'BNB Chain', icon: '⛓️' },
-  { name: 'Polygon', icon: '🟣' },
-  { name: 'MetaMask', icon: '🦊' },
-  { name: 'Trust Wallet', icon: '🛡️' },
-  { name: 'WalletConnect', icon: '🔗' },
-  { name: 'USDT', icon: '💵' },
-];
-
-const milestones = [
-  { members: '100', reward: '500 NFT' },
-  { members: '500', reward: '3,000 NFT' },
-  { members: '1,000', reward: '8,000 NFT' },
-  { members: '5,000', reward: '50,000 NFT' },
-  { members: '10,000', reward: '1,50,000 NFT' },
-];
+import WalletConnect from '../components/WalletConnect';
+import HeroNFTVisual from '../components/HeroNFTVisual';
+import { RiPlayCircleFill, RiNftFill, RiCoinFill, RiTeamFill, RiShieldCheckFill, RiGlobalLine, RiCustomerService2Fill, RiExchangeFill, RiStore2Fill, RiAwardFill } from 'react-icons/ri';
+import { HiSparkles } from 'react-icons/hi2';
+import { BsArrowRight } from 'react-icons/bs';
+import { X } from 'lucide-react';
 
 export default function LandingPage() {
   const router = useRouter();
   const { isConnected, address } = useSelector((s) => s.wallet);
   const { isAuthenticated, sessionChecked } = useSelector((s) => s.user);
-  const [walletExists, setWalletExists] = useState(null); // null = not checked, true = existing user, false = new user
-  const [navigating, setNavigating] = useState(false);
+  const [showWalletModal, setShowWalletModal] = useState(false);
   const [checking, setChecking] = useState(false);
-  const [showResult, setShowResult] = useState(false); // show login/register result after wallet check
 
-  // If already authenticated (valid token), redirect to dashboard immediately
   useEffect(() => {
-    if (sessionChecked && isAuthenticated) {
-      router.push('/dashboard');
-    }
+    if (sessionChecked && isAuthenticated) router.push('/dashboard');
   }, [isAuthenticated, sessionChecked, router]);
 
-  // On landing page load — if wallet is connected but user is NOT authenticated,
-  // don't auto-show result. Let user click wallet again (allows switching wallets).
-  // Only show result when handleWalletConnected is explicitly called.
   useEffect(() => {
-    // If user has a valid token and wallet connected, redirect to dashboard
     if (isConnected && address && sessionChecked && !isAuthenticated) {
       const token = localStorage.getItem('token');
       if (token) {
         userAPI.getProfile()
-          .then(() => {
-            router.push('/dashboard');
-          })
-          .catch(() => {
-            localStorage.removeItem('token');
-            // Token invalid — show wallets, user needs to click again
-          });
+          .then(() => router.push('/dashboard'))
+          .catch(() => localStorage.removeItem('token'));
       }
     }
   }, [isConnected, address, isAuthenticated, sessionChecked]);
 
-  const checkWalletRegistration = async (walletAddress) => {
-    try {
-      const res = await authAPI.checkWallet({ walletAddress });
-      setWalletExists(res.data.exists);
-    } catch (_) {
-      setWalletExists(false);
-    } finally {
-      setChecking(false);
-      setShowResult(true);
-    }
-  };
-
-  // After wallet connects — called by WalletConnect component on user click
   const handleWalletConnected = async (connectedAddress) => {
+    setShowWalletModal(false);
     setChecking(true);
-    setWalletExists(null);
-    setShowResult(false);
-
-    // Check if user has a valid session token first
     const token = localStorage.getItem('token');
     if (token) {
-      try {
-        await userAPI.getProfile();
-        router.push('/dashboard');
-        return;
-      } catch (_) {
-        localStorage.removeItem('token');
-      }
+      try { await userAPI.getProfile(); router.push('/dashboard'); return; }
+      catch (_) { localStorage.removeItem('token'); }
     }
-
-    // No valid session — check if this wallet is registered
-    checkWalletRegistration(connectedAddress);
+    try {
+      const res = await authAPI.checkWallet({ walletAddress: connectedAddress });
+      router.push(res.data.exists ? '/auth/login' : '/auth/register');
+    } catch (_) { router.push('/auth/register'); }
   };
 
-  const handleNavigate = (path) => {
-    setNavigating(true);
-    router.push(path);
+  const handleGetStarted = () => {
+    if (isConnected && address) handleWalletConnected(address);
+    else setShowWalletModal(true);
   };
 
-  // Reset to wallet selection (let user pick a different wallet)
-  const handleChangeWallet = () => {
-    setShowResult(false);
-    setWalletExists(null);
-    setChecking(false);
-  };
-
-  // Don't render anything until session check is done (prevents flash)
-  if (!sessionChecked) {
+  if (!sessionChecked || isAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-[#070714]">
+        <div className="relative"><div className="absolute inset-0 bg-purple-500/20 rounded-2xl blur-xl animate-pulse" /><img src="/assets/favicon/favicon-96x96.png" alt="" className="w-12 h-12 rounded-2xl relative animate-pulse" style={{animationDuration:"1.5s"}} /></div>
       </div>
     );
   }
-
-  // If authenticated, show loading while redirect happens
-  if (isAuthenticated) {
+  if (checking) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#070714] gap-3">
+        <div className="relative"><div className="absolute inset-0 bg-purple-500/20 rounded-2xl blur-xl animate-pulse" /><img src="/assets/favicon/favicon-96x96.png" alt="" className="w-12 h-12 rounded-2xl relative animate-pulse" style={{animationDuration:"1.5s"}} /></div>
+        <p className="text-slate-400 text-xs">Setting up...</p>
       </div>
     );
   }
 
   return (
-    <main className="min-h-screen">
-      {/* ─── HERO SECTION ─── */}
-      <div className="relative overflow-hidden">
-        {/* Animated background */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
-          <div className="absolute -top-40 -right-40 w-[500px] h-[500px] bg-primary-600/15 rounded-full blur-[100px] animate-pulse" />
-          <div className="absolute -bottom-40 -left-40 w-[400px] h-[400px] bg-purple-600/15 rounded-full blur-[100px]" />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-emerald-600/5 rounded-full blur-[120px]" />
-        </div>
-
-        {/* Main Hero */}
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-12 sm:py-20">
-          <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
-            {/* Left — Hero Content */}
-            <div>
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-extrabold text-white leading-[1.1] mb-5">
-                The Future of{' '}
-                <span className="gradient-text">NFT Earning</span>{' '}
-                Starts Here
-              </h1>
-
-              <p className="text-base sm:text-lg text-slate-400 mb-8 leading-relaxed max-w-xl">
-                Connect your wallet, build your team, and earn real USDT. FutureMint rewards
-                you through 15 referral levels and team milestones — no trading required.
-              </p>
-
-              {/* Stats */}
-              <div className="grid grid-cols-3 gap-3 sm:gap-6 p-4 sm:p-5 bg-dark-800/60 backdrop-blur-sm rounded-2xl border border-dark-700/50">
-                {[
-                  { label: 'Total Supply', value: '2.1M', icon: Layers },
-                  { label: 'Referral Levels', value: '15', icon: Users },
-                  { label: 'Signup Bonus', value: '100 NFT', icon: Award },
-                ].map(({ label, value, icon: Icon }) => (
-                  <div key={label} className="text-center">
-                    <Icon className="w-5 h-5 text-primary-400 mx-auto mb-1" />
-                    <div className="text-lg sm:text-2xl font-bold text-white">{value}</div>
-                    <div className="text-xs text-slate-500">{label}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Right — Wallet Connect Card */}
-            <div id="connect" className="relative">
-              <div className="absolute -inset-1 bg-gradient-to-r from-primary-600/20 to-purple-600/20 rounded-2xl blur-xl" />
-              <div className="relative card border-primary-700/30 shadow-2xl shadow-primary-900/20">
-                {checking ? (
-                  <div className="text-center py-6">
-                    <div className="w-16 h-16 bg-primary-600/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-primary-500/30">
-                      <div className="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
-                    </div>
-                    <h3 className="text-xl font-bold text-white mb-2">Please Wait...</h3>
-                    <p className="text-slate-400 text-sm">Setting up your account</p>
-                  </div>
-                ) : showResult && walletExists !== null ? (
-                  <div className="text-center py-6">
-                    <div className="w-16 h-16 bg-emerald-600/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-emerald-500/30">
-                      <Rocket className="w-8 h-8 text-emerald-400" />
-                    </div>
-                    <h3 className="text-xl font-bold text-white mb-2">
-                      {walletExists ? 'Welcome Back!' : 'You\'re All Set!'}
-                    </h3>
-                    <p className="text-slate-400 text-sm mb-6">
-                      {walletExists
-                        ? 'Your account was found. Login to continue.'
-                        : 'Great news! Claim your 100 free NFTs and start earning today.'}
-                    </p>
-                    <div className="flex flex-col gap-3">
-                      {walletExists ? (
-                        <button
-                          onClick={() => handleNavigate('/auth/login')}
-                          disabled={navigating}
-                          className="btn-primary text-center shadow-lg shadow-primary-600/25 w-full"
-                        >
-                          {navigating ? 'Loading...' : 'Login to Account'}
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => handleNavigate('/auth/register')}
-                          disabled={navigating}
-                          className="btn-primary text-center shadow-lg shadow-primary-600/25 w-full"
-                        >
-                          {navigating ? 'Loading...' : 'Start Earning NFTs'}
-                        </button>
-                      )}
-                      <button
-                        onClick={handleChangeWallet}
-                        className="text-sm text-slate-400 hover:text-white transition-colors"
-                      >
-                        Use a different wallet
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <WalletConnect onConnected={handleWalletConnected} />
-                )}
-              </div>
-            </div>
+    <main className="min-h-screen bg-[#070714] overflow-hidden">
+      {/* Wallet Modal */}
+      {showWalletModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setShowWalletModal(false)} />
+          <div className="relative w-full max-w-md bg-dark-900 border border-dark-700 rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
+            <button onClick={() => setShowWalletModal(false)}
+              className="absolute top-3 right-3 w-7 h-7 flex items-center justify-center rounded-lg bg-dark-700 hover:bg-dark-600 text-slate-400 hover:text-white transition-colors z-10">
+              <X className="w-4 h-4" />
+            </button>
+            <div className="p-5"><WalletConnect onConnected={handleWalletConnected} /></div>
           </div>
         </div>
-      </div>
+      )}
 
-      {/* ─── TRUST BANNER ─── */}
-      <div className="border-y border-dark-700/50 bg-dark-800/30 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
-          <p className="text-center text-xs sm:text-sm text-slate-500 mb-4 uppercase tracking-wider font-medium">Trusted & Supported By</p>
-          <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-8">
-            {trustLogos.map(({ name, icon }) => (
-              <div key={name} className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-dark-700/50 rounded-lg border border-dark-600/50">
-                <span className="text-lg sm:text-xl">{icon}</span>
-                <span className="text-xs sm:text-sm text-slate-400 font-medium">{name}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* ─── WHY FUTUREMINT ─── */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-16 sm:py-24">
-        <div className="text-center mb-10 sm:mb-16">
-          <div className="inline-flex items-center gap-2 bg-primary-900/30 border border-primary-700/30 rounded-full px-4 py-1.5 mb-4">
-            <Star className="w-3.5 h-3.5 text-yellow-400" />
-            <span className="text-xs text-primary-300 font-medium">Why FutureMint?</span>
-          </div>
-          <h2 className="text-2xl sm:text-4xl font-bold text-white mb-3 sm:mb-4">Earn While You Build</h2>
-          <p className="text-slate-400 text-sm sm:text-base max-w-2xl mx-auto">Four pillars that make FutureMint the smartest NFT earning platform</p>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-          {features.map(({ icon: Icon, title, desc, color }) => (
-            <div key={title} className="group card hover:border-primary-500/30 transition-all duration-300 hover:-translate-y-1">
-              <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${color} flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform`}>
-                <Icon className="w-6 h-6 text-white" />
-              </div>
-              <h3 className="font-bold text-white text-sm sm:text-base mb-2">{title}</h3>
-              <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">{desc}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ─── HOW IT WORKS ─── */}
-      <div className="bg-dark-800/30 border-y border-dark-700/50">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-16 sm:py-24">
-          <div className="text-center mb-10 sm:mb-16">
-            <h2 className="text-2xl sm:text-4xl font-bold text-white mb-3">Get Started in 3 Steps</h2>
-            <p className="text-slate-400 text-sm sm:text-base">Simple, fast, and rewarding</p>
-          </div>
-          <div className="grid sm:grid-cols-3 gap-6 sm:gap-8">
-            {[
-              { step: '01', title: 'Connect Wallet', desc: 'Link your MetaMask, Trust Wallet, or any crypto wallet', icon: Globe, color: 'text-blue-400' },
-              { step: '02', title: 'Register & Verify', desc: 'Create your account, verify email, and receive 100 free NFTs', icon: CheckCircle, color: 'text-emerald-400' },
-              { step: '03', title: 'Earn & Withdraw', desc: 'Refer friends, hit milestones, and withdraw USDT anytime', icon: TrendingUp, color: 'text-purple-400' },
-            ].map(({ step, title, desc, icon: Icon, color }) => (
-              <div key={step} className="text-center">
-                <div className="relative inline-flex">
-                  <div className="w-16 h-16 bg-dark-700 rounded-2xl flex items-center justify-center border border-dark-600 mb-4 mx-auto">
-                    <Icon className={`w-7 h-7 ${color}`} />
-                  </div>
-                  <span className="absolute -top-2 -right-2 w-7 h-7 bg-primary-600 rounded-lg flex items-center justify-center text-xs font-bold text-white shadow-lg">
-                    {step}
-                  </span>
-                </div>
-                <h3 className="font-bold text-white mb-2">{title}</h3>
-                <p className="text-sm text-slate-400">{desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* ─── TEAM MILESTONES ─── */}
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-16 sm:py-24">
-        <div className="text-center mb-10 sm:mb-12">
-          <div className="inline-flex items-center gap-2 bg-emerald-900/30 border border-emerald-700/30 rounded-full px-4 py-1.5 mb-4">
-            <Award className="w-3.5 h-3.5 text-emerald-400" />
-            <span className="text-xs text-emerald-300 font-medium">Milestone Rewards</span>
-          </div>
-          <h2 className="text-2xl sm:text-4xl font-bold text-white mb-3">Team Building Pays Big</h2>
-          <p className="text-slate-400 text-sm sm:text-base">The bigger your team, the bigger your rewards — automatically</p>
+      {/* ─── HERO ─── */}
+      <section className="relative px-4 pt-10 pb-4">
+        <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[500px] bg-purple-900/15 rounded-full blur-[120px]" />
+          <div className="absolute top-[5%] left-[12%] w-0.5 h-0.5 bg-white/30 rounded-full" />
+          <div className="absolute top-[8%] right-[18%] w-0.5 h-0.5 bg-white/20 rounded-full" />
+          <div className="absolute top-[18%] left-[35%] w-0.5 h-0.5 bg-cyan-400/20 rounded-full" />
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
-          {milestones.map(({ members, reward }) => (
-            <div key={members} className="card text-center hover:border-emerald-500/30 transition-all group">
-              <div className="text-2xl sm:text-3xl mb-2">🏆</div>
-              <p className="text-lg sm:text-xl font-bold text-white">{members}</p>
-              <p className="text-xs text-slate-500 mb-2">Members</p>
-              <div className="bg-emerald-900/30 rounded-lg px-2 py-1.5 border border-emerald-700/30">
-                <p className="text-xs sm:text-sm font-bold text-emerald-400">{reward}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ─── NFT PRICE DOUBLING ─── */}
-      <div className="bg-dark-800/30 border-y border-dark-700/50">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-16 sm:py-20">
-          <div className="text-center mb-10">
-            <div className="inline-flex items-center gap-2 bg-yellow-900/30 border border-yellow-700/30 rounded-full px-4 py-1.5 mb-4">
-              <TrendingUp className="w-3.5 h-3.5 text-yellow-400" />
-              <span className="text-xs text-yellow-300 font-medium">Price Goes Up</span>
-            </div>
-            <h2 className="text-2xl sm:text-4xl font-bold text-white mb-3">Price Doubles Every 50K Mint</h2>
-            <p className="text-slate-400 text-sm sm:text-base max-w-xl mx-auto">The earlier you join, the cheaper your NFTs. Price automatically doubles after every 50,000 NFTs are minted.</p>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-            {[
-              { range: '0 – 50K', price: '$0.01', multiplier: '1x' },
-              { range: '50K – 100K', price: '$0.02', multiplier: '2x' },
-              { range: '100K – 150K', price: '$0.04', multiplier: '4x' },
-              { range: '150K – 200K', price: '$0.08', multiplier: '8x' },
-              { range: '200K – 250K', price: '$0.16', multiplier: '16x' },
-              { range: '250K+', price: '$0.32+', multiplier: '32x+' },
-            ].map(({ range, price, multiplier }) => (
-              <div key={range} className="bg-dark-800 rounded-xl border border-dark-700 p-4 text-center hover:border-yellow-500/30 transition-all">
-                <p className="text-xs text-slate-500 mb-1">{range}</p>
-                <p className="text-lg sm:text-xl font-bold text-white">{price}</p>
-                <p className="text-xs text-yellow-400 font-medium mt-1">{multiplier}</p>
-              </div>
-            ))}
-          </div>
-
-          <p className="text-center text-xs text-slate-500 mt-6">Total Supply: 2,100,000 NFTs · Current early bird price won't last forever</p>
-        </div>
-      </div>
-
-      {/* ─── SECURITY / TRUST SECTION ─── */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-16 sm:py-24">
-        <div className="text-center mb-10 sm:mb-12">
-          <h2 className="text-2xl sm:text-4xl font-bold text-white mb-3">Built for Trust & Security</h2>
-          <p className="text-slate-400 text-sm sm:text-base">Your funds, your wallet, your control — always</p>
-        </div>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-          {[
-            { icon: Lock, title: 'Non-Custodial', desc: 'We never hold your crypto. Withdrawals go directly to your wallet.' },
-            { icon: Shield, title: 'Verified Smart Contracts', desc: 'All USDT transactions use audited BEP-20 and Polygon contracts.' },
-            { icon: Globe, title: 'Multi-Chain Support', desc: 'Choose BSC or Polygon for your withdrawals — flexibility first.' },
-          ].map(({ icon: Icon, title, desc }) => (
-            <div key={title} className="flex items-start gap-4 p-5 bg-dark-800 rounded-xl border border-dark-700 hover:border-primary-500/30 transition-all">
-              <div className="w-10 h-10 bg-primary-600/15 rounded-lg flex items-center justify-center flex-shrink-0">
-                <Icon className="w-5 h-5 text-primary-400" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-white mb-1">{title}</h3>
-                <p className="text-sm text-slate-400">{desc}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ─── CTA FOOTER ─── */}
-      <div className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-primary-900/30 to-purple-900/30" />
-        <div className="relative max-w-4xl mx-auto px-4 sm:px-6 py-16 sm:py-20 text-center">
-          <h2 className="text-2xl sm:text-4xl font-bold text-white mb-4">
-            Ready to Start Earning?
-          </h2>
-          <p className="text-slate-400 mb-8 text-sm sm:text-base max-w-xl mx-auto">
-            Join FutureMint NFT today. Connect your wallet, get 100 free NFTs, and start building your earning network.
+        <div className="relative z-10 max-w-sm mx-auto text-center">
+          <h1 className="text-2xl sm:text-3xl font-bold text-white leading-tight">
+            <span className="text-purple-400">FutureMint</span>
+          </h1>
+          <p className="text-slate-500 text-xs tracking-wider mt-1 mb-1">
+            WATCH &bull; EARN &bull; MINT &bull; OWN THE FUTURE
           </p>
-          <div className="flex flex-wrap justify-center gap-4">
-            <a href="#connect" className="btn-primary flex items-center gap-2 text-base shadow-xl shadow-primary-600/30">
-              <Rocket className="w-5 h-5" />
-              Get Started Now
-            </a>
-          </div>
-          <p className="text-xs text-slate-500 mt-6">No hidden fees · No private key access · 100% transparent</p>
+          <p className="text-[11px] text-slate-400 mb-5">
+            Powered by <span className="text-cyan-400 font-medium">FM TOKEN</span> & FutureMint NFT
+          </p>
+
+          {/* NFT + FM Token Visual */}
+          <HeroNFTVisual />
         </div>
-      </div>
+      </section>
+
+      {/* ─── ECOSYSTEM (compact) ─── */}
+      <section className="px-4 pt-6 pb-4">
+        <div className="max-w-sm mx-auto text-center">
+          <p className="text-sm font-semibold text-white mb-0.5">NFT + FM TOKEN</p>
+          <p className="text-[10px] text-purple-300/80 tracking-widest uppercase mb-4">
+            <HiSparkles className="inline w-2.5 h-2.5" /> ECOSYSTEM <HiSparkles className="inline w-2.5 h-2.5" />
+          </p>
+          <div className="grid grid-cols-4 gap-2">
+            {[
+              { icon: RiPlayCircleFill, label: 'Watch', sub: 'Videos', color: 'text-blue-400' },
+              { icon: RiNftFill, label: 'Earn', sub: 'NFTs', color: 'text-cyan-400' },
+              { icon: RiCoinFill, label: 'FM Token', sub: 'Benefits', color: 'text-yellow-400' },
+              { icon: RiTeamFill, label: 'Community', sub: 'Access', color: 'text-purple-400' },
+            ].map(({ icon: Icon, label, sub, color }, i) => (
+              <div key={i} className="flex flex-col items-center gap-1.5">
+                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-lg bg-dark-800 border border-dark-600/80 flex items-center justify-center">
+                  <Icon className={`w-5 h-5 ${color}`} />
+                </div>
+                <p className="text-[9px] sm:text-[10px] text-slate-300 font-medium leading-tight">{label}</p>
+                <p className="text-[8px] text-slate-500 -mt-1">{sub}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ─── WELCOME BONUS + GET STARTED ─── */}
+      <section className="px-4 py-5">
+        <div className="max-w-sm mx-auto">
+          {/* Bonus bar */}
+          <div className="bg-dark-800/70 border border-dark-600/70 rounded-xl px-4 py-4 mb-4 text-center">
+            <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-2">🎁 Welcome Bonus</p>
+            <p className="text-xl font-extrabold text-white mb-1">
+              <span className="text-cyan-400">100 NFT</span> + <span className="text-yellow-400">100 FM</span>
+            </p>
+            <p className="text-[11px] text-emerald-400 font-medium">Absolutely FREE on signup!</p>
+          </div>
+
+          {/* GET STARTED */}
+          <button onClick={handleGetStarted}
+            className="w-full py-3.5 rounded-xl text-white font-bold text-base bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600 hover:from-cyan-400 hover:via-blue-400 hover:to-purple-500 shadow-[0_0_20px_rgba(0,180,255,0.25)] hover:shadow-[0_0_30px_rgba(0,180,255,0.4)] transition-all flex items-center justify-center gap-2">
+            GET STARTED <BsArrowRight className="w-4 h-4" />
+          </button>
+          <p className="text-center text-slate-500 text-[11px] mt-2.5">NO INVESTMENT REQUIRED*</p>
+        </div>
+      </section>
+
+      {/* ─── WHY JOIN FUTUREMINT ─── */}
+      <section className="px-4 py-8">
+        <div className="max-w-sm sm:max-w-2xl mx-auto">
+          <p className="text-center text-xs text-yellow-300 font-semibold tracking-wide mb-5 uppercase">Why Join FutureMint?</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {[
+              { icon: RiPlayCircleFill, title: 'Watch Videos', desc: 'Just 15-20 seconds & earn real rewards', color: 'text-blue-400', border: 'hover:border-blue-500/30' },
+              { icon: RiNftFill, title: 'Earn NFTs', desc: 'Collect FutureMint NFTs & increase your value', color: 'text-cyan-400', border: 'hover:border-cyan-500/30' },
+              { icon: RiCoinFill, title: 'FM Token Benefits', desc: 'Use FM Token for utilities, rewards & access', color: 'text-yellow-400', border: 'hover:border-yellow-500/30' },
+              { icon: RiTeamFill, title: 'Strong Community', desc: 'Be a part of a global future-building movement', color: 'text-purple-400', border: 'hover:border-purple-500/30' },
+            ].map(({ icon: Icon, title, desc, color, border }, i) => (
+              <div key={i} className={`flex items-start gap-3 p-3.5 bg-dark-800/50 border border-dark-700/70 rounded-xl transition-all ${border}`}>
+                <div className="w-9 h-9 rounded-lg bg-dark-700/80 flex items-center justify-center flex-shrink-0">
+                  <Icon className={`w-4.5 h-4.5 ${color}`} />
+                </div>
+                <div>
+                  <p className="text-white font-semibold text-xs mb-0.5">{title}</p>
+                  <p className="text-slate-400 text-[11px] leading-snug">{desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ─── FM TOKEN UTILITIES ─── */}
+      <section className="px-4 py-8">
+        <div className="max-w-sm sm:max-w-2xl mx-auto">
+          <p className="text-center text-xs text-cyan-300 font-semibold tracking-wide mb-5 uppercase">FM Token Utilities</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
+            <div className="space-y-2">
+              {['Staking & Rewards', 'Access to Premium Features', 'Marketplace Transactions', 'Governance & Voting Rights', 'Future Utilities & Partnerships'].map((item, i) => (
+                <div key={i} className="flex items-center gap-2.5 px-3 py-2 bg-dark-800/50 border border-dark-700/60 rounded-lg">
+                  <svg className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                  <span className="text-[11px] sm:text-xs text-slate-300">{item}</span>
+                </div>
+              ))}
+            </div>
+            <div className="flex items-center justify-center py-4 sm:py-0">
+              <div className="relative w-28 h-28 sm:w-36 sm:h-36">
+                <div className="absolute inset-0 bg-cyan-500/8 rounded-full blur-xl" />
+                <div className="relative w-full h-full rounded-full bg-dark-800 border border-cyan-500/25 flex items-center justify-center">
+                  <span className="text-3xl sm:text-4xl font-extrabold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">FM</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ─── OUR ECOSYSTEM ─── */}
+      <section className="px-4 py-8">
+        <div className="max-w-sm sm:max-w-2xl mx-auto">
+          <p className="text-center text-xs text-purple-300 font-semibold tracking-wide mb-5 uppercase">Our Ecosystem</p>
+          <div className="grid grid-cols-5 gap-2 mb-5">
+            {[
+              { icon: RiNftFill, label: 'NFTs', color: 'text-cyan-400' },
+              { icon: RiCoinFill, label: 'FM Token', color: 'text-yellow-400' },
+              { icon: RiExchangeFill, label: 'Swap', color: 'text-emerald-400' },
+              { icon: RiAwardFill, label: 'Rewards', color: 'text-purple-400' },
+              { icon: RiStore2Fill, label: 'Market', color: 'text-blue-400' },
+            ].map(({ icon: Icon, label, color }, i) => (
+              <div key={i} className="flex flex-col items-center gap-1">
+                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-dark-800 border border-dark-600/60 flex items-center justify-center">
+                  <Icon className={`w-5 h-5 ${color}`} />
+                </div>
+                <span className="text-[8px] sm:text-[10px] text-slate-400">{label}</span>
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { icon: RiShieldCheckFill, label: 'Secure', sub: 'Transparent', color: 'text-emerald-400' },
+              { icon: RiGlobalLine, label: 'Global', sub: 'Access', color: 'text-blue-400' },
+              { icon: RiCustomerService2Fill, label: '24/7', sub: 'Support', color: 'text-purple-400' },
+            ].map(({ icon: Icon, label, sub, color }, i) => (
+              <div key={i} className="flex flex-col items-center gap-1 p-3 bg-dark-800/50 border border-dark-700/60 rounded-lg">
+                <Icon className={`w-5 h-5 ${color}`} />
+                <p className="text-[10px] text-white font-semibold">{label}</p>
+                <p className="text-[8px] text-slate-500">{sub}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
       {/* ─── FOOTER ─── */}
-      <footer className="border-t border-dark-700/50 bg-dark-800/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
-          <div className="grid sm:grid-cols-3 gap-8">
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center font-bold text-sm">FM</div>
-                <span className="font-bold text-white">FutureMint NFT</span>
-              </div>
-              <p className="text-sm text-slate-400">The next generation NFT reward platform. Earn, grow, and withdraw — all on-chain.</p>
-            </div>
-            <div>
-              <h4 className="font-semibold text-white mb-3 text-sm">Quick Links</h4>
-              <div className="space-y-2">
-                <Link href="/auth/register" className="block text-sm text-slate-400 hover:text-white transition-colors">Register</Link>
-                <Link href="/auth/login" className="block text-sm text-slate-400 hover:text-white transition-colors">Login</Link>
-              </div>
-            </div>
-            <div>
-              <h4 className="font-semibold text-white mb-3 text-sm">Contact & Support</h4>
-              <div className="space-y-2">
-                <a href="mailto:futuremintnft@gmail.com" className="flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors">
-                  <span>✉️</span> futuremintnft@gmail.com
-                </a>
-              </div>
-            </div>
-          </div>
-          <div className="border-t border-dark-700 mt-8 pt-6 text-center">
-            <p className="text-xs text-slate-500">© 2024 FutureMint NFT. All rights reserved.</p>
-          </div>
+      <footer className="px-4 py-6 border-t border-dark-700/40">
+        <div className="text-center">
+          <p className="text-[10px] text-slate-500">Future is Minted with You &bull; www.futuremint.app</p>
+          <p className="text-[9px] text-slate-700 mt-2">&copy; 2024 FutureMint NFT</p>
         </div>
       </footer>
     </main>

@@ -7,21 +7,16 @@ import { userAPI, nftAPI } from '../../lib/api';
 import { setNFTWallet, updateUser } from '../../store/slices/userSlice';
 import { setNFTStats } from '../../store/slices/nftSlice';
 import Navbar from '../../components/shared/Navbar';
-import StatCard from '../../components/Dashboard/StatCard';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
 import AdOverlay from '../../components/shared/AdOverlay';
-import { truncateAddress } from '../../lib/web3';
-import {
-  Wallet, TrendingUp, Users, Gift, ArrowDownCircle,
-  Copy, ExternalLink, Coins, Percent, RefreshCw
-} from 'lucide-react';
+import { RiNftFill, RiCoinFill } from 'react-icons/ri';
+import { RefreshCw, TrendingUp, Lock, Coins, BarChart3, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function DashboardPage() {
   const router = useRouter();
   const dispatch = useDispatch();
   const { isAuthenticated, user, sessionChecked } = useSelector((s) => s.user);
-  const { address, usdtBalanceBSC, usdtBalancePolygon } = useSelector((s) => s.wallet);
   const nftStats = useSelector((s) => s.nft);
 
   const [data, setData] = useState(null);
@@ -30,13 +25,11 @@ export default function DashboardPage() {
   const [showClaimPopup, setShowClaimPopup] = useState(false);
   const [claiming, setClaiming] = useState(false);
   const [claimAdStep, setClaimAdStep] = useState(false);
-  const [needsReconnect, setNeedsReconnect] = useState(false);
-  const [reconnecting, setReconnecting] = useState(false);
+  const [showFMStatus, setShowFMStatus] = useState(false);
+  const [watchStatus, setWatchStatus] = useState(null);
 
   useEffect(() => {
-    if (sessionChecked && !isAuthenticated) {
-      router.push('/');
-    }
+    if (sessionChecked && !isAuthenticated) router.push('/');
   }, [sessionChecked, isAuthenticated, router]);
 
   const fetchDashboard = async (silent = false) => {
@@ -63,22 +56,18 @@ export default function DashboardPage() {
     if (sessionChecked && isAuthenticated) fetchDashboard();
   }, [sessionChecked, isAuthenticated]);
 
-  // Check if user needs to do smart contract approval — no longer needed on dashboard
+  // Fetch watch status for streak display
   useEffect(() => {
-    setNeedsReconnect(false);
-  }, [data?.user?.walletAddress, data?.user?.network]);
-
-  // handleReconnect removed — smart contract approval happens at registration only
-
-  // Show claim popup if signup bonus not claimed yet
-  useEffect(() => {
-    if (data?.user?.signupBonusClaimed === false) {
-      setShowClaimPopup(true);
+    if (sessionChecked && isAuthenticated) {
+      userAPI.getWatchStatus().then((res) => setWatchStatus(res.data.data)).catch(() => {});
     }
+  }, [sessionChecked, isAuthenticated]);
+
+  useEffect(() => {
+    if (data?.user?.signupBonusClaimed === false) setShowClaimPopup(true);
   }, [data]);
 
   const handleClaimBonus = () => {
-    // Show ad overlay — after ad completes, claim the bonus
     setClaimAdStep(true);
     setShowClaimPopup(false);
   };
@@ -92,22 +81,15 @@ export default function DashboardPage() {
       setShowClaimPopup(false);
       fetchDashboard(true);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to claim bonus. Try again.');
+      toast.error(err.response?.data?.message || 'Failed to claim bonus.');
     } finally {
       setClaiming(false);
     }
   };
 
-  const copyReferralLink = () => {
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
-    const link = `${appUrl}/auth/register?ref=${user?.referralCode}`;
-    navigator.clipboard.writeText(link);
-    toast.success('Referral link copied!');
-  };
-
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-[#070714]">
         <LoadingSpinner size="xl" />
       </div>
     );
@@ -116,259 +98,477 @@ export default function DashboardPage() {
   const wallet = data?.wallet || {};
   const displayUser = data?.user || user || {};
 
+  // Calculate FM lock info (180 days from account creation)
+  const accountCreated = new Date(displayUser.createdAt);
+  const unlockDate = new Date(accountCreated.getTime() + 180 * 24 * 60 * 60 * 1000);
+  const now = new Date();
+  const daysRemaining = Math.max(0, Math.ceil((unlockDate - now) / (1000 * 60 * 60 * 24)));
+  const fmLocked = daysRemaining > 0;
+
   return (
-    <div className="min-h-screen pb-16">
+    <div className="min-h-screen bg-[#070714] pb-20">
       <Navbar />
 
-      {/* Welcome Claim Bonus Popup */}
+      {/* Ad Overlay */}
       {claimAdStep && (
-        <AdOverlay
-          onComplete={handleClaimAdComplete}
-          loading={claiming}
-          buttonText="Claim Bonus"
-          loadingText="Claiming..."
-        />
+        <AdOverlay onComplete={handleClaimAdComplete} loading={claiming}
+          buttonText="Claim Bonus" loadingText="Claiming..." />
       )}
+
+      {/* Claim Popup */}
       {showClaimPopup && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
-          <div className="relative w-full max-w-sm bg-gradient-to-b from-dark-800 to-dark-900 rounded-2xl border border-primary-700/40 shadow-2xl overflow-hidden">
-            {/* Decorative top glow */}
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-40 h-40 bg-primary-600/20 rounded-full blur-3xl" />
-            
-            <div className="relative p-6 sm:p-8 text-center">
-              {/* Emoji / Icon */}
-              <div className="text-5xl mb-4">🎁</div>
-              
-              {/* Welcome Text */}
-              <h2 className="text-xl sm:text-2xl font-bold text-white mb-2">
-                Welcome to FutureMint!
-              </h2>
-              <p className="text-sm text-slate-400 mb-1">
-                Hi <span className="text-primary-400 font-semibold">{displayUser.name?.split(' ')[0]}</span>, your account is ready!
+          <div className="absolute inset-0 bg-black/85 backdrop-blur-sm" />
+          <div className="relative w-full max-w-sm rounded-2xl border border-purple-500/30 bg-[#0c0c24] overflow-hidden">
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-40 h-40 bg-purple-600/15 rounded-full blur-3xl" />
+            <div className="relative p-6 text-center">
+              <div className="text-4xl mb-3">🎁</div>
+              <h2 className="text-xl font-bold text-white mb-1">Welcome to FutureMint!</h2>
+              <p className="text-slate-400 text-sm mb-5">
+                Hi <span className="text-purple-400 font-medium">{displayUser.name?.split(' ')[0]}</span>, claim your signup bonus
               </p>
-              <p className="text-sm text-slate-400 mb-6">
-                Claim your free signup bonus now 👇
-              </p>
-
-              {/* Bonus Card */}
-              <div className="bg-dark-700/80 rounded-xl border border-primary-600/30 p-5 mb-6">
-                <p className="text-3xl sm:text-4xl font-extrabold text-white mb-1">100 NFT</p>
-                <p className="text-xs text-emerald-400 font-medium">FREE Signup Bonus</p>
+              <div className="bg-dark-800/80 rounded-xl border border-dark-600 p-4 mb-5">
+                <div className="flex items-center justify-center gap-4">
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-white">100</p>
+                    <p className="text-[10px] text-cyan-400 font-medium">NFT</p>
+                  </div>
+                  <span className="text-slate-600">+</span>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-white">50</p>
+                    <p className="text-[10px] text-yellow-400 font-medium">FM TOKEN</p>
+                  </div>
+                </div>
               </div>
-
-              {/* Claim Button */}
-              <button
-                onClick={handleClaimBonus}
-                disabled={claiming}
-                className="w-full bg-gradient-to-r from-primary-600 to-purple-600 hover:from-primary-500 hover:to-purple-500 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-lg shadow-primary-600/30 disabled:opacity-50 text-sm sm:text-base"
-              >
-                {claiming ? 'Claiming...' : 'Claim My 100 NFTs'}
+              <button onClick={handleClaimBonus} disabled={claiming}
+                className="w-full py-3.5 rounded-xl font-bold text-white bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600 shadow-[0_0_20px_rgba(0,180,255,0.25)] disabled:opacity-60">
+                {claiming ? 'Claiming...' : 'Claim My Bonus'}
               </button>
-
-              <p className="text-xs text-slate-600 mt-4">One-time bonus · Watch a short ad to claim</p>
+              <p className="text-[10px] text-slate-600 mt-3">Watch a short video to claim</p>
             </div>
           </div>
         </div>
       )}
 
-      <main className="max-w-7xl mx-auto px-3 sm:px-6 pt-20 sm:pt-24">
+      {/* FM Status Modal */}
+      {showFMStatus && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setShowFMStatus(false)} />
+          <div className="relative w-full max-w-sm rounded-2xl border border-yellow-500/30 bg-[#0c0c24] overflow-hidden">
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-32 bg-yellow-500/10 rounded-full blur-3xl" />
+            <div className="relative p-6">
+              <div className="text-center mb-5">
+                <div className="w-14 h-14 mx-auto rounded-full bg-yellow-500/15 border border-yellow-500/30 flex items-center justify-center mb-3">
+                  <RiCoinFill className="w-7 h-7 text-yellow-400" />
+                </div>
+                <h2 className="text-lg font-bold text-white">FM Token Status</h2>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex justify-between items-center p-3 bg-dark-800/70 rounded-xl border border-dark-600">
+                  <span className="text-xs text-slate-400">Total FM</span>
+                  <span className="text-sm font-bold text-white">{wallet.fmBalance || 0}</span>
+                </div>
+                <div className="flex justify-between items-center p-3 bg-dark-800/70 rounded-xl border border-dark-600">
+                  <span className="text-xs text-slate-400">Available</span>
+                  <span className="text-sm font-bold text-emerald-400">{fmLocked ? '0' : wallet.fmBalance || 0}</span>
+                </div>
+                <div className="flex justify-between items-center p-3 bg-dark-800/70 rounded-xl border border-dark-600">
+                  <span className="text-xs text-slate-400">Locked</span>
+                  <span className="text-sm font-bold text-yellow-400">{fmLocked ? wallet.fmBalance || 0 : '0'}</span>
+                </div>
+                <div className="flex justify-between items-center p-3 bg-dark-800/70 rounded-xl border border-dark-600">
+                  <span className="text-xs text-slate-400">Lock Period</span>
+                  <span className="text-sm font-medium text-white">180 Days</span>
+                </div>
+                <div className="flex justify-between items-center p-3 bg-dark-800/70 rounded-xl border border-dark-600">
+                  <span className="text-xs text-slate-400">Days Remaining</span>
+                  <span className="text-sm font-bold text-purple-400">{daysRemaining} days</span>
+                </div>
+                <div className="flex justify-between items-center p-3 bg-dark-800/70 rounded-xl border border-dark-600">
+                  <span className="text-xs text-slate-400">Unlock Date</span>
+                  <span className="text-xs font-medium text-white">{unlockDate.toLocaleDateString()}</span>
+                </div>
+              </div>
+
+              {fmLocked && (
+                <div className="mt-4 p-3 bg-yellow-900/20 border border-yellow-700/30 rounded-xl text-center">
+                  <Lock className="w-4 h-4 text-yellow-400 mx-auto mb-1" />
+                  <p className="text-[11px] text-yellow-300">FM Tokens are locked for stability. No withdrawal until unlock date.</p>
+                </div>
+              )}
+
+              <button onClick={() => setShowFMStatus(false)}
+                className="w-full mt-4 py-3 rounded-xl text-sm font-medium text-slate-400 bg-dark-800 border border-dark-600 hover:text-white transition-colors">
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <main className="max-w-lg mx-auto px-4 pt-4 sm:pt-6">
+
+        {/* Logo + Brand (scrolls with page) */}
+        <div className="flex items-center gap-2 mb-4">
+          <img src="/assets/favicon/favicon-96x96.png" alt="FM" className="w-8 h-8 rounded-lg" />
+          <span className="font-bold text-white text-base">FutureMint NFT</span>
+        </div>
+
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 sm:mb-8">
+        <div className="flex items-center justify-between mb-6 pt-2">
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-white">
+            <h1 className="text-lg sm:text-xl font-bold text-white">
               Welcome back, {displayUser.name?.split(' ')[0]} 👋
             </h1>
-            <p className="text-slate-400 text-xs sm:text-sm mt-1">
-              Network: <span className="text-primary-400 font-medium">{displayUser.network}</span>
-              {' · '}Referral Code: <span className="text-primary-400 font-mono font-medium">{displayUser.referralCode}</span>
-            </p>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-[11px] text-cyan-400 font-medium bg-cyan-500/10 px-2 py-0.5 rounded-full">{displayUser.network}</span>
+              <span className="text-[11px] text-slate-300 font-mono">{displayUser.mobile?.startsWith('+') ? displayUser.mobile : `+91${displayUser.mobile}`}</span>
+            </div>
           </div>
-          <button
-            onClick={() => fetchDashboard(true)}
-            disabled={refreshing}
-            className="btn-secondary flex items-center gap-2 text-sm w-fit"
-          >
+          <button onClick={() => fetchDashboard(true)} disabled={refreshing}
+            className="w-9 h-9 rounded-xl bg-dark-800 border border-dark-600 flex items-center justify-center text-slate-400 hover:text-white transition-colors">
             <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-            Refresh
           </button>
         </div>
 
-        {/* Income Stats */}
-        <section aria-labelledby="income-heading">
-          <h2 id="income-heading" className="text-lg font-semibold text-white mb-4">Income Overview</h2>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <StatCard
-              label="NFT Balance"
-              value={wallet.nftBalance?.toLocaleString() || '0'}
-              subValue={`≈ $${wallet.usdValue || '0'} USD`}
-              imageSrc="/assets/favicon/favicon-96x96.png"
-              color="primary"
-            />
-            <StatCard
-              label="Referral Income"
-              value={wallet.referralEarnings?.toLocaleString() || '0'}
-              subValue="NFTs from referrals"
-              icon={Users}
-              color="blue"
-            />
-            <StatCard
-              label="Team Income"
-              value={wallet.teamEarnings?.toLocaleString() || '0'}
-              subValue="Milestone bonuses"
-              icon={Gift}
-              color="purple"
-            />
-            <StatCard
-              label="Team Size"
-              value={data?.teamSize?.toLocaleString() || '0'}
-              subValue="Total downline members"
-              icon={Users}
-              color="emerald"
-            />
+        {/* ─── Balance Cards ─── */}
+        <div className="grid grid-cols-2 gap-3 mb-3">
+          {/* NFT Balance */}
+          <div className="relative overflow-hidden rounded-2xl border border-cyan-500/20 bg-gradient-to-br from-[#0a1628] to-[#0c0c24] p-4">
+            <div className="absolute top-0 right-0 w-20 h-20 bg-cyan-500/5 rounded-full blur-2xl" />
+            <div className="relative flex items-center justify-between">
+              <div>
+                <p className="text-2xl font-extrabold text-white">{wallet.nftBalance?.toLocaleString() || '0'}</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">Total NFT</p>
+                <p className="text-[10px] text-emerald-400 mt-1">≈ ${wallet.usdValue || '0.00'}</p>
+              </div>
+              <img src="/assets/nftimg.avif" alt="NFT" className="w-14 h-14 rounded-xl object-cover shadow-[0_0_15px_rgba(0,200,255,0.1)]" />
+            </div>
           </div>
-        </section>
-        {/* NFT Info + Wallet Info */}
-        <div className="grid lg:grid-cols-2 gap-6 mb-8">
-          {/* NFT Info */}
-          <section className="card" aria-labelledby="nft-info-heading">
-            <h2 id="nft-info-heading" className="font-semibold text-white mb-4 flex items-center gap-2">
-              <Coins className="w-5 h-5 text-primary-400" /> NFT Market Info
-            </h2>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center py-2 border-b border-dark-700">
-                <span className="text-slate-400 text-sm">Current Price</span>
-                <span className="text-emerald-400 font-bold">${nftStats.currentPrice || data?.nftPrice}</span>
-              </div>
-              <div className="flex justify-between items-center py-2 border-b border-dark-700">
-                <span className="text-slate-400 text-sm">Total Minted</span>
-                <span className="text-white font-medium">{nftStats.totalMinted?.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between items-center py-2 border-b border-dark-700">
-                <span className="text-slate-400 text-sm">Total Supply</span>
-                <span className="text-white font-medium">{nftStats.totalSupply?.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between items-center py-2">
-                <span className="text-slate-400 text-sm">Remaining</span>
-                <span className="text-primary-400 font-medium">{nftStats.remaining?.toLocaleString()}</span>
-              </div>
-              {/* Progress bar */}
-              <div className="mt-2">
-                <div className="flex justify-between text-xs text-slate-500 mb-1">
-                  <span>Minting Progress</span>
-                  <span>{nftStats.totalSupply ? ((nftStats.totalMinted / nftStats.totalSupply) * 100).toFixed(2) : 0}%</span>
-                </div>
-                <div className="w-full bg-dark-700 rounded-full h-2">
-                  <div
-                    className="bg-primary-500 h-2 rounded-full transition-all"
-                    style={{ width: `${nftStats.totalSupply ? Math.min((nftStats.totalMinted / nftStats.totalSupply) * 100, 100) : 0}%` }}
-                    role="progressbar"
-                    aria-valuenow={nftStats.totalMinted}
-                    aria-valuemax={nftStats.totalSupply}
-                  />
-                </div>
-              </div>
-            </div>
-          </section>
 
-          {/* Wallet Info */}
-          <section className="card" aria-labelledby="wallet-info-heading">
-            <h2 id="wallet-info-heading" className="font-semibold text-white mb-4 flex items-center gap-2">
-              <Wallet className="w-5 h-5 text-primary-400" /> Wallet Info
-            </h2>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center py-2 border-b border-dark-700">
-                <span className="text-slate-400 text-sm">Connected Address</span>
-                <span className="text-white font-mono text-sm">{truncateAddress(address, 6)}</span>
+          {/* FM Token Balance */}
+          <div className="relative overflow-hidden rounded-2xl border border-yellow-500/20 bg-gradient-to-br from-[#1a1400] to-[#0c0c24] p-4 cursor-pointer"
+            onClick={() => setShowFMStatus(true)}>
+            <div className="absolute top-0 right-0 w-20 h-20 bg-yellow-500/5 rounded-full blur-2xl" />
+            <div className="relative flex items-center justify-between">
+              <div>
+                <p className="text-2xl font-extrabold text-white">{wallet.fmBalance?.toLocaleString() || '0'}</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">Total FM</p>
+                {fmLocked && (
+                  <div className="flex items-center gap-1 mt-1">
+                    <Lock className="w-3 h-3 text-purple-400" />
+                    <p className="text-[11px] font-semibold text-yellow-400">{daysRemaining}d</p>
+                  </div>
+                )}
               </div>
-              <div className="flex justify-between items-center py-2">
-                <span className="text-slate-400 text-sm">Your Network</span>
-                <span className="badge badge-info">{displayUser.network}</span>
-              </div>
+              <img src="/assets/fm.webp" alt="FM" className="w-14 h-14 rounded-xl object-contain shadow-[0_0_15px_rgba(234,179,8,0.1)]" />
             </div>
-          </section>
+          </div>
         </div>
 
-        {/* Referral Section */}
-        <section className="card mb-8" aria-labelledby="referral-heading">
-          <h2 id="referral-heading" className="font-semibold text-white mb-4 flex items-center gap-2">
-            <Users className="w-5 h-5 text-primary-400" /> Your Referral
-          </h2>
-          <p className="text-sm text-slate-400 mb-4">
-            Referral Code: <span className="text-primary-400 font-mono font-bold">{displayUser.referralCode}</span>
-          </p>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <button
-              onClick={copyReferralLink}
-              className="flex flex-col items-center gap-2 p-4 bg-dark-700 hover:bg-dark-600 rounded-xl border border-dark-600 hover:border-primary-500/50 transition-all"
-            >
-              <Copy className="w-5 h-5 text-primary-400" />
-              <span className="text-xs text-slate-300 font-medium">Copy Link</span>
-            </button>
-            <a
-              href={`https://wa.me/?text=${encodeURIComponent(`🔥 Free 100 NFTs on signup!\nJoin FutureMint → Earn daily → Withdraw USDT\n\n👉 ${process.env.NEXT_PUBLIC_APP_URL || (typeof window !== 'undefined' ? window.location.origin : '')}/auth/register?ref=${displayUser.referralCode}`)}`}
-              target="_blank" rel="noopener noreferrer"
-              className="flex flex-col items-center gap-2 p-4 bg-dark-700 hover:bg-dark-600 rounded-xl border border-dark-600 hover:border-emerald-500/50 transition-all"
-            >
-              <span className="text-xl">💬</span>
-              <span className="text-xs text-slate-300 font-medium">WhatsApp</span>
-            </a>
-            <a
-              href={`https://t.me/share/url?url=${encodeURIComponent(`${process.env.NEXT_PUBLIC_APP_URL || (typeof window !== 'undefined' ? window.location.origin : '')}/auth/register?ref=${displayUser.referralCode}`)}&text=${encodeURIComponent('🔥 Free 100 NFTs on signup! Join FutureMint → Earn daily → Withdraw USDT')}`}
-              target="_blank" rel="noopener noreferrer"
-              className="flex flex-col items-center gap-2 p-4 bg-dark-700 hover:bg-dark-600 rounded-xl border border-dark-600 hover:border-blue-500/50 transition-all"
-            >
-              <span className="text-xl">✈️</span>
-              <span className="text-xs text-slate-300 font-medium">Telegram</span>
-            </a>
-            <a
-              href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`🔥 Free 100 NFTs on signup!\nJoin FutureMint → Earn daily → Withdraw USDT\n\n👉 ${process.env.NEXT_PUBLIC_APP_URL || (typeof window !== 'undefined' ? window.location.origin : '')}/auth/register?ref=${displayUser.referralCode}`)}`}
-              target="_blank" rel="noopener noreferrer"
-              className="flex flex-col items-center gap-2 p-4 bg-dark-700 hover:bg-dark-600 rounded-xl border border-dark-600 hover:border-sky-500/50 transition-all"
-            >
-              <span className="text-xl">🐦</span>
-              <span className="text-xs text-slate-300 font-medium">Twitter</span>
-            </a>
+        {/* ─── Today's Earnings (thin full width) ─── */}
+        <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-purple-500/15 bg-dark-800/40 mb-3">
+          <div className="w-8 h-8 rounded-lg bg-purple-500/15 flex items-center justify-center flex-shrink-0">
+            <TrendingUp className="w-4 h-4 text-purple-400" />
           </div>
-        </section>
-
-        {/* Quick actions */}
-        <section aria-labelledby="actions-heading">
-          <h2 id="actions-heading" className="text-lg font-semibold text-white mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-2 gap-4">
-            {[
-              { label: 'Withdraw', href: '/withdraw', icon: ArrowDownCircle, color: 'text-emerald-400' },
-              { label: 'History', href: '/dashboard/transactions', icon: TrendingUp, color: 'text-purple-400' },
-            ].map(({ label, href, icon: Icon, color }) => (
-              <Link key={href} href={href}
-                className="card flex flex-col items-center gap-3 py-6 hover:border-primary-500/50 transition-all cursor-pointer">
-                <Icon className={`w-7 h-7 ${color}`} />
-                <span className="text-sm font-medium text-white">{label}</span>
-              </Link>
-            ))}
+          <p className="text-[11px] text-slate-300 font-medium">Today's Earnings</p>
+          <div className="flex items-center gap-2 ml-auto">
+            <span className="text-xs font-bold text-cyan-400">+{data?.todayNFT || 0} NFT</span>
+            <span className="text-slate-600">•</span>
+            <span className="text-xs font-bold text-yellow-400">+{data?.todayFM || 0} FM</span>
           </div>
-        </section>
+        </div>
 
-        {/* Support / Contact */}
-        <section className="card mt-8 mb-4" aria-labelledby="support-heading">
-          <h2 id="support-heading" className="font-semibold text-white mb-4 flex items-center gap-2">
-            <span className="text-lg">📞</span> Support & Contact
-          </h2>
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div className="flex items-center gap-3 bg-dark-700 rounded-xl p-3 sm:p-4">
-              <div className="w-10 h-10 bg-blue-600/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                <span className="text-lg">✉️</span>
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs text-slate-400">Email Support</p>
-                <a href="mailto:futuremintnft@gmail.com" className="text-sm text-primary-300 font-medium truncate block hover:text-primary-200">
-                  futuremintnft@gmail.com
-                </a>
+        {/* ─── Price Tickers (market feel) ─── */}
+        <div className="space-y-2 mb-4">
+          <div className="flex items-center justify-between px-4 py-3 rounded-xl bg-dark-800/50 border border-dark-600/40">
+            <div className="flex items-center gap-3">
+              <img src="/assets/nftimg.avif" alt="NFT" className="w-8 h-8 rounded-lg" />
+              <div>
+                <p className="text-xs font-semibold text-white">NFT Price Today</p>
+                <p className="text-[9px] text-slate-500">NFT/USDT</p>
               </div>
             </div>
-  
+            <div className="text-right">
+              <p className="text-sm font-bold text-white">${nftStats.currentPrice || data?.nftPrice || '0.01'}</p>
+              <div className="flex items-center gap-1 justify-end">
+                <svg className="w-3 h-3 text-emerald-400" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M5.293 9.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 7.414V15a1 1 0 11-2 0V7.414L6.707 9.707a1 1 0 01-1.414 0z" clipRule="evenodd" /></svg>
+                <span className="text-[9px] text-emerald-400 font-medium">+0.00%</span>
+              </div>
+            </div>
           </div>
-        </section>
+          <div className="flex items-center justify-between px-4 py-3 rounded-xl bg-dark-800/50 border border-dark-600/40">
+            <div className="flex items-center gap-3">
+              <img src="/assets/fm.webp" alt="FM" className="w-8 h-8 rounded-lg object-contain" />
+              <div>
+                <p className="text-xs font-semibold text-white">FM Price Today</p>
+                <p className="text-[9px] text-slate-500">FM/USDT</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-sm font-bold text-white">$1.00</p>
+              <div className="flex items-center gap-1 justify-end">
+                <svg className="w-3 h-3 text-emerald-400" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M5.293 9.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 7.414V15a1 1 0 11-2 0V7.414L6.707 9.707a1 1 0 01-1.414 0z" clipRule="evenodd" /></svg>
+                <span className="text-[9px] text-emerald-400 font-medium">Stable</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ─── NFT Market Info ─── */}
+        <div className="rounded-2xl border border-dark-600/60 bg-dark-800/40 p-4 mb-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Coins className="w-4 h-4 text-cyan-400" />
+            <p className="text-xs font-semibold text-white">NFT Market</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="bg-dark-700/50 rounded-lg px-3 py-2.5 flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
+                <TrendingUp className="w-4 h-4 text-emerald-400" />
+              </div>
+              <div>
+                <p className="text-[9px] text-slate-500">Price</p>
+                <p className="text-sm font-bold text-emerald-400">${nftStats.currentPrice || data?.nftPrice || '0.01'}</p>
+              </div>
+            </div>
+            <div className="bg-dark-700/50 rounded-lg px-3 py-2.5 flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+                <BarChart3 className="w-4 h-4 text-blue-400" />
+              </div>
+              <div>
+                <p className="text-[9px] text-slate-500">Minted</p>
+                <p className="text-sm font-bold text-white">{nftStats.totalMinted?.toLocaleString() || '0'}</p>
+              </div>
+            </div>
+            <div className="bg-dark-700/50 rounded-lg px-3 py-2.5 flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center flex-shrink-0">
+                <Coins className="w-4 h-4 text-purple-400" />
+              </div>
+              <div>
+                <p className="text-[9px] text-slate-500">Supply</p>
+                <p className="text-sm font-bold text-white">2.1M</p>
+              </div>
+            </div>
+            <div className="bg-dark-700/50 rounded-lg px-3 py-2.5 flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center flex-shrink-0">
+                <RiNftFill className="w-4 h-4 text-cyan-400" />
+              </div>
+              <div>
+                <p className="text-[9px] text-slate-500">Remaining</p>
+                <p className="text-sm font-bold text-cyan-400">{nftStats.remaining?.toLocaleString() || '0'}</p>
+              </div>
+            </div>
+          </div>
+          {/* Progress */}
+          <div className="mt-3">
+            <div className="flex justify-between text-[9px] text-slate-500 mb-1">
+              <span>Minting Progress</span>
+              <span>{nftStats.totalSupply ? ((nftStats.totalMinted / nftStats.totalSupply) * 100).toFixed(1) : 0}%</span>
+            </div>
+            <div className="w-full h-1.5 bg-dark-700 rounded-full overflow-hidden">
+              <div className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-purple-500"
+                style={{ width: `${nftStats.totalSupply ? Math.min((nftStats.totalMinted / nftStats.totalSupply) * 100, 100) : 0}%` }} />
+            </div>
+          </div>
+        </div>
+
+        {/* ─── FM Token Market Info ─── */}
+        <div className="rounded-2xl border border-dark-600/60 bg-dark-800/40 p-4 mb-4">
+          <div className="flex items-center gap-2 mb-3">
+            <BarChart3 className="w-4 h-4 text-yellow-400" />
+            <p className="text-xs font-semibold text-white">FM Token Market</p>
+            <span className="text-[9px] text-yellow-300 bg-yellow-500/10 border border-yellow-500/20 px-2 py-0.5 rounded-full ml-auto">Coming Soon</span>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="bg-dark-700/50 rounded-lg px-3 py-2.5 flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-yellow-500/10 flex items-center justify-center flex-shrink-0">
+                <Coins className="w-4 h-4 text-yellow-400" />
+              </div>
+              <div>
+                <p className="text-[9px] text-slate-500">Supply</p>
+                <p className="text-sm font-bold text-white">21M</p>
+              </div>
+            </div>
+            <div className="bg-dark-700/50 rounded-lg px-3 py-2.5 flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center flex-shrink-0">
+                <BarChart3 className="w-4 h-4 text-orange-400" />
+              </div>
+              <div>
+                <p className="text-[9px] text-slate-500">Minted</p>
+                <p className="text-sm font-bold text-white">{(data?.fmMinted || 0).toLocaleString()}</p>
+              </div>
+            </div>
+            <div className="bg-dark-700/50 rounded-lg px-3 py-2.5 flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
+                <TrendingUp className="w-4 h-4 text-emerald-400" />
+              </div>
+              <div>
+                <p className="text-[9px] text-slate-500">Listing Price</p>
+                <p className="text-sm font-bold text-emerald-400">$1.00</p>
+              </div>
+            </div>
+            <div className="bg-dark-700/50 rounded-lg px-3 py-2.5 flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center flex-shrink-0">
+                <Lock className="w-4 h-4 text-purple-400" />
+              </div>
+              <div>
+                <p className="text-[9px] text-slate-500">Lock Timer</p>
+                <p className="text-sm font-bold text-purple-400">{fmLocked ? `${daysRemaining}d left` : 'Unlocked'}</p>
+              </div>
+            </div>
+          </div>
+          {/* FM Minting Progress */}
+          <div className="mt-3">
+            <div className="flex justify-between text-[9px] text-slate-500 mb-1">
+              <span>FM Minting Progress</span>
+              <span>{((data?.fmMinted || 0) / 21000000 * 100).toFixed(2)}%</span>
+            </div>
+            <div className="w-full h-1.5 bg-dark-700 rounded-full overflow-hidden">
+              <div className="h-full rounded-full bg-gradient-to-r from-yellow-500 to-orange-500"
+                style={{ width: `${(data?.fmMinted || 0) / 21000000 * 100}%` }} />
+            </div>
+          </div>
+          {/* Lock countdown bar */}
+          {fmLocked && (
+            <div className="mt-3">
+              <div className="flex justify-between text-[9px] text-slate-500 mb-1">
+                <span>Lock Countdown</span>
+                <span>{180 - daysRemaining}/180 days passed</span>
+              </div>
+              <div className="w-full h-1.5 bg-dark-700 rounded-full overflow-hidden">
+                <div className="h-full rounded-full bg-gradient-to-r from-purple-500 to-cyan-500"
+                  style={{ width: `${((180 - daysRemaining) / 180) * 100}%` }} />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ─── Announcement Banner ─── */}
+        {data?.announcement && (
+          <div className={`rounded-xl px-4 py-3 mb-4 border ${
+            data.announcement.type === 'success' ? 'bg-emerald-500/8 border-emerald-500/20' :
+            data.announcement.type === 'warning' ? 'bg-yellow-500/8 border-yellow-500/20' :
+            'bg-cyan-500/8 border-cyan-500/20'
+          }`}>
+            <p className={`text-[11px] leading-relaxed ${
+              data.announcement.type === 'success' ? 'text-emerald-300' :
+              data.announcement.type === 'warning' ? 'text-yellow-300' :
+              'text-cyan-300'
+            }`}>
+              📢 {data.announcement.message}
+            </p>
+          </div>
+        )}
+
+        {/* ─── Daily Missions ─── */}
+        <div className="rounded-2xl border border-purple-500/15 bg-gradient-to-b from-[#12081e] to-dark-800/50 p-4 mb-4">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-semibold text-white">Daily Missions</p>
+            <span className="text-[9px] text-slate-500">{
+              [watchStatus?.watchedToday].filter(Boolean).length
+            }/3 done</span>
+          </div>
+
+          <div className="space-y-2.5">
+            {/* Mission 1: Watch Ad */}
+            <div className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all ${
+              watchStatus?.watchedToday
+                ? 'bg-emerald-500/8 border-emerald-500/20'
+                : 'bg-dark-700/40 border-dark-600/50'
+            }`}>
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                watchStatus?.watchedToday ? 'bg-emerald-500/20' : 'bg-purple-500/15'
+              }`}>
+                {watchStatus?.watchedToday
+                  ? <Check className="w-4 h-4 text-emerald-400" />
+                  : <span className="text-sm">▶️</span>
+                }
+              </div>
+              <div className="flex-1">
+                <p className="text-[11px] font-medium text-white">Watch Daily Video</p>
+                <p className="text-[9px] text-slate-500">Earn 5 NFT + 1 FM</p>
+              </div>
+              {!watchStatus?.watchedToday && (
+                <Link href="/tasks" className="text-[9px] text-purple-400 font-semibold bg-purple-500/10 px-2 py-1 rounded-lg border border-purple-500/20">
+                  GO
+                </Link>
+              )}
+            </div>
+
+            {/* Mission 2: Share Link */}
+            <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl border bg-dark-700/40 border-dark-600/50">
+              <div className="w-8 h-8 rounded-lg bg-blue-500/15 flex items-center justify-center">
+                <span className="text-sm">🔗</span>
+              </div>
+              <div className="flex-1">
+                <p className="text-[11px] font-medium text-white">Share Referral Link</p>
+                <p className="text-[9px] text-slate-500">Invite friends & earn commission</p>
+              </div>
+              <Link href="/dashboard/referrals" className="text-[9px] text-blue-400 font-semibold bg-blue-500/10 px-2 py-1 rounded-lg border border-blue-500/20">
+                GO
+              </Link>
+            </div>
+
+            {/* Mission 3: Streak */}
+            <div className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all ${
+              (watchStatus?.streakDays || 0) >= 7
+                ? 'bg-emerald-500/8 border-emerald-500/20'
+                : 'bg-dark-700/40 border-dark-600/50'
+            }`}>
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                (watchStatus?.streakDays || 0) >= 7 ? 'bg-emerald-500/20' : 'bg-orange-500/15'
+              }`}>
+                {(watchStatus?.streakDays || 0) >= 7
+                  ? <Check className="w-4 h-4 text-emerald-400" />
+                  : <span className="text-sm">🔥</span>
+                }
+              </div>
+              <div className="flex-1">
+                <p className="text-[11px] font-medium text-white">7-Day Streak</p>
+                <p className="text-[9px] text-slate-500">{watchStatus?.streakDays || 0}/7 days • Bonus: 10 NFT + 5 FM</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ─── Referral Quick Stats ─── */}
+        <div className="rounded-2xl border border-dark-600/50 bg-dark-800/40 p-4 mb-4">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-semibold text-white">Your Referrals</p>
+            <Link href="/dashboard/referrals" className="text-[9px] text-cyan-400 font-medium">View All →</Link>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <div className="text-center p-2 bg-dark-700/50 rounded-xl">
+              <p className="text-lg font-bold text-white">{data?.teamSize || 0}</p>
+              <p className="text-[8px] text-slate-500">Team Size</p>
+            </div>
+            <div className="text-center p-2 bg-dark-700/50 rounded-xl">
+              <p className="text-lg font-bold text-purple-400">{wallet.referralEarnings || 0}</p>
+              <p className="text-[8px] text-slate-500">NFT Earned</p>
+            </div>
+            <div className="text-center p-2 bg-dark-700/50 rounded-xl">
+              <p className="text-lg font-bold text-yellow-400">{wallet.fmReferralEarnings || 0}</p>
+              <p className="text-[8px] text-slate-500">FM Earned</p>
+            </div>
+          </div>
+        </div>
+
+        {/* ─── Navigation Cards ─── */}
+        <div className="grid grid-cols-2 gap-3">
+          <Link href="/dashboard/referrals"
+            className="rounded-xl bg-dark-800/60 border border-dark-700/60 p-4 text-center hover:border-purple-500/30 transition-all">
+            <span className="text-xl mb-1 block">👥</span>
+            <p className="text-xs font-medium text-white">Referrals</p>
+            <p className="text-[9px] text-slate-500 mt-0.5">Team: {data?.teamSize || 0}</p>
+          </Link>
+          <Link href="/dashboard/transactions"
+            className="rounded-xl bg-dark-800/60 border border-dark-700/60 p-4 text-center hover:border-cyan-500/30 transition-all">
+            <span className="text-xl mb-1 block">📊</span>
+            <p className="text-xs font-medium text-white">Transactions</p>
+            <p className="text-[9px] text-slate-500 mt-0.5">History</p>
+          </Link>
+        </div>
       </main>
     </div>
   );

@@ -39,7 +39,7 @@ export default function OTPInput({ length = 6, onComplete, disabled = false }) {
   };
 
   return (
-    <div className="flex gap-3 justify-center" role="group" aria-label="OTP input">
+    <div className="flex gap-2 justify-center" role="group" aria-label="OTP input">
       {values.map((val, i) => (
         <input
           key={i}
@@ -52,7 +52,7 @@ export default function OTPInput({ length = 6, onComplete, disabled = false }) {
           onChange={(e) => handleChange(i, e)}
           onKeyDown={(e) => handleKeyDown(i, e)}
           onPaste={handlePaste}
-          className="w-12 h-12 text-center text-xl font-bold bg-dark-700 border border-dark-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:opacity-50 transition-all"
+          className="w-10 h-10 text-center text-lg font-bold bg-dark-700 border border-dark-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:opacity-50 transition-all"
           aria-label={`OTP digit ${i + 1}`}
         />
       ))}

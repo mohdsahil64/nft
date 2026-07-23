@@ -1,67 +1,58 @@
 const Withdrawal = require('../models/Withdrawal');
 const NFTWallet = require('../models/NFTWallet');
-const { generateAndSendOTP, verifyOTP } = require('../utils/otpService');
-const { debitNFTs } = require('../utils/nftPriceService');
+const OTP = require('../models/OTP');
+const { generateAndSendOTP, verifyOTP, generateOTP, storeOTP } = require('../utils/otpService');
+const { sendSMSOTP } = require('../utils/smsService');
 
 /**
  * POST /api/withdrawal/initiate
- * Start withdrawal — ad must be watched, then send OTP
- * NFTs are NOT debited here — only after OTP verification
+ * Step 1: Check balance → Send email OTP
  */
 const initiateWithdrawal = async (req, res) => {
   try {
-    const { amount, walletAddress, adWatched } = req.body;
+    const { amount, walletAddress, network } = req.body;
     const user = req.user;
 
-    if (!amount || !walletAddress) {
-      return res.status(400).json({ success: false, message: 'Amount and wallet address are required' });
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ success: false, message: 'Enter a valid amount' });
+    }
+    if (!walletAddress || !walletAddress.startsWith('0x') || walletAddress.length !== 42) {
+      return res.status(400).json({ success: false, message: 'Invalid wallet address' });
     }
 
-    if (!adWatched) {
-      return res.status(400).json({ success: false, message: 'You must watch the ad before withdrawing' });
-    }
-
-    if (amount < 200) {
-      return res.status(400).json({ success: false, message: 'Minimum withdrawal is 200 NFTs' });
-    }
-
-    // Check balance
+    // Check USDT internal balance
     const wallet = await NFTWallet.findOne({ userId: user._id }).lean();
-    if (!wallet || wallet.nftBalance < amount) {
-      return res.status(400).json({ success: false, message: 'Insufficient NFT balance' });
+    if (!wallet || (wallet.usdtInternalBalance || 0) < amount) {
+      return res.status(400).json({ success: false, message: 'Insufficient USDT balance' });
     }
 
-    // Check for pending withdrawal (one at a time)
-    const pendingWithdrawal = await Withdrawal.findOne({ userId: user._id, status: 'pending', otpVerified: false }).lean();
-    if (pendingWithdrawal) {
-      // Delete old unverified withdrawal so user can try again
-      await Withdrawal.deleteOne({ _id: pendingWithdrawal._id });
-    }
+    // Check for existing pending withdrawal
+    const pendingUnverified = await Withdrawal.findOne({ userId: user._id, status: 'pending', otpVerified: false });
+    if (pendingUnverified) await Withdrawal.deleteOne({ _id: pendingUnverified._id });
 
-    // Also check for verified pending withdrawal
     const verifiedPending = await Withdrawal.findOne({ userId: user._id, status: 'pending', otpVerified: true }).lean();
     if (verifiedPending) {
-      return res.status(400).json({ success: false, message: 'You already have a pending withdrawal request awaiting admin approval' });
+      return res.status(400).json({ success: false, message: 'You already have a pending withdrawal awaiting admin approval' });
     }
 
-    // Create withdrawal record (unverified — NO debit yet)
+    // Create withdrawal record
     const withdrawal = await Withdrawal.create({
       userId: user._id,
       amount,
-      walletAddress,
-      network: user.network,
+      walletAddress: walletAddress.toLowerCase(),
+      network: network || user.network || 'BSC',
       adWatched: true,
       otpVerified: false,
       status: 'pending',
     });
 
-    // Send OTP (do NOT debit NFTs yet)
+    // Send email OTP
     await generateAndSendOTP(user.email, 'withdrawal');
 
     return res.status(201).json({
       success: true,
-      message: 'OTP sent to your email. Please verify to confirm withdrawal.',
-      data: { withdrawalId: withdrawal._id },
+      message: 'Email OTP sent. Please verify.',
+      data: { withdrawalId: withdrawal._id, step: 'email' },
     });
   } catch (error) {
     console.error('Initiate withdrawal error:', error);
@@ -70,54 +61,102 @@ const initiateWithdrawal = async (req, res) => {
 };
 
 /**
- * POST /api/withdrawal/verify-otp
- * Confirm withdrawal with OTP — NFTs are debited only here
+ * POST /api/withdrawal/verify-email
+ * Step 2: Verify email OTP → Send mobile OTP
  */
-const verifyWithdrawalOTP = async (req, res) => {
+const verifyEmailOTP = async (req, res) => {
   try {
     const { withdrawalId, otp } = req.body;
     const user = req.user;
 
     if (!withdrawalId || !otp) {
-      return res.status(400).json({ success: false, message: 'Withdrawal ID and OTP are required' });
+      return res.status(400).json({ success: false, message: 'Withdrawal ID and OTP required' });
     }
 
     const withdrawal = await Withdrawal.findOne({ _id: withdrawalId, userId: user._id });
     if (!withdrawal) {
-      return res.status(404).json({ success: false, message: 'Withdrawal request not found' });
+      return res.status(404).json({ success: false, message: 'Withdrawal not found' });
     }
 
-    if (withdrawal.otpVerified) {
-      return res.status(400).json({ success: false, message: 'Withdrawal already verified' });
-    }
-
+    // Verify email OTP
     const result = await verifyOTP(user.email, otp, 'withdrawal');
     if (!result.valid) {
       return res.status(400).json({ success: false, message: result.message });
     }
 
-    // Re-check balance before debiting (in case balance changed)
-    const wallet = await NFTWallet.findOne({ userId: user._id }).lean();
-    if (!wallet || wallet.nftBalance < withdrawal.amount) {
-      // Remove the unverified withdrawal
-      await Withdrawal.deleteOne({ _id: withdrawal._id });
-      return res.status(400).json({ success: false, message: 'Insufficient NFT balance. Withdrawal cancelled.' });
+    // Email verified — now send mobile OTP
+    const mobileOtp = generateOTP();
+    await storeOTP(user.mobile, mobileOtp, 'withdrawal');
+
+    // Send SMS
+    try {
+      await sendSMSOTP(user.mobile, mobileOtp);
+    } catch (smsErr) {
+      console.error('[Withdrawal] SMS failed:', smsErr.message);
+      return res.status(500).json({ success: false, message: 'Failed to send mobile OTP. Try again.' });
     }
 
-    // NOW debit NFTs (only after OTP is verified)
-    await debitNFTs(user._id, withdrawal.amount, `Withdrawal request #${withdrawal._id}`);
+    return res.status(200).json({
+      success: true,
+      message: 'Email verified! Mobile OTP sent.',
+      data: { withdrawalId: withdrawal._id, step: 'mobile' },
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
 
-    // Mark as OTP verified
+/**
+ * POST /api/withdrawal/verify-mobile
+ * Step 3: Verify mobile OTP → Debit USDT → Request goes to admin
+ */
+const verifyMobileOTP = async (req, res) => {
+  try {
+    const { withdrawalId, otp } = req.body;
+    const user = req.user;
+
+    if (!withdrawalId || !otp) {
+      return res.status(400).json({ success: false, message: 'Withdrawal ID and OTP required' });
+    }
+
+    const withdrawal = await Withdrawal.findOne({ _id: withdrawalId, userId: user._id });
+    if (!withdrawal) {
+      return res.status(404).json({ success: false, message: 'Withdrawal not found' });
+    }
+
+    if (withdrawal.otpVerified) {
+      return res.status(400).json({ success: false, message: 'Already verified' });
+    }
+
+    // Verify mobile OTP
+    const result = await verifyOTP(user.mobile, otp, 'withdrawal');
+    if (!result.valid) {
+      return res.status(400).json({ success: false, message: result.message });
+    }
+
+    // Re-check balance
+    const wallet = await NFTWallet.findOne({ userId: user._id }).lean();
+    if (!wallet || (wallet.usdtInternalBalance || 0) < withdrawal.amount) {
+      await Withdrawal.deleteOne({ _id: withdrawal._id });
+      return res.status(400).json({ success: false, message: 'Insufficient balance. Withdrawal cancelled.' });
+    }
+
+    // Debit USDT
+    await NFTWallet.findOneAndUpdate(
+      { userId: user._id },
+      { $inc: { usdtInternalBalance: -withdrawal.amount }, lastUpdated: new Date() }
+    );
+
+    // Mark verified
     withdrawal.otpVerified = true;
     await withdrawal.save();
 
     return res.status(200).json({
       success: true,
-      message: 'Withdrawal request confirmed. Admin will process it soon.',
+      message: 'Withdrawal confirmed! Admin will process it soon.',
       data: withdrawal,
     });
   } catch (error) {
-    console.error('Verify withdrawal OTP error:', error);
     return res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -152,4 +191,4 @@ const getWithdrawalHistory = async (req, res) => {
   }
 };
 
-module.exports = { initiateWithdrawal, verifyWithdrawalOTP, getWithdrawalHistory };
+module.exports = { initiateWithdrawal, verifyEmailOTP, verifyMobileOTP, getWithdrawalHistory };

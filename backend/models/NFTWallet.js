@@ -29,6 +29,24 @@ const nftWalletSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    // FM Token fields
+    fmBalance: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    fmSignupEarnings: {
+      type: Number,
+      default: 0,
+    },
+    fmReferralEarnings: {
+      type: Number,
+      default: 0,
+    },
+    fmTeamEarnings: {
+      type: Number,
+      default: 0,
+    },
     walletUsdtBSC: {
       type: String,
       default: '0',
@@ -38,6 +56,11 @@ const nftWalletSchema = new mongoose.Schema(
       default: '0',
     },
     walletUsdtTotal: {
+      type: Number,
+      default: 0,
+    },
+    // Internal USDT balance (from NFT swaps)
+    usdtInternalBalance: {
       type: Number,
       default: 0,
     },

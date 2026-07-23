@@ -180,10 +180,27 @@ const verifyRegistrationOTP = async (req, res) => {
     // Create NFT wallet (empty — bonus credited on claim)
     await NFTWallet.create({ userId: user._id });
 
-    // Process referral chain if referred (but no signup bonus yet)
+    // Store referral tree for commission tracking (NO rewards on registration anymore)
     if (user.referredBy) {
-      await processReferralChain(user._id, user.referredBy);
-      await checkTeamMilestones(user.referredBy.toString());
+      // Only build the tree structure — no NFT rewards given here
+      const ReferralTree = require('../models/ReferralTree');
+      const User2 = require('../models/User');
+      let currentParentId = user.referredBy;
+      let level = 1;
+      const ancestors = [];
+      while (currentParentId && level <= 15) {
+        ancestors.push(currentParentId);
+        await ReferralTree.create({
+          userId: user._id,
+          parentId: currentParentId,
+          level,
+          ancestors: ancestors.slice(0, -1),
+        });
+        const parentUser = await User2.findById(currentParentId).select('referredBy').lean();
+        if (!parentUser || !parentUser.referredBy) break;
+        currentParentId = parentUser.referredBy;
+        level++;
+      }
     }
 
     // Delete pending registration

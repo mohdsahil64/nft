@@ -71,7 +71,20 @@ app.use('/api/admin', adminRoutes);
 
 // ─── Maintenance Mode Status (public — frontend checks this) ──────────────────
 app.get('/api/maintenance/status', (req, res) => {
-  const isMaintenanceMode = process.env.MAINTENANCE_MODE === 'true';
+  // Read .env file live (no restart needed to toggle maintenance mode)
+  let isMaintenanceMode = process.env.MAINTENANCE_MODE === 'true';
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const envPath = path.join(__dirname, '.env');
+    if (fs.existsSync(envPath)) {
+      const envContent = fs.readFileSync(envPath, 'utf8');
+      const match = envContent.match(/^MAINTENANCE_MODE\s*=\s*(.+)$/m);
+      if (match) {
+        isMaintenanceMode = match[1].trim() === 'true';
+      }
+    }
+  } catch (_) {}
   return res.status(200).json({
     success: true,
     data: {

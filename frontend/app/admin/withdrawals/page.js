@@ -103,7 +103,7 @@ export default function AdminWithdrawalsPage() {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3 text-xs">
                 <div className="bg-dark-700 rounded-lg p-2">
                   <p className="text-slate-500">Amount</p>
-                  <p className="font-bold text-white">{w.amount} NFT</p>
+                  <p className="font-bold text-emerald-400">${w.amount} USDT</p>
                 </div>
                 <div className="bg-dark-700 rounded-lg p-2">
                   <p className="text-slate-500">Network</p>

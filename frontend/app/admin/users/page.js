@@ -309,8 +309,8 @@ export default function AdminUsersPage() {
                 }
               </div>
 
-              {/* Row 2: Mobile + NFT + USDT + Network */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+              {/* Row 2: Mobile + NFT + FM + USDT + Network */}
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-3">
                 <div className="bg-dark-700/70 rounded-lg px-3 py-2">
                   <p className="text-xs text-slate-500">Mobile</p>
                   <p className="text-sm font-medium text-white">{u.mobile}</p>
@@ -318,6 +318,10 @@ export default function AdminUsersPage() {
                 <div className="bg-dark-700/70 rounded-lg px-3 py-2">
                   <p className="text-xs text-slate-500">NFT Balance</p>
                   <p className="text-sm font-bold text-primary-400">{u.nftBalance?.toLocaleString() || 0}</p>
+                </div>
+                <div className="bg-dark-700/70 rounded-lg px-3 py-2">
+                  <p className="text-xs text-slate-500">FM Balance</p>
+                  <p className="text-sm font-bold text-yellow-400">{u.fmBalance?.toLocaleString() || 0}</p>
                 </div>
                 <div className="bg-dark-700/70 rounded-lg px-3 py-2">
                   <p className="text-xs text-slate-500">Wallet USDT</p>

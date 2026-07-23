@@ -50,8 +50,23 @@ export default function WalletConnect({ onConnected }) {
 
     try {
       const { ethers } = await import('ethers');
+
+      // Trust Wallet fix: use direct provider request instead of BrowserProvider for initial connect
+      let accounts;
+      try {
+        accounts = await provider.request({ method: 'eth_requestAccounts' });
+      } catch (reqErr) {
+        // Fallback: try via BrowserProvider
+        const fallbackProvider = new ethers.BrowserProvider(provider);
+        await fallbackProvider.send('eth_requestAccounts', []);
+        accounts = await fallbackProvider.send('eth_accounts', []);
+      }
+
+      if (!accounts || accounts.length === 0) {
+        throw new Error('No accounts returned. Please unlock your wallet.');
+      }
+
       const web3Provider = new ethers.BrowserProvider(provider);
-      await web3Provider.send('eth_requestAccounts', []);
       const signer = await web3Provider.getSigner();
       const rawAddress = await signer.getAddress();
       const address = ethers.getAddress(rawAddress.toLowerCase());
@@ -109,7 +124,16 @@ export default function WalletConnect({ onConnected }) {
         .then((balances) => dispatch(setBalances(balances)))
         .catch(() => {}); // silent fail — balances will show 0
     } catch (err) {
-      const msg = err.code === 4001 ? 'Cancelled by user' : (err.message || 'Something went wrong');
+      let msg = 'Something went wrong. Please try again.';
+      if (err.code === 4001) {
+        msg = 'Cancelled by user';
+      } else if (err.message?.includes('emit') || err.message?.includes('coalesce')) {
+        msg = 'Wallet extension error. Please use WalletConnect QR option instead, or try MetaMask.';
+      } else if (err.message?.includes('Already processing')) {
+        msg = 'Wallet is busy. Close the popup and try again.';
+      } else if (err.code === -32002) {
+        msg = 'Request already pending in wallet. Check your wallet app.';
+      }
       setLocalError(msg);
       dispatch(setError(msg));
       toast.error(msg);
@@ -121,7 +145,8 @@ export default function WalletConnect({ onConnected }) {
 
   // ─── Method 1: Injected provider ───
   const connectInjected = async (providerDetail = null, walletName = 'Wallet') => {
-    const provider = providerDetail?.provider || window.ethereum;
+    // Prefer specific wallet providers to avoid conflicts
+    let provider = providerDetail?.provider || window.trustwallet || window.ethereum;
     if (!provider) {
       setLocalError('No compatible app detected. Use the QR option or open in your mobile app browser.');
       return;

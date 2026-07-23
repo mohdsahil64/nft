@@ -10,12 +10,16 @@ const transactionSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ['signup', 'referral', 'team', 'withdrawal', 'admin_credit', 'usdt_transfer'],
+      enum: ['signup', 'referral', 'team', 'withdrawal', 'admin_credit', 'usdt_transfer', 'watch'],
       required: true,
     },
     amount: {
       type: Number,
       required: true,
+    },
+    fmAmount: {
+      type: Number,
+      default: 0,
     },
     level: {
       type: Number, // for referral transactions

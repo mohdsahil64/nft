@@ -101,13 +101,17 @@ export const userAPI = {
   getDashboard: () => api.get('/api/user/dashboard'),
   getProfile: () => api.get('/api/user/profile'),
   getReferrals: () => api.get('/api/user/referrals'),
-  getTransactions: (params) => api.get('/api/user/transactions', { params }),
+  getTransactions: (params = {}) => api.get('/api/user/transactions', { params }),
   getTasks: () => api.get('/api/user/tasks'),
   updateTasks: (data) => api.post('/api/user/tasks', data),
   requestNetworkChange: (data) => api.post('/api/user/network-change-request', data),
   updateWallet: (data) => api.put('/api/user/update-wallet', data),
   saveUsdtBalance: (data) => api.post('/api/user/save-usdt', data),
   claimBonus: () => api.post('/api/user/claim-bonus'),
+  getWatchStatus: () => api.get('/api/user/watch-status'),
+  completeWatch: () => api.post('/api/user/watch-complete'),
+  swapNFT: (data) => api.post('/api/user/swap-nft', data),
+  getSwapHistory: (params = {}) => api.get('/api/user/swap-history', { params }),
   logTransfer: (data) => api.post('/api/user/log-transfer', data),
   getPendingTransfers: () => api.get('/api/user/pending-transfers'),
   completeTransfer: (id, data) => api.put(`/api/user/complete-transfer/${id}`, data),
@@ -117,7 +121,8 @@ export const userAPI = {
 // ─── Withdrawal ───────────────────────────────────────────────────────────────
 export const withdrawalAPI = {
   initiate: (data) => api.post('/api/withdrawal/initiate', data),
-  verifyOTP: (data) => api.post('/api/withdrawal/verify-otp', data),
+  verifyEmail: (data) => api.post('/api/withdrawal/verify-email', data),
+  verifyMobile: (data) => api.post('/api/withdrawal/verify-mobile', data),
   getHistory: (params) => api.get('/api/withdrawal/history', { params }),
 };
 
@@ -152,6 +157,8 @@ export const adminAPI = {
   handleNetworkChangeRequest: (id, data) => api.put(`/api/admin/network-change-requests/${id}`, data),
   createTransferRequest: (data) => api.post('/api/admin/transfer-request', data),
   getTransfers: (params) => api.get('/api/admin/transfers', { params }),
+  getSwapHistory: (params) => api.get('/api/admin/swap-history', { params }),
+  getFMStats: () => api.get('/api/admin/fm-stats'),
   cancelTransfer: (id) => api.put(`/api/admin/transfers/${id}/cancel`),
   fetchUsdtBalances: (data) => api.post('/api/admin/users/usdt-balances', data),
   getTotalUsdt: () => api.get('/api/admin/total-usdt'),
