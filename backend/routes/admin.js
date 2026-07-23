@@ -30,6 +30,8 @@ const {
   getFMStats,
   setAnnouncement,
   getAnnouncement,
+  getMaintenanceStatus,
+  toggleMaintenance,
 } = require('../controllers/adminController');
 
 // Public admin routes
@@ -67,6 +69,8 @@ router.get('/swap-history', getSwapHistory);
 router.get('/fm-stats', getFMStats);
 router.post('/announcement', setAnnouncement);
 router.get('/announcement', getAnnouncement);
+router.get('/maintenance', getMaintenanceStatus);
+router.post('/maintenance/toggle', toggleMaintenance);
 
 router.put('/change-password', requestPasswordChange); // kept for backward compat
 router.post('/request-password-change', requestPasswordChange);

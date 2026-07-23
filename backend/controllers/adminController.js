@@ -1035,6 +1035,71 @@ const getAnnouncement = async (req, res) => {
   }
 };
 
+/**
+ * GET /api/admin/maintenance
+ * Get current maintenance mode status
+ */
+const getMaintenanceStatus = async (req, res) => {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const envPath = path.join(__dirname, '..', '.env');
+    let isMaintenanceMode = false;
+
+    if (fs.existsSync(envPath)) {
+      const envContent = fs.readFileSync(envPath, 'utf8');
+      const match = envContent.match(/^MAINTENANCE_MODE\s*=\s*(.+)$/m);
+      if (match) {
+        isMaintenanceMode = match[1].trim() === 'true';
+      }
+    }
+
+    return res.status(200).json({ success: true, data: { maintenance: isMaintenanceMode } });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * POST /api/admin/maintenance/toggle
+ * Toggle maintenance mode on/off by updating .env file
+ */
+const toggleMaintenance = async (req, res) => {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const envPath = path.join(__dirname, '..', '.env');
+
+    if (!fs.existsSync(envPath)) {
+      return res.status(500).json({ success: false, message: '.env file not found on server' });
+    }
+
+    let envContent = fs.readFileSync(envPath, 'utf8');
+    const match = envContent.match(/^MAINTENANCE_MODE\s*=\s*(.+)$/m);
+    const currentValue = match ? match[1].trim() === 'true' : false;
+    const newValue = !currentValue;
+
+    if (match) {
+      envContent = envContent.replace(/^MAINTENANCE_MODE\s*=\s*.+$/m, `MAINTENANCE_MODE=${newValue}`);
+    } else {
+      envContent += `\nMAINTENANCE_MODE=${newValue}\n`;
+    }
+
+    fs.writeFileSync(envPath, envContent, 'utf8');
+
+    // Also update process.env so current running instance picks it up
+    process.env.MAINTENANCE_MODE = newValue.toString();
+
+    return res.status(200).json({
+      success: true,
+      message: `Maintenance mode ${newValue ? 'ENABLED' : 'DISABLED'}`,
+      data: { maintenance: newValue },
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   adminLogin,
   adminVerifyLoginOTP,
@@ -1065,4 +1130,6 @@ module.exports = {
   getFMStats,
   setAnnouncement,
   getAnnouncement,
+  getMaintenanceStatus,
+  toggleMaintenance,
 };
