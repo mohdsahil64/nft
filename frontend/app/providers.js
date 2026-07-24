@@ -6,6 +6,7 @@ import { loginSuccess, sessionCheckDone } from '../store/slices/userSlice';
 import { connectWallet } from '../store/slices/walletSlice';
 import { userAPI } from '../lib/api';
 import { Toaster } from 'react-hot-toast';
+import MaintenanceGate from '../components/MaintenanceGate';
 
 function SessionRestorer() {
   useEffect(() => {
@@ -57,7 +58,9 @@ export default function Providers({ children }) {
           },
         }}
       />
-      {children}
+      <MaintenanceGate>
+        {children}
+      </MaintenanceGate>
     </Provider>
   );
 }

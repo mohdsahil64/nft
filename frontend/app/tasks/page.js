@@ -120,7 +120,7 @@ export default function WatchEarnPage() {
               <RiPlayCircleFill className="w-5 h-5 text-purple-400" />
               <p className="text-sm font-bold text-white">Daily Watch Reward</p>
             </div>
-            <p className="text-[11px] text-slate-400 mb-5 ml-7">Watch 1 video per day (15-20 seconds)</p>
+            <p className="text-[11px] text-slate-400 mb-5 ml-7">Unlock daily rewards (15-20 seconds)</p>
 
             {/* Play button */}
             <div className="flex justify-center mb-5">
@@ -140,14 +140,14 @@ export default function WatchEarnPage() {
                 <img src="/assets/nftimg.avif" alt="NFT" className="w-8 h-8 rounded-lg" />
                 <div>
                   <p className="text-base font-bold text-cyan-400">5 NFT</p>
-                  <p className="text-[9px] text-slate-500">Per Day</p>
+                  <p className="text-[9px] text-slate-500">Claim Today</p>
                 </div>
               </div>
               <div className="flex items-center gap-2.5 bg-dark-700/70 rounded-xl px-4 py-3 flex-1 border border-emerald-500/15">
                 <FMCoinLogo size={32} />
                 <div>
                   <p className="text-base font-bold text-emerald-400">1 FM</p>
-                  <p className="text-[9px] text-slate-500">Per Day (Locked 180d)</p>
+                  <p className="text-[9px] text-slate-500">Claim Today</p>
                 </div>
               </div>
             </div>

@@ -5,9 +5,21 @@ import Providers from './providers';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata = {
-  title: 'FutureMint NFT Earn, Grow, Withdraw',
-  description: 'Join FutureMint NFT Platform. Connect your wallet, earn NFTs through referrals and team building.',
-  keywords: 'NFT, DeFi, Earn, BSC, Polygon, Referral, Web3, FutureMint',
+  title: 'FutureMint NFT — Watch, Earn & Own the Digital Future | Web3 Ecosystem',
+  description: 'FutureMint NFT is a premium Web3 ecosystem where you watch short videos, earn NFTs & FM tokens daily, build teams, and grow in the evolving digital economy. Join free today.',
+  keywords: 'FutureMint, NFT, FM Token, Web3, earn NFTs, watch to earn, DeFi, BSC, Polygon, digital future, blockchain, crypto earning, referral rewards, passive income crypto',
+  openGraph: {
+    title: 'FutureMint NFT — Watch, Earn & Own the Digital Future',
+    description: 'Join FutureMint NFT ecosystem. Watch 15-sec videos, earn NFTs + FM tokens daily. No investment required. Build your digital future now.',
+    url: 'https://futuremint.app',
+    siteName: 'FutureMint NFT',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'FutureMint NFT — Web3 Earn Ecosystem',
+    description: 'Watch short videos, earn NFTs & FM daily. Join the future of digital ownership.',
+  },
   icons: {
     icon: [
       { url: '/assets/favicon/favicon.ico', sizes: 'any' },
@@ -17,6 +29,9 @@ export const metadata = {
     apple: '/assets/favicon/apple-touch-icon.png',
   },
   manifest: '/assets/favicon/site.webmanifest',
+  alternates: {
+    canonical: 'https://futuremint.app',
+  },
 };
 
 export const viewport = {

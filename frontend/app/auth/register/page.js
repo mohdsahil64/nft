@@ -99,6 +99,41 @@ function AuthContent() {
     return () => clearInterval(t);
   }, [resendCooldown]);
 
+  // Country code state (UI only — not sent to backend)
+  const [countryCode, setCountryCode] = useState('+91');
+  const countryCodes = [
+    { code: '+91', country: 'IN', flag: '🇮🇳' },
+    { code: '+1', country: 'US', flag: '🇺🇸' },
+    { code: '+44', country: 'UK', flag: '🇬🇧' },
+    { code: '+971', country: 'AE', flag: '🇦🇪' },
+    { code: '+966', country: 'SA', flag: '🇸🇦' },
+    { code: '+92', country: 'PK', flag: '🇵🇰' },
+    { code: '+880', country: 'BD', flag: '🇧🇩' },
+    { code: '+977', country: 'NP', flag: '🇳🇵' },
+    { code: '+61', country: 'AU', flag: '🇦🇺' },
+    { code: '+49', country: 'DE', flag: '🇩🇪' },
+    { code: '+33', country: 'FR', flag: '🇫🇷' },
+    { code: '+81', country: 'JP', flag: '🇯🇵' },
+    { code: '+86', country: 'CN', flag: '🇨🇳' },
+    { code: '+7', country: 'RU', flag: '🇷🇺' },
+    { code: '+55', country: 'BR', flag: '🇧🇷' },
+    { code: '+234', country: 'NG', flag: '🇳🇬' },
+    { code: '+27', country: 'ZA', flag: '🇿🇦' },
+    { code: '+62', country: 'ID', flag: '🇮🇩' },
+    { code: '+60', country: 'MY', flag: '🇲🇾' },
+    { code: '+63', country: 'PH', flag: '🇵🇭' },
+    { code: '+84', country: 'VN', flag: '🇻🇳' },
+    { code: '+66', country: 'TH', flag: '🇹🇭' },
+    { code: '+82', country: 'KR', flag: '🇰🇷' },
+    { code: '+39', country: 'IT', flag: '🇮🇹' },
+    { code: '+34', country: 'ES', flag: '🇪🇸' },
+    { code: '+31', country: 'NL', flag: '🇳🇱' },
+    { code: '+90', country: 'TR', flag: '🇹🇷' },
+    { code: '+20', country: 'EG', flag: '🇪🇬' },
+    { code: '+254', country: 'KE', flag: '🇰🇪' },
+    { code: '+233', country: 'GH', flag: '🇬🇭' },
+  ];
+
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
   // ─── LOGIN HANDLER ───
@@ -452,11 +487,24 @@ function AuthContent() {
                     placeholder="Email Address"
                     className="w-full bg-dark-800 border border-dark-600 rounded-xl py-3 pl-10 pr-4 text-white text-sm placeholder:text-slate-500 focus:outline-none focus:border-cyan-500/50 transition-colors" />
                 </div>
-                <div className="relative">
-                  <RiPhoneLine className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                  <input type="tel" name="mobile" required value={form.mobile} onChange={handleChange}
-                    placeholder="Mobile Number"
-                    className="w-full bg-dark-800 border border-dark-600 rounded-xl py-3 pl-10 pr-4 text-white text-sm placeholder:text-slate-500 focus:outline-none focus:border-cyan-500/50 transition-colors" />
+                <div className="relative flex gap-0">
+                  <div className="relative flex-shrink-0">
+                    <select
+                      value={countryCode}
+                      onChange={(e) => setCountryCode(e.target.value)}
+                      className="h-full bg-dark-800 border border-dark-600 border-r-0 rounded-l-xl py-3 pl-3 pr-1 text-white text-sm focus:outline-none focus:border-cyan-500/50 transition-colors appearance-none cursor-pointer"
+                      style={{ width: '80px' }}
+                    >
+                      {countryCodes.map(({ code, country, flag }) => (
+                        <option key={code} value={code}>{flag} {code}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="relative flex-1">
+                    <input type="tel" name="mobile" required value={form.mobile} onChange={handleChange}
+                      placeholder={`${countryCode} Mobile Number`}
+                      className="w-full bg-dark-800 border border-dark-600 border-l-0 rounded-r-xl py-3 pl-3 pr-4 text-white text-sm placeholder:text-slate-500 focus:outline-none focus:border-cyan-500/50 transition-colors" />
+                  </div>
                 </div>
                 <div className="relative">
                   <RiLockLine className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
