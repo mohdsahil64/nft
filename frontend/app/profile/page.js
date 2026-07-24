@@ -139,14 +139,14 @@ export default function ProfilePage() {
             <RiArrowRightSLine className="w-5 h-5 text-slate-600" />
           </Link>
 
-          {/* FM Token Status */}
+          {/* FM Status */}
           <Link href="/profile/fm-status"
             className="w-full flex items-center justify-between px-4 py-4 border-b border-dark-700/50 hover:bg-dark-700/30 transition-colors">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-lg bg-yellow-500/10 flex items-center justify-center">
                 <RiCoinLine className="w-4.5 h-4.5 text-yellow-400" />
               </div>
-              <p className="text-xs font-medium text-white">FM Token Status</p>
+              <p className="text-xs font-medium text-white">FM Status</p>
             </div>
             <RiArrowRightSLine className="w-5 h-5 text-slate-600" />
           </Link>

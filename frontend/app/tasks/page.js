@@ -7,6 +7,7 @@ import Navbar from '../../components/shared/Navbar';
 import AdOverlay from '../../components/shared/AdOverlay';
 import { RiPlayCircleFill, RiTimerFlashLine, RiFireFill, RiGift2Fill, RiCheckboxCircleFill, RiLock2Fill, RiInformationLine, RiTeamFill } from 'react-icons/ri';
 import toast from 'react-hot-toast';
+import FMCoinLogo, { FMIconSimple } from '../../components/FMCoinLogo';
 
 export default function WatchEarnPage() {
   const router = useRouter();
@@ -142,10 +143,10 @@ export default function WatchEarnPage() {
                   <p className="text-[9px] text-slate-500">Per Day</p>
                 </div>
               </div>
-              <div className="flex items-center gap-2.5 bg-dark-700/70 rounded-xl px-4 py-3 flex-1 border border-yellow-500/15">
-                <img src="/assets/fm.webp" alt="FM" className="w-8 h-8 rounded-lg object-contain" />
+              <div className="flex items-center gap-2.5 bg-dark-700/70 rounded-xl px-4 py-3 flex-1 border border-emerald-500/15">
+                <FMCoinLogo size={32} />
                 <div>
-                  <p className="text-base font-bold text-yellow-400">1 FM</p>
+                  <p className="text-base font-bold text-emerald-400">1 FM</p>
                   <p className="text-[9px] text-slate-500">Per Day (Locked 180d)</p>
                 </div>
               </div>
@@ -251,8 +252,8 @@ export default function WatchEarnPage() {
                 <span className="text-xs font-bold text-cyan-400">+{nextReward.nft} NFT</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <img src="/assets/fm.webp" alt="FM" className="w-4 h-4 rounded object-contain" />
-                <span className="text-xs font-bold text-yellow-400">+{nextReward.fm} FM</span>
+                <FMIconSimple size={16} />
+                <span className="text-xs font-bold text-emerald-400">+{nextReward.fm} FM</span>
               </div>
             </div>
             {/* Progress towards next milestone */}
@@ -303,8 +304,8 @@ export default function WatchEarnPage() {
                       <span className={`text-xs font-bold ${achieved ? 'text-cyan-400' : 'text-slate-400'}`}>{nft}</span>
                     </div>
                     <div className="flex items-center gap-1">
-                      <img src="/assets/fm.webp" alt="" className="w-3.5 h-3.5 rounded object-contain" />
-                      <span className={`text-xs font-bold ${achieved ? 'text-yellow-400' : 'text-slate-400'}`}>{fm}</span>
+                      <FMIconSimple size={14} />
+                      <span className={`text-xs font-bold ${achieved ? 'text-emerald-400' : 'text-slate-400'}`}>{fm}</span>
                     </div>
                   </div>
                 </div>

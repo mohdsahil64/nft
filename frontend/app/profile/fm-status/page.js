@@ -6,6 +6,7 @@ import { userAPI } from '../../../lib/api';
 import Navbar from '../../../components/shared/Navbar';
 import { RiLock2Fill, RiArrowLeftSLine, RiTimerFlashLine, RiPriceTag3Line, RiExchangeDollarLine, RiInformationLine } from 'react-icons/ri';
 import toast from 'react-hot-toast';
+import FMCoinLogo from '../../../components/FMCoinLogo';
 
 export default function FMStatusPage() {
   const router = useRouter();
@@ -58,14 +59,14 @@ export default function FMStatusPage() {
           <button onClick={() => router.back()} className="w-8 h-8 rounded-lg bg-dark-800 border border-dark-600 flex items-center justify-center text-slate-400 hover:text-white transition-colors">
             <RiArrowLeftSLine className="w-5 h-5" />
           </button>
-          <h1 className="text-base font-bold text-white">FM Token Status</h1>
+          <h1 className="text-base font-bold text-white">FM Status</h1>
         </div>
 
         {/* ─── Main Balance Card ─── */}
         <div className="rounded-2xl border border-yellow-500/20 bg-gradient-to-br from-[#1a1400] to-[#0c0c24] p-5 mb-5 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-500/5 rounded-full blur-3xl" />
           <div className="relative flex items-center gap-4 mb-5 pb-5 border-b border-dark-700/50">
-            <img src="/assets/fm.webp" alt="FM" className="w-16 h-16 rounded-xl object-contain" />
+            <FMCoinLogo size={64} />
             <div>
               <div className="flex items-baseline gap-2">
                 <p className="text-3xl font-extrabold text-white">{fmBalance}</p>
@@ -78,11 +79,11 @@ export default function FMStatusPage() {
           {/* Details */}
           <div className="space-y-0">
             <div className="flex items-center justify-between py-3 border-b border-dark-700/40">
-              <span className="text-xs text-slate-400">Total FM Token</span>
+              <span className="text-xs text-slate-400">Total FM</span>
               <span className="text-sm font-bold text-white">{fmBalance} FM</span>
             </div>
             <div className="flex items-center justify-between py-3 border-b border-dark-700/40">
-              <span className="text-xs text-slate-400">Locked FM Token</span>
+              <span className="text-xs text-slate-400">Locked FM</span>
               <span className="text-sm font-bold text-yellow-400">{lockedFM} FM</span>
             </div>
             <div className="flex items-center justify-between py-3">
@@ -120,7 +121,7 @@ export default function FMStatusPage() {
 
         {/* ─── Value & Pricing ─── */}
         <div className="rounded-2xl border border-dark-600/60 bg-dark-800/50 p-4 mb-5">
-          <p className="text-xs font-semibold text-white mb-3">Token Details</p>
+          <p className="text-xs font-semibold text-white mb-3">FM Details</p>
           <div className="space-y-0">
             <div className="flex items-center justify-between py-2.5 border-b border-dark-700/40">
               <div className="flex items-center gap-2">
@@ -158,8 +159,8 @@ export default function FMStatusPage() {
           <div className="flex items-start gap-2.5">
             <RiInformationLine className="w-4 h-4 text-slate-500 mt-0.5 flex-shrink-0" />
             <div className="space-y-1.5">
-              <p className="text-[10px] text-slate-400 leading-relaxed">FM Tokens are locked for 180 days from the date of earning to ensure long-term stability and user retention.</p>
-              <p className="text-[10px] text-slate-400 leading-relaxed">After unlock, FM Tokens can be swapped for USDT or used within the FutureMint ecosystem.</p>
+              <p className="text-[10px] text-slate-400 leading-relaxed">FM is locked for 180 days from the date of earning to ensure long-term stability and user retention.</p>
+              <p className="text-[10px] text-slate-400 leading-relaxed">After unlock, FM can be swapped for USDT or used within the FutureMint ecosystem.</p>
               <p className="text-[10px] text-slate-500">Earn more FM daily by watching ads and building your team.</p>
             </div>
           </div>

@@ -131,7 +131,7 @@ export default function AdOverlay({ onComplete, loading = false, buttonText = 'C
 
           {/* Info */}
           <p className="text-center text-[10px] text-slate-600 mt-2">
-            Watch the full video to claim your 100 NFTs + 50 FM Tokens
+            Watch the full video to claim your 100 NFTs + 50 FM
           </p>
         </div>
       </div>

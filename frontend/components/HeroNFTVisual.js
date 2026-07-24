@@ -1,4 +1,5 @@
 'use client';
+import FMCoinLogo from './FMCoinLogo';
 
 export default function HeroNFTVisual() {
   return (
@@ -40,13 +41,10 @@ export default function HeroNFTVisual() {
         <div className="absolute top-[25%] right-[12%] w-0.5 h-0.5 bg-purple-400/40 rounded-full animate-ping" style={{ animationDuration: '3.2s' }} />
       </div>
 
-      {/* FM Token Circle - Below NFT (smaller) */}
-      <div className="relative w-[70px] h-[70px] sm:w-[85px] sm:h-[85px]">
-        <div className="absolute inset-0 bg-yellow-500/10 rounded-full blur-lg" />
-        <div className="relative w-full h-full rounded-full bg-gradient-to-br from-yellow-900/40 to-orange-900/30 border-2 border-yellow-500/35 flex items-center justify-center shadow-[0_0_20px_rgba(234,179,8,0.12)]">
-          <span className="text-lg sm:text-xl font-extrabold text-yellow-400">FM</span>
-        </div>
-        <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 text-[8px] text-yellow-300/80 font-bold tracking-wider bg-[#070714] px-1.5 py-0.5 rounded-full border border-yellow-500/25">TOKEN</span>
+      {/* FM Coin Logo - Below NFT */}
+      <div className="relative">
+        <div className="absolute inset-0 bg-yellow-500/15 rounded-full blur-xl" />
+        <FMCoinLogo size={80} className="relative" />
       </div>
     </div>
   );

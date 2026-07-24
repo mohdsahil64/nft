@@ -12,6 +12,7 @@ import AdOverlay from '../../components/shared/AdOverlay';
 import { RiNftFill, RiCoinFill } from 'react-icons/ri';
 import { RefreshCw, TrendingUp, Lock, Coins, BarChart3, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
+import FMCoinLogo, { FMIconSimple } from '../../components/FMCoinLogo';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -136,7 +137,7 @@ export default function DashboardPage() {
                   <span className="text-slate-600">+</span>
                   <div className="text-center">
                     <p className="text-2xl font-bold text-white">50</p>
-                    <p className="text-[10px] text-yellow-400 font-medium">FM TOKEN</p>
+                    <p className="text-[10px] text-yellow-400 font-medium">FM</p>
                   </div>
                 </div>
               </div>
@@ -158,10 +159,10 @@ export default function DashboardPage() {
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-32 bg-yellow-500/10 rounded-full blur-3xl" />
             <div className="relative p-6">
               <div className="text-center mb-5">
-                <div className="w-14 h-14 mx-auto rounded-full bg-yellow-500/15 border border-yellow-500/30 flex items-center justify-center mb-3">
-                  <RiCoinFill className="w-7 h-7 text-yellow-400" />
+                <div className="w-16 h-16 mx-auto mb-3">
+                  <FMCoinLogo size={64} />
                 </div>
-                <h2 className="text-lg font-bold text-white">FM Token Status</h2>
+                <h2 className="text-lg font-bold text-white">FM Status</h2>
               </div>
 
               <div className="space-y-3">
@@ -194,7 +195,7 @@ export default function DashboardPage() {
               {fmLocked && (
                 <div className="mt-4 p-3 bg-yellow-900/20 border border-yellow-700/30 rounded-xl text-center">
                   <Lock className="w-4 h-4 text-yellow-400 mx-auto mb-1" />
-                  <p className="text-[11px] text-yellow-300">FM Tokens are locked for stability. No withdrawal until unlock date.</p>
+                  <p className="text-[11px] text-yellow-300">FM is locked for stability. No withdrawal until unlock date.</p>
                 </div>
               )}
 
@@ -237,23 +238,29 @@ export default function DashboardPage() {
           {/* NFT Balance */}
           <div className="relative overflow-hidden rounded-2xl border border-cyan-500/20 bg-gradient-to-br from-[#0a1628] to-[#0c0c24] p-4">
             <div className="absolute top-0 right-0 w-20 h-20 bg-cyan-500/5 rounded-full blur-2xl" />
-            <div className="relative flex items-center justify-between">
-              <div>
-                <p className="text-2xl font-extrabold text-white">{wallet.nftBalance?.toLocaleString() || '0'}</p>
+            <div className="relative flex items-center justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <p className={`font-extrabold text-white leading-tight ${
+                  (wallet.nftBalance?.toLocaleString() || '0').length > 9 ? 'text-base' :
+                  (wallet.nftBalance?.toLocaleString() || '0').length > 6 ? 'text-lg' : 'text-2xl'
+                }`}>{wallet.nftBalance?.toLocaleString() || '0'}</p>
                 <p className="text-[10px] text-slate-500 mt-0.5">Total NFT</p>
                 <p className="text-[10px] text-emerald-400 mt-1">≈ ${wallet.usdValue || '0.00'}</p>
               </div>
-              <img src="/assets/nftimg.avif" alt="NFT" className="w-14 h-14 rounded-xl object-cover shadow-[0_0_15px_rgba(0,200,255,0.1)]" />
+              <img src="/assets/nftimg.avif" alt="NFT" className="w-12 h-12 rounded-xl object-cover shadow-[0_0_15px_rgba(0,200,255,0.1)] flex-shrink-0" />
             </div>
           </div>
 
-          {/* FM Token Balance */}
+          {/* FM Balance */}
           <div className="relative overflow-hidden rounded-2xl border border-yellow-500/20 bg-gradient-to-br from-[#1a1400] to-[#0c0c24] p-4 cursor-pointer"
             onClick={() => setShowFMStatus(true)}>
             <div className="absolute top-0 right-0 w-20 h-20 bg-yellow-500/5 rounded-full blur-2xl" />
-            <div className="relative flex items-center justify-between">
-              <div>
-                <p className="text-2xl font-extrabold text-white">{wallet.fmBalance?.toLocaleString() || '0'}</p>
+            <div className="relative flex items-center justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <p className={`font-extrabold text-white leading-tight ${
+                  (wallet.fmBalance?.toLocaleString() || '0').length > 9 ? 'text-base' :
+                  (wallet.fmBalance?.toLocaleString() || '0').length > 6 ? 'text-lg' : 'text-2xl'
+                }`}>{wallet.fmBalance?.toLocaleString() || '0'}</p>
                 <p className="text-[10px] text-slate-500 mt-0.5">Total FM</p>
                 {fmLocked && (
                   <div className="flex items-center gap-1 mt-1">
@@ -262,7 +269,7 @@ export default function DashboardPage() {
                   </div>
                 )}
               </div>
-              <img src="/assets/fm.webp" alt="FM" className="w-14 h-14 rounded-xl object-contain shadow-[0_0_15px_rgba(234,179,8,0.1)]" />
+              <FMCoinLogo size={48} className="flex-shrink-0" />
             </div>
           </div>
         </div>
@@ -300,7 +307,7 @@ export default function DashboardPage() {
           </div>
           <div className="flex items-center justify-between px-4 py-3 rounded-xl bg-dark-800/50 border border-dark-600/40">
             <div className="flex items-center gap-3">
-              <img src="/assets/fm.webp" alt="FM" className="w-8 h-8 rounded-lg object-contain" />
+              <FMCoinLogo size={32} />
               <div>
                 <p className="text-xs font-semibold text-white">FM Price Today</p>
                 <p className="text-[9px] text-slate-500">FM/USDT</p>
@@ -373,11 +380,11 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* ─── FM Token Market Info ─── */}
+        {/* ─── FM Market Info ─── */}
         <div className="rounded-2xl border border-dark-600/60 bg-dark-800/40 p-4 mb-4">
           <div className="flex items-center gap-2 mb-3">
             <BarChart3 className="w-4 h-4 text-yellow-400" />
-            <p className="text-xs font-semibold text-white">FM Token Market</p>
+            <p className="text-xs font-semibold text-white">FM Market</p>
             <span className="text-[9px] text-yellow-300 bg-yellow-500/10 border border-yellow-500/20 px-2 py-0.5 rounded-full ml-auto">Coming Soon</span>
           </div>
           <div className="grid grid-cols-2 gap-2">

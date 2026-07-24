@@ -24,7 +24,7 @@ export default function AdminFMPage() {
 
   return (
     <AdminLayout currentPage="fm">
-      <h1 className="page-title">FM Token Market</h1>
+      <h1 className="page-title">FM Market</h1>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">

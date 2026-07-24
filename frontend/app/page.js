@@ -9,6 +9,7 @@ import { RiPlayCircleFill, RiNftFill, RiCoinFill, RiTeamFill, RiShieldCheckFill,
 import { HiSparkles } from 'react-icons/hi2';
 import { BsArrowRight } from 'react-icons/bs';
 import { X } from 'lucide-react';
+import FMCoinLogo, { FMIconSimple } from '../components/FMCoinLogo';
 
 export default function LandingPage() {
   const router = useRouter();
@@ -100,10 +101,10 @@ export default function LandingPage() {
             WATCH &bull; EARN &bull; MINT &bull; OWN THE FUTURE
           </p>
           <p className="text-[11px] text-slate-400 mb-5">
-            Powered by <span className="text-cyan-400 font-medium">FM TOKEN</span> & FutureMint NFT
+            Powered by <span className="text-cyan-400 font-medium">FM</span> & FutureMint NFT
           </p>
 
-          {/* NFT + FM Token Visual */}
+          {/* NFT + FM Visual */}
           <HeroNFTVisual />
         </div>
       </section>
@@ -111,20 +112,20 @@ export default function LandingPage() {
       {/* ─── ECOSYSTEM (compact) ─── */}
       <section className="px-4 pt-6 pb-4">
         <div className="max-w-sm mx-auto text-center">
-          <p className="text-sm font-semibold text-white mb-0.5">NFT + FM TOKEN</p>
+          <p className="text-sm font-semibold text-white mb-0.5">NFT + FM</p>
           <p className="text-[10px] text-purple-300/80 tracking-widest uppercase mb-4">
             <HiSparkles className="inline w-2.5 h-2.5" /> ECOSYSTEM <HiSparkles className="inline w-2.5 h-2.5" />
           </p>
           <div className="grid grid-cols-4 gap-2">
             {[
-              { icon: RiPlayCircleFill, label: 'Watch', sub: 'Videos', color: 'text-blue-400' },
-              { icon: RiNftFill, label: 'Earn', sub: 'NFTs', color: 'text-cyan-400' },
-              { icon: RiCoinFill, label: 'FM Token', sub: 'Benefits', color: 'text-yellow-400' },
-              { icon: RiTeamFill, label: 'Community', sub: 'Access', color: 'text-purple-400' },
-            ].map(({ icon: Icon, label, sub, color }, i) => (
+              { icon: RiPlayCircleFill, label: 'Watch', sub: 'Videos', color: 'text-blue-400', useFM: false },
+              { icon: RiNftFill, label: 'Earn', sub: 'NFTs', color: 'text-cyan-400', useFM: false },
+              { icon: null, label: 'FM', sub: 'Benefits', color: 'text-yellow-400', useFM: true },
+              { icon: RiTeamFill, label: 'Community', sub: 'Access', color: 'text-purple-400', useFM: false },
+            ].map(({ icon: Icon, label, sub, color, useFM }, i) => (
               <div key={i} className="flex flex-col items-center gap-1.5">
                 <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-lg bg-dark-800 border border-dark-600/80 flex items-center justify-center">
-                  <Icon className={`w-5 h-5 ${color}`} />
+                  {useFM ? <FMIconSimple size={22} /> : <Icon className={`w-5 h-5 ${color}`} />}
                 </div>
                 <p className="text-[9px] sm:text-[10px] text-slate-300 font-medium leading-tight">{label}</p>
                 <p className="text-[8px] text-slate-500 -mt-1">{sub}</p>
@@ -161,14 +162,14 @@ export default function LandingPage() {
           <p className="text-center text-xs text-yellow-300 font-semibold tracking-wide mb-5 uppercase">Why Join FutureMint?</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {[
-              { icon: RiPlayCircleFill, title: 'Watch Videos', desc: 'Just 15-20 seconds & earn real rewards', color: 'text-blue-400', border: 'hover:border-blue-500/30' },
-              { icon: RiNftFill, title: 'Earn NFTs', desc: 'Collect FutureMint NFTs & increase your value', color: 'text-cyan-400', border: 'hover:border-cyan-500/30' },
-              { icon: RiCoinFill, title: 'FM Token Benefits', desc: 'Use FM Token for utilities, rewards & access', color: 'text-yellow-400', border: 'hover:border-yellow-500/30' },
-              { icon: RiTeamFill, title: 'Strong Community', desc: 'Be a part of a global future-building movement', color: 'text-purple-400', border: 'hover:border-purple-500/30' },
-            ].map(({ icon: Icon, title, desc, color, border }, i) => (
+              { icon: RiPlayCircleFill, title: 'Watch Videos', desc: 'Just 15-20 seconds & earn real rewards', color: 'text-blue-400', border: 'hover:border-blue-500/30', useFM: false },
+              { icon: RiNftFill, title: 'Earn NFTs', desc: 'Collect FutureMint NFTs & increase your value', color: 'text-cyan-400', border: 'hover:border-cyan-500/30', useFM: false },
+              { icon: null, title: 'FM Benefits', desc: 'Use FM for utilities, rewards & access', color: 'text-yellow-400', border: 'hover:border-yellow-500/30', useFM: true },
+              { icon: RiTeamFill, title: 'Strong Community', desc: 'Be a part of a global future-building movement', color: 'text-purple-400', border: 'hover:border-purple-500/30', useFM: false },
+            ].map(({ icon: Icon, title, desc, color, border, useFM }, i) => (
               <div key={i} className={`flex items-start gap-3 p-3.5 bg-dark-800/50 border border-dark-700/70 rounded-xl transition-all ${border}`}>
                 <div className="w-9 h-9 rounded-lg bg-dark-700/80 flex items-center justify-center flex-shrink-0">
-                  <Icon className={`w-4.5 h-4.5 ${color}`} />
+                  {useFM ? <FMIconSimple size={20} /> : <Icon className={`w-4.5 h-4.5 ${color}`} />}
                 </div>
                 <div>
                   <p className="text-white font-semibold text-xs mb-0.5">{title}</p>
@@ -180,10 +181,10 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ─── FM TOKEN UTILITIES ─── */}
+      {/* ─── FM UTILITIES ─── */}
       <section className="px-4 py-8">
         <div className="max-w-sm sm:max-w-2xl mx-auto">
-          <p className="text-center text-xs text-cyan-300 font-semibold tracking-wide mb-5 uppercase">FM Token Utilities</p>
+          <p className="text-center text-xs text-cyan-300 font-semibold tracking-wide mb-5 uppercase">FM Utilities</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
             <div className="space-y-2">
               {['Staking & Rewards', 'Access to Premium Features', 'Marketplace Transactions', 'Governance & Voting Rights', 'Future Utilities & Partnerships'].map((item, i) => (
@@ -196,11 +197,9 @@ export default function LandingPage() {
               ))}
             </div>
             <div className="flex items-center justify-center py-4 sm:py-0">
-              <div className="relative w-28 h-28 sm:w-36 sm:h-36">
-                <div className="absolute inset-0 bg-cyan-500/8 rounded-full blur-xl" />
-                <div className="relative w-full h-full rounded-full bg-dark-800 border border-cyan-500/25 flex items-center justify-center">
-                  <span className="text-3xl sm:text-4xl font-extrabold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">FM</span>
-                </div>
+              <div className="relative">
+                <div className="absolute inset-0 bg-emerald-500/10 rounded-full blur-xl" />
+                <FMCoinLogo size={120} className="relative drop-shadow-[0_0_20px_rgba(16,185,129,0.3)]" />
               </div>
             </div>
           </div>
@@ -213,15 +212,15 @@ export default function LandingPage() {
           <p className="text-center text-xs text-purple-300 font-semibold tracking-wide mb-5 uppercase">Our Ecosystem</p>
           <div className="grid grid-cols-5 gap-2 mb-5">
             {[
-              { icon: RiNftFill, label: 'NFTs', color: 'text-cyan-400' },
-              { icon: RiCoinFill, label: 'FM Token', color: 'text-yellow-400' },
-              { icon: RiExchangeFill, label: 'Swap', color: 'text-emerald-400' },
-              { icon: RiAwardFill, label: 'Rewards', color: 'text-purple-400' },
-              { icon: RiStore2Fill, label: 'Market', color: 'text-blue-400' },
-            ].map(({ icon: Icon, label, color }, i) => (
+              { icon: RiNftFill, label: 'NFTs', color: 'text-cyan-400', useFM: false },
+              { icon: null, label: 'FM', color: 'text-yellow-400', useFM: true },
+              { icon: RiExchangeFill, label: 'Swap', color: 'text-emerald-400', useFM: false },
+              { icon: RiAwardFill, label: 'Rewards', color: 'text-purple-400', useFM: false },
+              { icon: RiStore2Fill, label: 'Market', color: 'text-blue-400', useFM: false },
+            ].map(({ icon: Icon, label, color, useFM }, i) => (
               <div key={i} className="flex flex-col items-center gap-1">
                 <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-dark-800 border border-dark-600/60 flex items-center justify-center">
-                  <Icon className={`w-5 h-5 ${color}`} />
+                  {useFM ? <FMIconSimple size={22} /> : <Icon className={`w-5 h-5 ${color}`} />}
                 </div>
                 <span className="text-[8px] sm:text-[10px] text-slate-400">{label}</span>
               </div>

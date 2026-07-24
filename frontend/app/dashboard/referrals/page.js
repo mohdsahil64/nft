@@ -38,10 +38,10 @@ export default function TeamPage() {
   };
 
   const shareWhatsApp = () => {
-    window.open(`https://wa.me/?text=${encodeURIComponent(`🔥 Join FutureMint NFT — Watch ads, earn NFTs + FM Tokens daily!\n\n👉 ${referralLink}`)}`, '_blank');
+    window.open(`https://wa.me/?text=${encodeURIComponent(`🔥 Join FutureMint NFT — Watch ads, earn NFTs + FM daily!\n\n👉 ${referralLink}`)}`, '_blank');
   };
   const shareTelegram = () => {
-    window.open(`https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent('🔥 Join FutureMint — Earn NFTs + FM Tokens daily!')}`, '_blank');
+    window.open(`https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent('🔥 Join FutureMint — Earn NFTs + FM daily!')}`, '_blank');
   };
   const shareTwitter = () => {
     window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(`🔥 Join FutureMint NFT — Earn daily!\n👉 ${referralLink}`)}`, '_blank');

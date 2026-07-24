@@ -6,6 +6,7 @@ import { userAPI } from '../../../lib/api';
 import Navbar from '../../../components/shared/Navbar';
 import { RiWallet3Fill, RiTimeLine, RiCalendarLine, RiCalendar2Line, RiHistoryLine, RiInfinityFill, RiGiftFill, RiVideoFill, RiTeamFill, RiTrophyFill, RiArrowLeftSLine, RiArrowRightSLine, RiSparklingFill, RiLock2Fill } from 'react-icons/ri';
 import toast from 'react-hot-toast';
+import { FMIconSimple } from '../../../components/FMCoinLogo';
 
 const FILTERS = [
   { key: 'today', label: 'Today', icon: RiTimeLine, color: 'text-emerald-400', bg: 'bg-emerald-500/15' },
@@ -117,9 +118,9 @@ export default function IncomeHistoryPage() {
                 <span className="text-[10px] text-emerald-400 ml-1">≈ ${(totalNFT * 0.01).toFixed(2)}</span>
               </div>
               <div className="flex items-center gap-2.5">
-                <img src="/assets/fm.webp" alt="FM" className="w-6 h-6 rounded-lg object-contain" />
+                <FMIconSimple size={24} />
                 <p className="text-xl font-bold text-white">{totalFM.toLocaleString()}</p>
-                <span className="text-xs text-yellow-400 font-semibold">FM</span>
+                <span className="text-xs text-emerald-400 font-semibold">FM</span>
                 <div className="flex items-center gap-1 ml-1">
                   <RiLock2Fill className="w-3 h-3 text-purple-400" />
                   <span className="text-[10px] text-yellow-400 font-medium">162d</span>
@@ -173,7 +174,7 @@ export default function IncomeHistoryPage() {
                 <RiHistoryLine className="w-7 h-7 text-slate-700" />
               </div>
               <p className="text-sm text-slate-500 font-medium">No earnings yet</p>
-              <p className="text-[10px] text-slate-600 mt-1">Start watching ads to earn NFTs & FM Tokens</p>
+              <p className="text-[10px] text-slate-600 mt-1">Start watching ads to earn NFTs & FM</p>
             </div>
           ) : (
             <div className="space-y-2.5">
