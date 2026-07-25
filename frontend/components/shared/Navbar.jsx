@@ -30,7 +30,7 @@ export default function Navbar() {
     try { await authAPI.logout(); } catch (_) {}
     dispatch(logout());
     dispatch(disconnectWallet());
-    localStorage.removeItem('token');
+    sessionStorage.removeItem('token');
     localStorage.removeItem('walletAddress');
     router.push('/');
     toast.success('Logged out');

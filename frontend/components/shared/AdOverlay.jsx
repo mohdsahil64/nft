@@ -5,8 +5,9 @@ import { Loader2 } from 'lucide-react';
 const SKIP_DELAY = 15; // seconds before claim button appears
 
 /**
- * AdOverlay — fullscreen YouTube ad with autoplay+audio, 15s lock, Claim Now button
- * URL from env: NEXT_PUBLIC_REGISTER_BONUS_AD_URL
+ * AdOverlay — fullscreen ad player with autoplay, 15s lock, Claim Now button
+ * Picks random URL from NEXT_PUBLIC_WATCH_AD_URLS every time
+ * Hides all YouTube branding - looks like platform's own player
  */
 export default function AdOverlay({ onComplete, loading = false, buttonText = 'Claim Now', loadingText = 'Claiming...' }) {
   const [countdown, setCountdown] = useState(SKIP_DELAY);
@@ -14,39 +15,62 @@ export default function AdOverlay({ onComplete, loading = false, buttonText = 'C
   const [iframeLoaded, setIframeLoaded] = useState(false);
   const timerRef = useRef(null);
 
-  // Get YouTube URL from env
-  const rawUrl = process.env.NEXT_PUBLIC_REGISTER_BONUS_AD_URL || process.env.NEXT_PUBLIC_AD_VIDEO_URL || '';
+  // Get ALL ad URLs and pick a random one each time
+  const allUrls = (process.env.NEXT_PUBLIC_WATCH_AD_URLS || '').split(',').filter(Boolean);
+  const bonusUrl = process.env.NEXT_PUBLIC_REGISTER_BONUS_AD_URL || '';
+  const fallbackUrl = process.env.NEXT_PUBLIC_AD_VIDEO_URL || '';
+  
+  // Combine all available URLs into pool
+  const urlPool = [...allUrls];
+  if (bonusUrl && !urlPool.includes(bonusUrl)) urlPool.push(bonusUrl);
+  if (fallbackUrl && !urlPool.includes(fallbackUrl)) urlPool.push(fallbackUrl);
 
-  // Convert YouTube URL to embed format with autoplay + audio
+  // Pick random URL on each mount
+  const [selectedUrl] = useState(() => {
+    if (urlPool.length === 0) return '';
+    return urlPool[Math.floor(Math.random() * urlPool.length)];
+  });
+
+  // Convert to embed URL with max branding suppression
   const getEmbedUrl = (url) => {
     if (!url) return '';
-    // Already embed format
+    let videoId = '';
+    
     if (url.includes('/embed/')) {
-      const base = url.split('?')[0];
-      return `${base}?autoplay=1&mute=0&controls=0&rel=0&modestbranding=1&playsinline=1&loop=1`;
+      videoId = url.split('/embed/')[1]?.split('?')[0];
+    } else {
+      const watchMatch = url.match(/[?&]v=([^&]+)/);
+      const shortsMatch = url.match(/shorts\/([^?&]+)/);
+      const shortMatch = url.match(/youtu\.be\/([^?&]+)/);
+      videoId = watchMatch?.[1] || shortsMatch?.[1] || shortMatch?.[1] || '';
     }
-    // youtube.com/watch?v=ID
-    const watchMatch = url.match(/[?&]v=([^&]+)/);
-    if (watchMatch) {
-      return `https://www.youtube.com/embed/${watchMatch[1]}?autoplay=1&mute=0&controls=0&rel=0&modestbranding=1&playsinline=1&loop=1`;
-    }
-    // youtube.com/shorts/ID
-    const shortsMatch = url.match(/shorts\/([^?&]+)/);
-    if (shortsMatch) {
-      return `https://www.youtube.com/embed/${shortsMatch[1]}?autoplay=1&mute=0&controls=0&rel=0&modestbranding=1&playsinline=1&loop=1`;
-    }
-    // youtu.be/ID
-    const shortMatch = url.match(/youtu\.be\/([^?&]+)/);
-    if (shortMatch) {
-      return `https://www.youtube.com/embed/${shortMatch[1]}?autoplay=1&mute=0&controls=0&rel=0&modestbranding=1&playsinline=1&loop=1`;
-    }
-    return url;
+
+    if (!videoId) return url;
+
+    // Params to hide ALL YouTube branding
+    const params = new URLSearchParams({
+      autoplay: '1',
+      mute: '0',
+      controls: '0',        // Hide player controls
+      rel: '0',             // No related videos
+      modestbranding: '1',  // Hide YouTube logo
+      playsinline: '1',
+      loop: '1',
+      showinfo: '0',        // Hide video title/channel
+      iv_load_policy: '3',  // Hide annotations
+      disablekb: '1',       // Disable keyboard
+      fs: '0',              // No fullscreen button
+      cc_load_policy: '0',  // No captions
+      playlist: videoId,    // Needed for loop to work
+      origin: typeof window !== 'undefined' ? window.location.origin : '',
+    });
+
+    return `https://www.youtube-nocookie.com/embed/${videoId}?${params.toString()}`;
   };
 
-  const embedUrl = getEmbedUrl(rawUrl);
+  const embedUrl = getEmbedUrl(selectedUrl);
 
   useEffect(() => {
-    // Timer starts only after iframe loads
     if (!iframeLoaded) return;
     timerRef.current = setInterval(() => {
       setCountdown((c) => {
@@ -65,9 +89,12 @@ export default function AdOverlay({ onComplete, loading = false, buttonText = 'C
 
   return (
     <div className="fixed inset-0 z-[9999] bg-[#070714] flex flex-col">
-      {/* Top bar */}
+      {/* Top bar - looks like our own player */}
       <div className="px-4 pt-3 pb-2 flex items-center justify-between">
-        <span className="text-[10px] text-slate-500 uppercase tracking-wider">Sponsored</span>
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+          <span className="text-[10px] text-slate-400 font-medium">FutureMint Ad</span>
+        </div>
         <span className="text-[10px] text-slate-500">
           {canClaim ? '✓ Ready' : `${countdown}s`}
         </span>
@@ -81,25 +108,35 @@ export default function AdOverlay({ onComplete, loading = false, buttonText = 'C
         />
       </div>
 
-      {/* Video area */}
-      <div className="flex-1 flex items-center justify-center relative mx-4 my-3 rounded-2xl overflow-hidden bg-dark-800 border border-dark-700">
+      {/* Video area - cropped to hide YouTube UI at top/bottom */}
+      <div className="flex-1 relative mx-4 my-3 rounded-2xl overflow-hidden bg-black border border-dark-700">
         {!iframeLoaded && (
           <div className="absolute inset-0 flex items-center justify-center bg-dark-800 z-10">
             <div className="flex flex-col items-center gap-3">
               <div className="w-8 h-8 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
-              <p className="text-slate-400 text-xs">Loading video...</p>
+              <p className="text-slate-400 text-xs">Loading...</p>
             </div>
           </div>
         )}
         {embedUrl && (
-          <iframe
-            src={embedUrl}
-            className="w-full h-full absolute inset-0"
-            allow="autoplay; encrypted-media; accelerometer; gyroscope; picture-in-picture"
-            allowFullScreen
-            frameBorder="0"
-            onLoad={() => setIframeLoaded(true)}
-          />
+          <>
+            {/* Iframe scaled up slightly and cropped to hide YouTube top/bottom bars */}
+            <iframe
+              src={embedUrl}
+              className="absolute inset-0 w-full h-full pointer-events-none"
+              style={{ transform: 'scale(1.15)', transformOrigin: 'center center' }}
+              allow="autoplay; encrypted-media; accelerometer; gyroscope"
+              frameBorder="0"
+              onLoad={() => setIframeLoaded(true)}
+              referrerPolicy="no-referrer"
+            />
+            {/* Overlay to block any clickable YouTube elements */}
+            <div className="absolute inset-0 z-[2]" />
+            {/* Top gradient to hide any remaining title text */}
+            <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-black/90 to-transparent z-[3]" />
+            {/* Bottom gradient to hide YouTube controls */}
+            <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-black/90 to-transparent z-[3]" />
+          </>
         )}
       </div>
 
@@ -115,9 +152,7 @@ export default function AdOverlay({ onComplete, loading = false, buttonText = 'C
               {loading ? (
                 <><Loader2 className="w-4 h-4 animate-spin" /> {loadingText}</>
               ) : (
-                <>
-                  🎁 {buttonText}
-                </>
+                <>🎁 {buttonText}</>
               )}
             </button>
           ) : (
@@ -131,7 +166,7 @@ export default function AdOverlay({ onComplete, loading = false, buttonText = 'C
 
           {/* Info */}
           <p className="text-center text-[10px] text-slate-600 mt-2">
-            Watch the full video to claim your 100 NFTs + 50 FM
+            Watch the full video to claim your 100 NFTs + 100 FM
           </p>
         </div>
       </div>

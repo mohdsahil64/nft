@@ -1,10 +1,11 @@
 'use client';
 
 /**
- * FM Coin Logo - Gold shiny coin with FM text
- * Proper coin look with shadow, golden shine, metallic feel
+ * FM Coin Logo - SVG recreation of the green FM leaf logo inside a gold coin
+ * Perfectly fits inside coin, no cropping, no external images
  */
 export default function FMCoinLogo({ size = 48, className = '' }) {
+  const id = `fm-coin-${Math.random().toString(36).slice(2, 8)}`;
   return (
     <svg
       width={size}
@@ -12,92 +13,71 @@ export default function FMCoinLogo({ size = 48, className = '' }) {
       viewBox="0 0 120 120"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      className={className}
-      style={{ filter: 'drop-shadow(0 4px 8px rgba(234,179,8,0.3))' }}
+      className={`flex-shrink-0 ${className}`}
+      style={{ filter: 'drop-shadow(0 3px 8px rgba(234,179,8,0.35))' }}
     >
-      {/* Outer coin edge - dark gold rim */}
-      <circle cx="60" cy="60" r="58" fill="url(#outerRim)" />
-      
-      {/* Main coin body - golden gradient */}
-      <circle cx="60" cy="60" r="53" fill="url(#coinBody)" />
-      
-      {/* Inner ring detail */}
-      <circle cx="60" cy="60" r="48" fill="none" stroke="url(#innerRing)" strokeWidth="2" />
-      
-      {/* Inner coin face */}
-      <circle cx="60" cy="60" r="46" fill="url(#coinFace)" />
-      
-      {/* Shine highlight (top-left) */}
-      <ellipse cx="42" cy="38" rx="18" ry="14" fill="url(#shine)" opacity="0.6" />
-      
-      {/* FM Text */}
-      <text x="60" y="72" textAnchor="middle" fontSize="38" fontWeight="900" fontFamily="Arial, sans-serif" fill="url(#textGold)" stroke="url(#textStroke)" strokeWidth="1">
-        FM
-      </text>
-      
-      {/* Edge light reflection */}
-      <circle cx="60" cy="60" r="53" fill="none" stroke="url(#edgeLight)" strokeWidth="1.5" opacity="0.5" />
+      {/* Outer gold ring */}
+      <circle cx="60" cy="60" r="58" fill={`url(#${id}-ring)`} />
+      {/* Inner dark background */}
+      <circle cx="60" cy="60" r="53" fill="#0c1a12" />
+      {/* Subtle inner gold ring */}
+      <circle cx="60" cy="60" r="50" stroke={`url(#${id}-inner)`} strokeWidth="1.5" fill="none" opacity="0.5" />
+
+      {/* FM Logo - F letter */}
+      <path
+        d="M32 90 L32 50 C32 40 38 34 48 34 L56 34 L56 44 L48 44 C45 44 44 46 44 48 L44 56 L56 56 L56 66 L44 66 L44 90 Z"
+        fill={`url(#${id}-fm)`}
+      />
+
+      {/* FM Logo - M letter (connected angular style) */}
+      <path
+        d="M54 90 L54 62 L64 42 L74 66 L84 42 L94 62 L94 90 L84 90 L84 68 L74 86 L64 68 L64 90 Z"
+        fill={`url(#${id}-fm)`}
+      />
+
+      {/* Leaf on top-right */}
+      <path
+        d="M82 30 C82 30 87 22 96 20 C102 19 106 22 106 22 C106 22 103 30 96 33 C90 36 84 34 82 32 Z"
+        fill={`url(#${id}-leaf1)`}
+      />
+      {/* Leaf stem/vein */}
+      <path
+        d="M84 31 C88 27 93 23 97 21"
+        stroke="#065f46"
+        strokeWidth="0.8"
+        fill="none"
+        opacity="0.6"
+      />
+      {/* Small second leaf */}
+      <path
+        d="M86 35 C86 35 90 31 95 31 C99 31 101 33 101 33 C101 33 98 37 93 38 C89 39 87 37 86 36 Z"
+        fill={`url(#${id}-leaf2)`}
+      />
 
       <defs>
-        {/* Outer dark rim */}
-        <linearGradient id="outerRim" x1="0" y1="0" x2="120" y2="120">
-          <stop offset="0%" stopColor="#92600a" />
-          <stop offset="30%" stopColor="#6b4a0a" />
-          <stop offset="70%" stopColor="#4a3308" />
-          <stop offset="100%" stopColor="#92600a" />
-        </linearGradient>
-        
-        {/* Main coin body gradient */}
-        <linearGradient id="coinBody" x1="10" y1="10" x2="110" y2="110">
+        <linearGradient id={`${id}-ring`} x1="0" y1="0" x2="120" y2="120">
           <stop offset="0%" stopColor="#fcd34d" />
-          <stop offset="25%" stopColor="#f59e0b" />
-          <stop offset="50%" stopColor="#d97706" />
-          <stop offset="75%" stopColor="#f59e0b" />
+          <stop offset="30%" stopColor="#f59e0b" />
+          <stop offset="60%" stopColor="#d97706" />
           <stop offset="100%" stopColor="#fbbf24" />
         </linearGradient>
-        
-        {/* Inner ring */}
-        <linearGradient id="innerRing" x1="0" y1="20" x2="120" y2="100">
+        <linearGradient id={`${id}-inner`} x1="0" y1="20" x2="120" y2="100">
           <stop offset="0%" stopColor="#fde68a" />
           <stop offset="50%" stopColor="#92400e" />
           <stop offset="100%" stopColor="#fde68a" />
         </linearGradient>
-        
-        {/* Inner coin face - slightly darker */}
-        <radialGradient id="coinFace" cx="45%" cy="40%" r="55%">
-          <stop offset="0%" stopColor="#fbbf24" />
-          <stop offset="40%" stopColor="#f59e0b" />
-          <stop offset="80%" stopColor="#d97706" />
-          <stop offset="100%" stopColor="#b45309" />
-        </radialGradient>
-        
-        {/* Top shine */}
-        <radialGradient id="shine" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="#fef3c7" stopOpacity="0.9" />
-          <stop offset="100%" stopColor="#fef3c7" stopOpacity="0" />
-        </radialGradient>
-        
-        {/* FM text gold gradient */}
-        <linearGradient id="textGold" x1="35" y1="40" x2="85" y2="80">
-          <stop offset="0%" stopColor="#451a03" />
-          <stop offset="30%" stopColor="#78350f" />
-          <stop offset="50%" stopColor="#451a03" />
-          <stop offset="70%" stopColor="#78350f" />
-          <stop offset="100%" stopColor="#451a03" />
+        <linearGradient id={`${id}-fm`} x1="32" y1="34" x2="94" y2="90">
+          <stop offset="0%" stopColor="#34d399" />
+          <stop offset="50%" stopColor="#10b981" />
+          <stop offset="100%" stopColor="#059669" />
         </linearGradient>
-        
-        {/* Text stroke */}
-        <linearGradient id="textStroke" x1="35" y1="40" x2="85" y2="80">
-          <stop offset="0%" stopColor="#92400e" />
-          <stop offset="100%" stopColor="#78350f" />
+        <linearGradient id={`${id}-leaf1`} x1="82" y1="20" x2="106" y2="34">
+          <stop offset="0%" stopColor="#6ee7b7" />
+          <stop offset="100%" stopColor="#059669" />
         </linearGradient>
-        
-        {/* Edge reflection */}
-        <linearGradient id="edgeLight" x1="20" y1="20" x2="100" y2="100">
-          <stop offset="0%" stopColor="#fef3c7" />
-          <stop offset="30%" stopColor="#fef3c7" stopOpacity="0" />
-          <stop offset="70%" stopColor="#fef3c7" stopOpacity="0" />
-          <stop offset="100%" stopColor="#fef3c7" />
+        <linearGradient id={`${id}-leaf2`} x1="86" y1="31" x2="101" y2="38">
+          <stop offset="0%" stopColor="#6ee7b7" />
+          <stop offset="100%" stopColor="#10b981" />
         </linearGradient>
       </defs>
     </svg>
@@ -105,70 +85,62 @@ export default function FMCoinLogo({ size = 48, className = '' }) {
 }
 
 /**
- * Simple FM coin icon for inline/small use
+ * Simple FM icon for inline/small use - same design, optimized for small sizes
  */
 export function FMIconSimple({ size = 24, className = '' }) {
+  const id = `fm-sm-${Math.random().toString(36).slice(2, 8)}`;
   return (
     <svg
       width={size}
       height={size}
-      viewBox="0 0 60 60"
+      viewBox="0 0 120 120"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      className={className}
+      className={`flex-shrink-0 ${className}`}
       style={{ filter: 'drop-shadow(0 2px 4px rgba(234,179,8,0.25))' }}
     >
-      {/* Outer rim */}
-      <circle cx="30" cy="30" r="29" fill="url(#sRim)" />
-      
-      {/* Coin body */}
-      <circle cx="30" cy="30" r="26" fill="url(#sBody)" />
-      
-      {/* Inner ring */}
-      <circle cx="30" cy="30" r="23" fill="none" stroke="url(#sRing)" strokeWidth="1" />
-      
-      {/* Coin face */}
-      <circle cx="30" cy="30" r="22" fill="url(#sFace)" />
-      
-      {/* Shine */}
-      <ellipse cx="22" cy="20" rx="8" ry="6" fill="url(#sShine)" opacity="0.5" />
-      
-      {/* FM Text */}
-      <text x="30" y="36" textAnchor="middle" fontSize="18" fontWeight="900" fontFamily="Arial, sans-serif" fill="url(#sText)" stroke="#92400e" strokeWidth="0.5">
-        FM
-      </text>
+      {/* Outer gold ring */}
+      <circle cx="60" cy="60" r="58" fill={`url(#${id}-ring)`} />
+      {/* Inner dark background */}
+      <circle cx="60" cy="60" r="53" fill="#0c1a12" />
+
+      {/* FM Logo - F letter */}
+      <path
+        d="M32 90 L32 50 C32 40 38 34 48 34 L56 34 L56 44 L48 44 C45 44 44 46 44 48 L44 56 L56 56 L56 66 L44 66 L44 90 Z"
+        fill={`url(#${id}-fm)`}
+      />
+
+      {/* FM Logo - M letter */}
+      <path
+        d="M54 90 L54 62 L64 42 L74 66 L84 42 L94 62 L94 90 L84 90 L84 68 L74 86 L64 68 L64 90 Z"
+        fill={`url(#${id}-fm)`}
+      />
+
+      {/* Leaf */}
+      <path
+        d="M82 30 C82 30 87 22 96 20 C102 19 106 22 106 22 C106 22 103 30 96 33 C90 36 84 34 82 32 Z"
+        fill={`url(#${id}-leaf)`}
+      />
+      <path
+        d="M86 35 C86 35 90 31 95 31 C99 31 101 33 101 33 C101 33 98 37 93 38 C89 39 87 37 86 36 Z"
+        fill={`url(#${id}-leaf)`}
+      />
 
       <defs>
-        <linearGradient id="sRim" x1="0" y1="0" x2="60" y2="60">
-          <stop offset="0%" stopColor="#92600a" />
-          <stop offset="50%" stopColor="#6b4a0a" />
-          <stop offset="100%" stopColor="#92600a" />
-        </linearGradient>
-        <linearGradient id="sBody" x1="5" y1="5" x2="55" y2="55">
+        <linearGradient id={`${id}-ring`} x1="0" y1="0" x2="120" y2="120">
           <stop offset="0%" stopColor="#fcd34d" />
-          <stop offset="25%" stopColor="#f59e0b" />
-          <stop offset="50%" stopColor="#d97706" />
-          <stop offset="75%" stopColor="#f59e0b" />
+          <stop offset="30%" stopColor="#f59e0b" />
+          <stop offset="60%" stopColor="#d97706" />
           <stop offset="100%" stopColor="#fbbf24" />
         </linearGradient>
-        <linearGradient id="sRing" x1="0" y1="10" x2="60" y2="50">
-          <stop offset="0%" stopColor="#fde68a" />
-          <stop offset="50%" stopColor="#92400e" />
-          <stop offset="100%" stopColor="#fde68a" />
+        <linearGradient id={`${id}-fm`} x1="32" y1="34" x2="94" y2="90">
+          <stop offset="0%" stopColor="#34d399" />
+          <stop offset="50%" stopColor="#10b981" />
+          <stop offset="100%" stopColor="#059669" />
         </linearGradient>
-        <radialGradient id="sFace" cx="45%" cy="40%" r="55%">
-          <stop offset="0%" stopColor="#fbbf24" />
-          <stop offset="50%" stopColor="#f59e0b" />
-          <stop offset="100%" stopColor="#b45309" />
-        </radialGradient>
-        <radialGradient id="sShine" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="#fef3c7" stopOpacity="0.8" />
-          <stop offset="100%" stopColor="#fef3c7" stopOpacity="0" />
-        </radialGradient>
-        <linearGradient id="sText" x1="15" y1="20" x2="45" y2="40">
-          <stop offset="0%" stopColor="#451a03" />
-          <stop offset="50%" stopColor="#78350f" />
-          <stop offset="100%" stopColor="#451a03" />
+        <linearGradient id={`${id}-leaf`} x1="82" y1="20" x2="106" y2="38">
+          <stop offset="0%" stopColor="#6ee7b7" />
+          <stop offset="100%" stopColor="#059669" />
         </linearGradient>
       </defs>
     </svg>

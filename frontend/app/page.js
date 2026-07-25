@@ -24,11 +24,11 @@ export default function LandingPage() {
 
   useEffect(() => {
     if (isConnected && address && sessionChecked && !isAuthenticated) {
-      const token = localStorage.getItem('token');
+      const token = sessionStorage.getItem('token');
       if (token) {
         userAPI.getProfile()
           .then(() => router.push('/dashboard'))
-          .catch(() => localStorage.removeItem('token'));
+          .catch(() => sessionStorage.removeItem('token'));
       }
     }
   }, [isConnected, address, isAuthenticated, sessionChecked]);
@@ -36,10 +36,10 @@ export default function LandingPage() {
   const handleWalletConnected = async (connectedAddress) => {
     setShowWalletModal(false);
     setChecking(true);
-    const token = localStorage.getItem('token');
+    const token = sessionStorage.getItem('token');
     if (token) {
       try { await userAPI.getProfile(); router.push('/dashboard'); return; }
-      catch (_) { localStorage.removeItem('token'); }
+      catch (_) { sessionStorage.removeItem('token'); }
     }
     try {
       const res = await authAPI.checkWallet({ walletAddress: connectedAddress });

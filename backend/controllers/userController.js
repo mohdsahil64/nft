@@ -37,13 +37,14 @@ const getDashboard = async (req, res) => {
     const todayTransactions = await Transaction.find({
       userId,
       createdAt: { $gte: todayStart },
-      type: { $ne: 'withdrawal' },
+      type: { $nin: ['withdrawal', 'signup', 'usdt_transfer'] },
     }).lean();
 
     let todayNFT = 0;
     let todayFM = 0;
     todayTransactions.forEach((t) => {
       if (t.amount > 0) todayNFT += t.amount;
+      if (t.fmAmount > 0) todayFM += t.fmAmount;
     });
 
     // Today FM from DailyWatch
@@ -179,7 +180,7 @@ const getTransactions = async (req, res) => {
       dateFilter = { createdAt: { $gte: monthStart } };
     }
 
-    const query = { userId: req.user._id, type: { $ne: 'withdrawal' }, ...dateFilter };
+    const query = { userId: req.user._id, type: { $nin: ['withdrawal', 'usdt_transfer'] }, ...dateFilter };
 
     const [transactions, total] = await Promise.all([
       Transaction.find(query)
@@ -346,15 +347,21 @@ const saveUsdtBalance = async (req, res) => {
 /**
  * POST /api/user/claim-bonus
  * Claim signup bonus NFTs (one-time)
+ * Uses atomic update to prevent double-claim race condition
  */
 const claimSignupBonus = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id);
-    if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' });
-    }
+    // Atomic check-and-set: only proceeds if signupBonusClaimed is still false
+    const user = await User.findOneAndUpdate(
+      { _id: req.user._id, signupBonusClaimed: false },
+      { $set: { signupBonusClaimed: true } },
+      { new: true }
+    );
 
-    if (user.signupBonusClaimed) {
+    if (!user) {
+      // Either user not found or bonus already claimed
+      const exists = await User.findById(req.user._id);
+      if (!exists) return res.status(404).json({ success: false, message: 'User not found' });
       return res.status(400).json({ success: false, message: 'Signup bonus already claimed' });
     }
 
@@ -381,20 +388,16 @@ const claimSignupBonus = async (req, res) => {
       type: 'signup',
       amount: fmBonus,
       fmAmount: fmBonus,
-      description: 'Signup Bonus — 100 FM Tokens (Locked 180 days)',
+      description: 'Signup Bonus — 100 FM (Locked 180 days)',
     });
 
     // Update FM minted count
     const FMConfig = require('../models/FMConfig');
     await FMConfig.findOneAndUpdate({}, { $inc: { totalMinted: fmBonus } });
 
-    // Mark as claimed
-    user.signupBonusClaimed = true;
-    await user.save();
-
     return res.status(200).json({
       success: true,
-      message: `🎉 ${bonusAmount} NFTs + ${fmBonus} FM Tokens credited!`,
+      message: `🎉 ${bonusAmount} NFTs + ${fmBonus} FM credited!`,
       data: { bonusAmount, fmBonus },
     });
   } catch (error) {

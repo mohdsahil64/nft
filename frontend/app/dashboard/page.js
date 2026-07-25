@@ -74,6 +74,7 @@ export default function DashboardPage() {
   };
 
   const handleClaimAdComplete = async () => {
+    if (claiming) return; // Prevent double-fire
     setClaimAdStep(false);
     setClaiming(true);
     try {
@@ -83,6 +84,7 @@ export default function DashboardPage() {
       fetchDashboard(true);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to claim bonus.');
+      setShowClaimPopup(false); // Hide popup on error too (already claimed)
     } finally {
       setClaiming(false);
     }
@@ -99,9 +101,9 @@ export default function DashboardPage() {
   const wallet = data?.wallet || {};
   const displayUser = data?.user || user || {};
 
-  // Calculate FM lock info (180 days from account creation)
-  const accountCreated = new Date(displayUser.createdAt);
-  const unlockDate = new Date(accountCreated.getTime() + 180 * 24 * 60 * 60 * 1000);
+  // FM lock: 180 days starting from 25 July 2025 for ALL users
+  const lockStartDate = new Date('2025-07-25T00:00:00');
+  const unlockDate = new Date(lockStartDate.getTime() + 180 * 24 * 60 * 60 * 1000);
   const now = new Date();
   const daysRemaining = Math.max(0, Math.ceil((unlockDate - now) / (1000 * 60 * 60 * 24)));
   const fmLocked = daysRemaining > 0;
@@ -129,15 +131,21 @@ export default function DashboardPage() {
                 Hi <span className="text-purple-400 font-medium">{displayUser.name?.split(' ')[0]}</span>, claim your signup bonus
               </p>
               <div className="bg-dark-800/80 rounded-xl border border-dark-600 p-4 mb-5">
-                <div className="flex items-center justify-center gap-4">
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-white">100</p>
-                    <p className="text-[10px] text-cyan-400 font-medium">NFT</p>
+                <div className="flex items-center justify-center gap-5">
+                  <div className="flex flex-col items-center gap-1.5">
+                    <img src="/assets/nftimg.avif" alt="NFT" className="w-12 h-12 rounded-xl object-cover shadow-[0_0_12px_rgba(0,200,255,0.2)]" />
+                    <div className="text-center">
+                      <p className="text-2xl font-bold text-white">100</p>
+                      <p className="text-[10px] text-cyan-400 font-medium">NFT</p>
+                    </div>
                   </div>
-                  <span className="text-slate-600">+</span>
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-white">50</p>
-                    <p className="text-[10px] text-yellow-400 font-medium">FM</p>
+                  <span className="text-slate-500 text-2xl font-light">+</span>
+                  <div className="flex flex-col items-center gap-1.5">
+                    <FMCoinLogo size={48} />
+                    <div className="text-center">
+                      <p className="text-2xl font-bold text-white">100</p>
+                      <p className="text-[10px] text-yellow-400 font-medium">FM</p>
+                    </div>
                   </div>
                 </div>
               </div>

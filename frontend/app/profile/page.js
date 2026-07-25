@@ -27,7 +27,7 @@ export default function ProfilePage() {
     try { await authAPI.logout(); } catch (_) {}
     dispatch(logout());
     dispatch(disconnectWallet());
-    localStorage.removeItem('token');
+    sessionStorage.removeItem('token');
     localStorage.removeItem('walletAddress');
     router.push('/');
     toast.success('Logged out');
@@ -54,7 +54,7 @@ export default function ProfilePage() {
               <div className="w-14 h-14 rounded-xl bg-purple-500/15 border border-purple-500/25 flex items-center justify-center mx-auto mb-3">
                 <RiWallet3Line className="w-7 h-7 text-purple-400" />
               </div>
-              <p className="text-sm font-bold text-white">Connected Wallet</p>
+              <p className="text-sm font-bold text-white">Your USDT Withdrawal Address</p>
             </div>
             <div className="bg-dark-800/70 rounded-xl border border-dark-600 p-4 mb-4">
               <p className="text-[10px] text-slate-500 mb-1">Address</p>
@@ -100,7 +100,7 @@ export default function ProfilePage() {
 
         {/* ─── Menu Options ─── */}
         <div className="rounded-2xl border border-dark-600/60 bg-dark-800/50 overflow-hidden mb-5">
-          {/* Connected Wallet */}
+          {/* USDT Withdrawal Address */}
           <button onClick={() => setShowWallet(true)}
             className="w-full flex items-center justify-between px-4 py-4 border-b border-dark-700/50 hover:bg-dark-700/30 transition-colors">
             <div className="flex items-center gap-3">
@@ -108,7 +108,7 @@ export default function ProfilePage() {
                 <RiWallet3Line className="w-4.5 h-4.5 text-purple-400" />
               </div>
               <div className="text-left">
-                <p className="text-xs font-medium text-white">Connected Wallet</p>
+                <p className="text-xs font-medium text-white">USDT Withdrawal Address</p>
                 <p className="text-[10px] text-slate-500 font-mono">{truncateAddress(address || user?.walletAddress, 6)}</p>
               </div>
             </div>

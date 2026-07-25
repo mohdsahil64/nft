@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { authAPI } from '../../../lib/api';
 import { loginSuccess } from '../../../store/slices/userSlice';
+import { disconnectWallet } from '../../../store/slices/walletSlice';
 import LoadingSpinner from '../../../components/shared/LoadingSpinner';
 import OTPInput from '../../../components/shared/OTPInput';
 import { getWalletProvider } from '../../../lib/walletProvider';
@@ -143,7 +144,7 @@ function AuthContent() {
     try {
       const res = await authAPI.login({ ...loginForm, walletAddress: address });
       const { user, token } = res.data.data;
-      if (token) localStorage.setItem('token', token);
+      if (token) sessionStorage.setItem('token', token);
       dispatch(loginSuccess({ user, token }));
       toast.success('Login successful!');
       router.push('/dashboard');
@@ -247,7 +248,7 @@ function AuthContent() {
     try {
       const res = await authAPI.verifyOTP({ email: form.email.toLowerCase(), otp });
       const { user, token } = res.data.data;
-      if (token) localStorage.setItem('token', token);
+      if (token) sessionStorage.setItem('token', token);
       localStorage.removeItem('pendingReferralCode');
       dispatch(loginSuccess({ user, token }));
       toast.success('Account created!');
@@ -551,6 +552,18 @@ function AuthContent() {
                 <>Already registered? Connect your registered wallet to login</>
               )}
             </p>
+
+            {/* Use Other Wallet */}
+            <button
+              onClick={() => {
+                dispatch(disconnectWallet());
+                localStorage.removeItem('walletAddress');
+                router.push('/');
+              }}
+              className="w-full mt-4 py-2.5 rounded-xl text-xs font-medium text-slate-400 bg-dark-800 border border-dark-600 hover:border-purple-500/30 hover:text-white transition-all flex items-center justify-center gap-1.5"
+            >
+              🔄 Use Other Wallet
+            </button>
           </div>
         </div>
 

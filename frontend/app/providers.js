@@ -16,7 +16,7 @@ function SessionRestorer() {
       store.dispatch(connectWallet({ address: savedWallet, chainId: null }));
     }
 
-    const token = localStorage.getItem('token');
+    const token = sessionStorage.getItem('token');
     if (token && !store.getState().user.isAuthenticated) {
       // Restore session from token — user didn't logout, so keep them logged in
       userAPI.getProfile()
@@ -25,7 +25,7 @@ function SessionRestorer() {
         })
         .catch(() => {
           // Token expired or invalid — clear it, user must login again
-          localStorage.removeItem('token');
+          sessionStorage.removeItem('token');
           store.dispatch(sessionCheckDone());
         });
     } else {

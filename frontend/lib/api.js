@@ -51,7 +51,7 @@ api.interceptors.request.use(
         config.baseURL = backendBase;
         config.timeout = 60000;
       } else {
-        const token = localStorage.getItem('token');
+        const token = sessionStorage.getItem('token');
         if (token) config.headers.Authorization = `Bearer ${token}`;
       }
     }
@@ -72,7 +72,7 @@ api.interceptors.response.use(
           return Promise.reject(error);
         }
         // Regular user 401 — clear token and redirect home
-        localStorage.removeItem('token');
+        sessionStorage.removeItem('token');
         localStorage.removeItem('walletAddress');
         if (!path.startsWith('/auth') && path !== '/') {
           window.location.href = '/';
