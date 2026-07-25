@@ -101,9 +101,9 @@ export default function DashboardPage() {
   const wallet = data?.wallet || {};
   const displayUser = data?.user || user || {};
 
-  // FM lock: 180 days starting from 25 July 2025 for ALL users
-  const lockStartDate = new Date('2025-07-25T00:00:00');
-  const unlockDate = new Date(lockStartDate.getTime() + 180 * 24 * 60 * 60 * 1000);
+  // FM lock: 180 days from user's registration date
+  const accountCreated = new Date(displayUser.createdAt || Date.now());
+  const unlockDate = new Date(accountCreated.getTime() + 180 * 24 * 60 * 60 * 1000);
   const now = new Date();
   const daysRemaining = Math.max(0, Math.ceil((unlockDate - now) / (1000 * 60 * 60 * 24)));
   const fmLocked = daysRemaining > 0;

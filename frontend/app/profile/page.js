@@ -16,7 +16,6 @@ export default function ProfilePage() {
   const dispatch = useDispatch();
   const { isAuthenticated, user, sessionChecked } = useSelector((s) => s.user);
   const { address } = useSelector((s) => s.wallet);
-  const [showWallet, setShowWallet] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   useEffect(() => {
@@ -44,33 +43,6 @@ export default function ProfilePage() {
   return (
     <div className="min-h-screen bg-[#070714] pb-24">
       <Navbar />
-
-      {/* Wallet Popup */}
-      {showWallet && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setShowWallet(false)} />
-          <div className="relative w-full max-w-sm rounded-2xl border border-dark-600 bg-[#0c0c24] p-6">
-            <div className="text-center mb-4">
-              <div className="w-14 h-14 rounded-xl bg-purple-500/15 border border-purple-500/25 flex items-center justify-center mx-auto mb-3">
-                <RiWallet3Line className="w-7 h-7 text-purple-400" />
-              </div>
-              <p className="text-sm font-bold text-white">Your USDT Withdrawal Address</p>
-            </div>
-            <div className="bg-dark-800/70 rounded-xl border border-dark-600 p-4 mb-4">
-              <p className="text-[10px] text-slate-500 mb-1">Address</p>
-              <p className="text-xs text-white font-mono break-all">{address || user?.walletAddress || 'Not connected'}</p>
-            </div>
-            <div className="bg-dark-800/70 rounded-xl border border-dark-600 p-4 mb-5">
-              <p className="text-[10px] text-slate-500 mb-1">Network</p>
-              <p className="text-sm text-cyan-400 font-semibold">{user?.network || 'BSC'}</p>
-            </div>
-            <button onClick={() => setShowWallet(false)}
-              className="w-full py-3 rounded-xl text-sm font-medium text-white bg-dark-700 border border-dark-600 hover:bg-dark-600 transition-colors">
-              OK
-            </button>
-          </div>
-        </div>
-      )}
 
       <main className="max-w-lg mx-auto px-4 pt-4">
         {/* Header */}
@@ -100,20 +72,6 @@ export default function ProfilePage() {
 
         {/* ─── Menu Options ─── */}
         <div className="rounded-2xl border border-dark-600/60 bg-dark-800/50 overflow-hidden mb-5">
-          {/* USDT Withdrawal Address */}
-          <button onClick={() => setShowWallet(true)}
-            className="w-full flex items-center justify-between px-4 py-4 border-b border-dark-700/50 hover:bg-dark-700/30 transition-colors">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-purple-500/10 flex items-center justify-center">
-                <RiWallet3Line className="w-4.5 h-4.5 text-purple-400" />
-              </div>
-              <div className="text-left">
-                <p className="text-xs font-medium text-white">USDT Withdrawal Address</p>
-                <p className="text-[10px] text-slate-500 font-mono">{truncateAddress(address || user?.walletAddress, 6)}</p>
-              </div>
-            </div>
-            <RiArrowRightSLine className="w-5 h-5 text-slate-600" />
-          </button>
 
           {/* Withdrawal */}
           <Link href="/profile/swap"
@@ -146,7 +104,7 @@ export default function ProfilePage() {
               <div className="w-9 h-9 rounded-lg bg-yellow-500/10 flex items-center justify-center">
                 <RiCoinLine className="w-4.5 h-4.5 text-yellow-400" />
               </div>
-              <p className="text-xs font-medium text-white">FM Status</p>
+              <p className="text-xs font-medium text-white">Your FM Status</p>
             </div>
             <RiArrowRightSLine className="w-5 h-5 text-slate-600" />
           </Link>

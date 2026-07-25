@@ -46,6 +46,11 @@ const transactionSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    source: {
+      type: String,
+      enum: ['user', 'admin', null],
+      default: null,
+    },
   },
   { timestamps: true }
 );

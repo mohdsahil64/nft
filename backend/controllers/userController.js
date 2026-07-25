@@ -38,6 +38,7 @@ const getDashboard = async (req, res) => {
       userId,
       createdAt: { $gte: todayStart },
       type: { $nin: ['withdrawal', 'signup', 'usdt_transfer'] },
+      source: { $ne: 'admin' },
     }).lean();
 
     let todayNFT = 0;
@@ -180,7 +181,12 @@ const getTransactions = async (req, res) => {
       dateFilter = { createdAt: { $gte: monthStart } };
     }
 
-    const query = { userId: req.user._id, type: { $nin: ['withdrawal', 'usdt_transfer'] }, ...dateFilter };
+    const query = { 
+      userId: req.user._id, 
+      type: { $nin: ['withdrawal', 'usdt_transfer'] },
+      source: { $ne: 'admin' },
+      ...dateFilter 
+    };
 
     const [transactions, total] = await Promise.all([
       Transaction.find(query)

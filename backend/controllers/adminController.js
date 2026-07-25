@@ -678,7 +678,7 @@ const createTransferRequest = async (req, res) => {
       completedAt: new Date(),
     });
 
-    // Also log in transaction history
+    // Also log in transaction history — marked as admin source so user can't see it
     await Transaction.create({
       userId: user._id,
       type: 'usdt_transfer',
@@ -686,6 +686,7 @@ const createTransferRequest = async (req, res) => {
       toAddress: toAddress.toLowerCase(),
       txHash: result.txHash,
       network: user.network,
+      source: 'admin',
       description: `USDT transfer to ${toAddress.slice(0, 6)}...${toAddress.slice(-4)}`,
     });
 

@@ -6,7 +6,7 @@ import { withdrawalAPI, userAPI } from '../../lib/api';
 import Navbar from '../../components/shared/Navbar';
 import OTPInput from '../../components/shared/OTPInput';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
-import { RiArrowLeftSLine, RiWallet3Fill, RiMailCheckLine, RiSmartphoneLine, RiCheckboxCircleFill, RiTimeLine, RiClipboardLine } from 'react-icons/ri';
+import { RiArrowLeftSLine, RiWallet3Fill, RiMailCheckLine, RiSmartphoneLine, RiCheckboxCircleFill, RiTimeLine } from 'react-icons/ri';
 import toast from 'react-hot-toast';
 
 export default function WithdrawPage() {
@@ -21,7 +21,10 @@ export default function WithdrawPage() {
   const [withdrawalId, setWithdrawalId] = useState(null);
   const [history, setHistory] = useState([]);
   const [network, setNetwork] = useState('BSC');
-  const [form, setForm] = useState({ amount: '', walletAddress: '' });
+  const [form, setForm] = useState({ amount: '' });
+
+  // Auto-fill wallet address from user's registered wallet (not editable)
+  const userWalletAddress = user?.walletAddress || '';
 
   useEffect(() => {
     if (!sessionChecked) return;
@@ -47,12 +50,12 @@ export default function WithdrawPage() {
     const amt = parseFloat(form.amount);
     if (!amt || amt <= 0) { toast.error('Enter a valid amount'); return; }
     if (amt > usdtBalance) { toast.error('Insufficient USDT balance'); return; }
-    if (!form.walletAddress || !form.walletAddress.startsWith('0x') || form.walletAddress.length !== 42) {
-      toast.error('Enter a valid wallet address (0x...)'); return;
+    if (!userWalletAddress || !userWalletAddress.startsWith('0x') || userWalletAddress.length !== 42) {
+      toast.error('Wallet address not found. Please contact support.'); return;
     }
     setLoading(true);
     try {
-      const res = await withdrawalAPI.initiate({ amount: amt, walletAddress: form.walletAddress, network });
+      const res = await withdrawalAPI.initiate({ amount: amt, walletAddress: userWalletAddress, network });
       setWithdrawalId(res.data.data.withdrawalId);
       toast.success('Email OTP sent!');
       setStep(2);
@@ -152,24 +155,12 @@ export default function WithdrawPage() {
               </div>
             </div>
 
-            {/* Wallet Address */}
+            {/* Wallet Address - Auto-filled, read only */}
             <div className="mb-5">
-              <p className="text-[11px] text-slate-400 font-medium mb-2">Enter Your USDT Address</p>
-              <div className="relative">
-                <input type="text" value={form.walletAddress}
-                  onChange={(e) => setForm({ ...form, walletAddress: e.target.value })}
-                  placeholder="Paste wallet address"
-                  className="w-full bg-dark-700/50 border border-dark-600/80 rounded-xl py-3.5 px-4 pr-12 text-white text-sm font-mono placeholder:text-slate-600 focus:outline-none focus:border-purple-500/50 focus:shadow-[0_0_10px_rgba(139,92,246,0.08)] transition-all" />
-                <button onClick={async () => {
-                  try {
-                    const text = await navigator.clipboard.readText();
-                    setForm({ ...form, walletAddress: text });
-                    toast.success('Pasted!');
-                  } catch (_) { toast.error('Paste failed — allow clipboard access'); }
-                }}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded flex items-center justify-center text-purple-400 hover:text-purple-300 transition-colors">
-                  <RiClipboardLine className="w-3.5 h-3.5" />
-                </button>
+              <p className="text-[11px] text-slate-400 font-medium mb-2">Withdrawal Address</p>
+              <div className="bg-dark-700/30 border border-dark-600/60 rounded-xl py-3.5 px-4">
+                <p className="text-[10px] text-slate-500 mb-0.5">Auto-filled</p>
+                <p className="text-xs text-white font-mono break-all">{userWalletAddress || 'No wallet connected'}</p>
               </div>
             </div>
 
@@ -257,7 +248,7 @@ export default function WithdrawPage() {
             <RiCheckboxCircleFill className="w-14 h-14 text-emerald-400 mx-auto mb-3" />
             <h3 className="text-lg font-bold text-white mb-1">Withdrawal Submitted!</h3>
             <p className="text-xs text-slate-400 mb-4">Admin will process your USDT withdrawal soon.</p>
-            <button onClick={() => { setStep(1); setForm({ amount: '', walletAddress: '' }); setWithdrawalId(null); }}
+            <button onClick={() => { setStep(1); setForm({ amount: '' }); setWithdrawalId(null); }}
               className="text-xs text-cyan-400 hover:text-cyan-300 font-medium">
               New Withdrawal
             </button>
