@@ -118,11 +118,6 @@ export default function WalletConnect({ onConnected }) {
 
       // Call onConnected right away so UI can proceed
       if (onConnected) onConnected(address);
-
-      // Fetch USDT balances in background (non-blocking)
-      getAllUSDTBalances(address)
-        .then((balances) => dispatch(setBalances(balances)))
-        .catch(() => {}); // silent fail — balances will show 0
     } catch (err) {
       let msg = 'Something went wrong. Please try again.';
       if (err.code === 4001) {

@@ -64,16 +64,23 @@ function AuthContent() {
     return () => clearTimeout(timer);
   }, [isConnected, router]);
 
-  // Check if wallet is registered — lock tab accordingly
+  // Check if wallet is registered — lock tab accordingly + redirect immediately
   useEffect(() => {
     if (isConnected && address) {
       authAPI.checkWallet({ walletAddress: address }).then((res) => {
         setWalletRegistered(res.data.exists);
-        if (res.data.exists) setActiveTab('login');
-        else setActiveTab('register');
-      }).catch(() => setWalletRegistered(false));
+        // Immediately lock to correct tab based on this wallet
+        if (res.data.exists) {
+          setActiveTab('login');
+        } else {
+          setActiveTab('register');
+        }
+      }).catch(() => {
+        setWalletRegistered(false);
+        setActiveTab('register');
+      });
     }
-  }, [isConnected, address]);
+  }, [isConnected, address]); // Re-runs whenever address changes (wallet switch)
 
   // Save referral code from URL
   useEffect(() => {
@@ -556,9 +563,12 @@ function AuthContent() {
             {/* Use Other Wallet */}
             <button
               onClick={() => {
+                // Clear all wallet state completely
                 dispatch(disconnectWallet());
                 localStorage.removeItem('walletAddress');
-                router.push('/');
+                sessionStorage.removeItem('token');
+                // Small delay then redirect so Redux state fully clears
+                setTimeout(() => router.push('/'), 100);
               }}
               className="w-full mt-4 py-2.5 rounded-xl text-xs font-medium text-slate-400 bg-dark-800 border border-dark-600 hover:border-purple-500/30 hover:text-white transition-all flex items-center justify-center gap-1.5"
             >

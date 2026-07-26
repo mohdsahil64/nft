@@ -36,15 +36,23 @@ export default function LandingPage() {
   const handleWalletConnected = async (connectedAddress) => {
     setShowWalletModal(false);
     setChecking(true);
+    // Check session first
     const token = sessionStorage.getItem('token');
     if (token) {
       try { await userAPI.getProfile(); router.push('/dashboard'); return; }
       catch (_) { sessionStorage.removeItem('token'); }
     }
+    // Check if this specific wallet address is registered
     try {
       const res = await authAPI.checkWallet({ walletAddress: connectedAddress });
-      router.push(res.data.exists ? '/auth/login' : '/auth/register');
-    } catch (_) { router.push('/auth/register'); }
+      if (res.data.exists) {
+        router.push('/auth/register?mode=login');
+      } else {
+        router.push('/auth/register?mode=register');
+      }
+    } catch (_) {
+      router.push('/auth/register?mode=register');
+    }
   };
 
   const handleGetStarted = () => {
