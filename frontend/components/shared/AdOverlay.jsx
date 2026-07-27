@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Loader2 } from 'lucide-react';
 
-const SKIP_DELAY = 15;
+const SKIP_DELAY = 20;
 
 export default function AdOverlay({ onComplete, loading = false, buttonText = 'Claim Now', loadingText = 'Claiming...' }) {
   const [countdown, setCountdown] = useState(SKIP_DELAY);
@@ -41,51 +41,58 @@ export default function AdOverlay({ onComplete, loading = false, buttonText = 'C
 
   const [currentUrl, setCurrentUrl] = useState(() => pickRandomUrl());
 
-  // Convert to embed URL with max branding suppression + nocookie
+  // Convert to embed URL with proper video ID extraction
   const getEmbedUrl = (url) => {
     if (!url) return '';
     let videoId = '';
+    
+    // Extract video ID from different YouTube URL formats
     if (url.includes('/embed/')) {
       videoId = url.split('/embed/')[1]?.split('?')[0];
     } else {
       const watchMatch = url.match(/[?&]v=([^&]+)/);
       const shortsMatch = url.match(/shorts\/([^?&]+)/);
-      const shortMatch = url.match(/youtu\.be\/([^?&]+)/);
+      const shortMatch = url.match(/youtu\.be\/([^?&?]+)/);
       videoId = watchMatch?.[1] || shortsMatch?.[1] || shortMatch?.[1] || '';
     }
+    
     if (!videoId) return '';
 
+    // Force autoplay - these params will auto-start video
     const params = new URLSearchParams({
-      autoplay: '1',
-      mute: '0',
-      controls: '0',
+      autoplay: '1',      // Force autoplay
+      mute: '1',          // Mute to allow autoplay in most browsers
+      controls: '1',
       rel: '0',
       modestbranding: '1',
       playsinline: '1',
-      loop: '1',
-      showinfo: '0',
-      iv_load_policy: '3',
-      disablekb: '1',
-      fs: '0',
-      playlist: videoId,
+      fs: '1',            // Allow fullscreen
     });
 
-    return `https://www.youtube-nocookie.com/embed/${videoId}?${params.toString()}`;
+    return `https://www.youtube.com/embed/${videoId}?${params.toString()}`;
   };
 
   const embedUrl = getEmbedUrl(currentUrl);
 
-  // Start countdown after iframe loads
+  // Start countdown after iframe loads AND video starts playing
   useEffect(() => {
     if (!iframeLoaded) return;
-    clearInterval(timerRef.current);
-    timerRef.current = setInterval(() => {
-      setCountdown((c) => {
-        if (c <= 1) { clearInterval(timerRef.current); setCanClaim(true); return 0; }
-        return c - 1;
-      });
+    
+    // Give iframe time to initialize and start autoplay
+    const delay = setTimeout(() => {
+      clearInterval(timerRef.current);
+      timerRef.current = setInterval(() => {
+        setCountdown((c) => {
+          if (c <= 1) { clearInterval(timerRef.current); setCanClaim(true); return 0; }
+          return c - 1;
+        });
+      }, 1000);
     }, 1000);
-    return () => clearInterval(timerRef.current);
+    
+    return () => {
+      clearTimeout(delay);
+      clearInterval(timerRef.current);
+    };
   }, [iframeLoaded]);
 
   // Auto-detect error via message listener (YouTube posts errors via postMessage)
@@ -104,15 +111,15 @@ export default function AdOverlay({ onComplete, loading = false, buttonText = 'C
   }, [retryCount]);
 
   // If iframe loads but video has error, auto-detect via timeout
-  // If no progress after 8 seconds → try next video
+  // If no progress after 12 seconds → try next video
   useEffect(() => {
     clearTimeout(errorTimerRef.current);
     setIframeLoaded(false);
     setVideoError(false);
-    // Give 8s to load, else try next
+    // Give 12s to load, else try next
     errorTimerRef.current = setTimeout(() => {
       if (!iframeLoaded) handleVideoError();
-    }, 8000);
+    }, 12000);
     return () => clearTimeout(errorTimerRef.current);
   }, [currentUrl]);
 
@@ -173,20 +180,27 @@ export default function AdOverlay({ onComplete, loading = false, buttonText = 'C
             <iframe
               key={currentUrl}
               src={embedUrl}
-              className="absolute inset-0 w-full h-full pointer-events-none"
-              style={{ transform: 'scale(1.18)', transformOrigin: 'center center' }}
-              allow="autoplay; encrypted-media; accelerometer; gyroscope"
+              className="absolute inset-0 w-full h-full"
+              style={{ 
+                border: 'none',
+              }}
+              allow="autoplay; fullscreen; encrypted-media; accelerometer; gyroscope"
               frameBorder="0"
+              allowFullScreen
+              autoPlay
               onLoad={() => { setIframeLoaded(true); clearTimeout(errorTimerRef.current); }}
               onError={handleVideoError}
-              referrerPolicy="no-referrer"
+              title="Watch Ad"
             />
-            {/* Block clicks + hide YT UI */}
-            <div className="absolute inset-0 z-[2]" />
-            <div className="absolute top-0 left-0 right-0 h-20 bg-gradient-to-b from-black via-black/70 to-transparent z-[3]" />
-            <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-black via-black/70 to-transparent z-[3]" />
-            <div className="absolute left-0 top-0 bottom-0 w-8 bg-black z-[3]" />
-            <div className="absolute right-0 top-0 bottom-0 w-8 bg-black z-[3]" />
+            {/* Overlay: Block clicks on edges + Show branding */}
+            <div className="absolute inset-0 z-[2] pointer-events-none" />
+            {/* Top branding bar */}
+            <div className="absolute top-0 left-0 right-0 h-12 bg-gradient-to-b from-black via-black/90 to-transparent z-[3] pointer-events-none flex items-center px-3">
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                <span className="text-[11px] text-slate-300 font-medium">FutureMint Ad</span>
+              </div>
+            </div>
           </>
         )}
 
