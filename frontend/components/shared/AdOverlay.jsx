@@ -10,8 +10,10 @@ export default function AdOverlay({ onComplete, loading = false, buttonText = 'C
   const [iframeLoaded, setIframeLoaded] = useState(false);
   const [videoError, setVideoError] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
+  const [isMuted, setIsMuted] = useState(true);
   const timerRef = useRef(null);
   const errorTimerRef = useRef(null);
+  const iframeRef = useRef(null);
 
   // Build URL pool from env
   const buildPool = () => {
@@ -61,18 +63,32 @@ export default function AdOverlay({ onComplete, loading = false, buttonText = 'C
     // Force autoplay - these params will auto-start video
     const params = new URLSearchParams({
       autoplay: '1',      // Force autoplay
-      mute: '1',          // Mute to allow autoplay in most browsers
+      mute: isMuted ? '1' : '0',
       controls: '1',
       rel: '0',
       modestbranding: '1',
       playsinline: '1',
-      fs: '1',            // Allow fullscreen
+      fs: '1',
+      enablejsapi: '1',  // Enable JS API for mute/unmute
     });
 
     return `https://www.youtube.com/embed/${videoId}?${params.toString()}`;
   };
 
   const embedUrl = getEmbedUrl(currentUrl);
+
+  // Toggle mute/unmute via YouTube postMessage API
+  const toggleMute = () => {
+    const iframe = iframeRef.current;
+    if (iframe && iframe.contentWindow) {
+      if (isMuted) {
+        iframe.contentWindow.postMessage('{"event":"command","func":"unMute","args":""}', '*');
+      } else {
+        iframe.contentWindow.postMessage('{"event":"command","func":"mute","args":""}', '*');
+      }
+    }
+    setIsMuted(!isMuted);
+  };
 
   // Start countdown after iframe loads AND video starts playing
   useEffect(() => {
@@ -178,6 +194,7 @@ export default function AdOverlay({ onComplete, loading = false, buttonText = 'C
         {embedUrl && !canClaim && (
           <>
             <iframe
+              ref={iframeRef}
               key={currentUrl}
               src={embedUrl}
               className="absolute inset-0 w-full h-full"
@@ -228,11 +245,31 @@ export default function AdOverlay({ onComplete, loading = false, buttonText = 'C
               {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> {loadingText}</> : <>🎁 {buttonText}</>}
             </button>
           ) : (
-            <div className="w-full py-4 bg-dark-800/80 border border-dark-600 rounded-xl flex items-center justify-center gap-3">
+            <div className="w-full py-4 bg-dark-800/80 border border-dark-600 rounded-xl flex items-center justify-center gap-3 relative">
               <div className="w-5 h-5 rounded-full border-2 border-cyan-400 border-t-transparent animate-spin" />
               <span className="text-sm text-slate-400 font-medium">
                 Watch to claim &bull; {countdown}s remaining
               </span>
+              {/* Mute/Unmute button */}
+              <button
+                onClick={toggleMute}
+                className="absolute right-3 w-8 h-8 rounded-full bg-dark-700 border border-dark-500 flex items-center justify-center hover:bg-dark-600 transition-colors"
+                title={isMuted ? 'Unmute' : 'Mute'}
+              >
+                {isMuted ? (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                    <line x1="23" y1="9" x2="17" y2="15" />
+                    <line x1="17" y1="9" x2="23" y2="15" />
+                  </svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-cyan-400">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+                    <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                  </svg>
+                )}
+              </button>
             </div>
           )}
           <p className="text-center text-[10px] text-slate-600 mt-2">
