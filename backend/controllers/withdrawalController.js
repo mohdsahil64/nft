@@ -46,13 +46,21 @@ const initiateWithdrawal = async (req, res) => {
       status: 'pending',
     });
 
-    // Send email OTP
-    await generateAndSendOTP(user.email, 'withdrawal');
+    // Send mobile OTP directly (no email step)
+    const mobileOtp = generateOTP();
+    await storeOTP(user.mobile, mobileOtp, 'withdrawal');
+
+    try {
+      await sendSMSOTP(user.mobile, mobileOtp);
+    } catch (smsErr) {
+      console.error('[Withdrawal] SMS failed:', smsErr.message);
+      return res.status(500).json({ success: false, message: 'Failed to send mobile OTP. Try again.' });
+    }
 
     return res.status(201).json({
       success: true,
-      message: 'Email OTP sent. Please verify.',
-      data: { withdrawalId: withdrawal._id, step: 'email' },
+      message: 'Mobile OTP sent. Please verify.',
+      data: { withdrawalId: withdrawal._id, step: 'mobile' },
     });
   } catch (error) {
     console.error('Initiate withdrawal error:', error);

@@ -121,7 +121,6 @@ export const userAPI = {
 // ─── Withdrawal ───────────────────────────────────────────────────────────────
 export const withdrawalAPI = {
   initiate: (data) => api.post('/api/withdrawal/initiate', data),
-  verifyEmail: (data) => api.post('/api/withdrawal/verify-email', data),
   verifyMobile: (data) => api.post('/api/withdrawal/verify-mobile', data),
   getHistory: (params) => api.get('/api/withdrawal/history', { params }),
 };

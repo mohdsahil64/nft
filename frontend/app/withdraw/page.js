@@ -6,7 +6,7 @@ import { withdrawalAPI, userAPI } from '../../lib/api';
 import Navbar from '../../components/shared/Navbar';
 import OTPInput from '../../components/shared/OTPInput';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
-import { RiArrowLeftSLine, RiWallet3Fill, RiMailCheckLine, RiSmartphoneLine, RiCheckboxCircleFill, RiTimeLine } from 'react-icons/ri';
+import { RiArrowLeftSLine, RiWallet3Fill, RiSmartphoneLine, RiCheckboxCircleFill, RiTimeLine } from 'react-icons/ri';
 import toast from 'react-hot-toast';
 
 export default function WithdrawPage() {
@@ -44,7 +44,7 @@ export default function WithdrawPage() {
   // Withdrawal timing (disabled for testing)
   const withdrawalOpen = true;
 
-  // Step 1: Submit form → email OTP
+  // Step 1: Submit form → mobile OTP sent directly
   const handleSubmit = async (e) => {
     e.preventDefault();
     const amt = parseFloat(form.amount);
@@ -57,33 +57,20 @@ export default function WithdrawPage() {
     try {
       const res = await withdrawalAPI.initiate({ amount: amt, walletAddress: userWalletAddress, network });
       setWithdrawalId(res.data.data.withdrawalId);
-      toast.success('Email OTP sent!');
+      toast.success('Mobile OTP sent!');
       setStep(2);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed');
     } finally { setLoading(false); }
   };
 
-  // Step 2: Verify email → mobile OTP sent
-  const handleEmailOTP = async (otp) => {
-    setLoading(true);
-    try {
-      await withdrawalAPI.verifyEmail({ withdrawalId, otp });
-      toast.success('Email verified! Mobile OTP sent.');
-      setStep(3);
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Email verification failed');
-      if (err.response?.status === 404) { setStep(1); setWithdrawalId(null); }
-    } finally { setLoading(false); }
-  };
-
-  // Step 3: Verify mobile → done
+  // Step 2: Verify mobile → done
   const handleMobileOTP = async (otp) => {
     setLoading(true);
     try {
       await withdrawalAPI.verifyMobile({ withdrawalId, otp });
       toast.success('Withdrawal confirmed!');
-      setStep(4);
+      setStep(3);
       const [dash, hist] = await Promise.all([userAPI.getDashboard(), withdrawalAPI.getHistory()]);
       setWallet(dash.data.data.wallet);
       setHistory(hist.data.data.withdrawals || []);
@@ -182,7 +169,7 @@ export default function WithdrawPage() {
             {/* Note */}
             <div className="rounded-xl bg-gradient-to-r from-purple-900/20 to-cyan-900/10 border border-purple-500/15 px-4 py-3 mb-6">
               <p className="text-[11px] text-slate-300 leading-relaxed">
-                <span className="text-purple-400 font-semibold">🔒 Secure Withdrawal</span> — Verified by Email + Mobile OTP. Processed by admin within 24 hours to your wallet.
+                <span className="text-purple-400 font-semibold">🔒 Secure Withdrawal</span> — Verified by Mobile OTP. Processed by admin within 24 hours to your wallet.
               </p>
             </div>
 
@@ -202,28 +189,8 @@ export default function WithdrawPage() {
           </div>
         )}
 
-        {/* ─── Step 2: Email OTP ─── */}
+        {/* ─── Step 2: Mobile OTP ─── */}
         {step === 2 && (
-          <div className="rounded-2xl border border-dark-600/60 bg-dark-800/50 p-5 mb-5">
-            <div className="text-center mb-5">
-              <div className="w-14 h-14 rounded-full bg-cyan-500/15 border border-cyan-500/25 flex items-center justify-center mx-auto mb-3">
-                <RiMailCheckLine className="w-7 h-7 text-cyan-400" />
-              </div>
-              <p className="text-sm font-bold text-white mb-1">Email Verification</p>
-              <p className="text-[11px] text-slate-400">Enter OTP sent to your email</p>
-            </div>
-            <OTPInput length={6} onComplete={handleEmailOTP} disabled={loading} />
-            {loading && <div className="flex justify-center mt-4"><LoadingSpinner /></div>}
-            <div className="flex items-center justify-center gap-1.5 mt-4">
-              <div className="w-2 h-2 rounded-full bg-cyan-400" />
-              <div className="w-2 h-2 rounded-full bg-dark-600" />
-              <p className="text-[9px] text-slate-500 ml-2">Step 1 of 2</p>
-            </div>
-          </div>
-        )}
-
-        {/* ─── Step 3: Mobile OTP ─── */}
-        {step === 3 && (
           <div className="rounded-2xl border border-dark-600/60 bg-dark-800/50 p-5 mb-5">
             <div className="text-center mb-5">
               <div className="w-14 h-14 rounded-full bg-purple-500/15 border border-purple-500/25 flex items-center justify-center mx-auto mb-3">
@@ -235,15 +202,14 @@ export default function WithdrawPage() {
             <OTPInput length={6} onComplete={handleMobileOTP} disabled={loading} />
             {loading && <div className="flex justify-center mt-4"><LoadingSpinner /></div>}
             <div className="flex items-center justify-center gap-1.5 mt-4">
-              <div className="w-2 h-2 rounded-full bg-cyan-400" />
               <div className="w-2 h-2 rounded-full bg-purple-400" />
-              <p className="text-[9px] text-slate-500 ml-2">Step 2 of 2</p>
+              <p className="text-[9px] text-slate-500 ml-2">Verify to confirm withdrawal</p>
             </div>
           </div>
         )}
 
-        {/* ─── Step 4: Done ─── */}
-        {step === 4 && (
+        {/* ─── Step 3: Done ─── */}
+        {step === 3 && (
           <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/5 p-6 mb-5 text-center">
             <RiCheckboxCircleFill className="w-14 h-14 text-emerald-400 mx-auto mb-3" />
             <h3 className="text-lg font-bold text-white mb-1">Withdrawal Submitted!</h3>
