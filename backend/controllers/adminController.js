@@ -447,12 +447,24 @@ const getSettings = async (req, res) => {
  */
 const updateSettings = async (req, res) => {
   try {
-    const { signupBonusAmount, priceRanges } = req.body;
+    const { signupBonusAmount, priceRanges, priceIncrement, minWithdrawal, minSwap, maintenanceMode } = req.body;
     const update = { lastUpdated: new Date() };
-    if (signupBonusAmount !== undefined) update.signupBonusAmount = signupBonusAmount;
+    if (signupBonusAmount !== undefined) update.signupBonusAmount = Number(signupBonusAmount);
     if (priceRanges) update.priceRanges = priceRanges;
+    if (priceIncrement !== undefined) update.priceIncrement = Number(priceIncrement);
+    if (minWithdrawal !== undefined) update.minWithdrawal = Number(minWithdrawal);
+    if (minSwap !== undefined) update.minSwap = Number(minSwap);
+    if (maintenanceMode !== undefined) update.maintenanceMode = Boolean(maintenanceMode);
 
     const config = await NFTConfig.findOneAndUpdate({}, update, { new: true });
+
+    // If priceIncrement changed, recalculate current price
+    if (priceIncrement !== undefined) {
+      const tier = Math.floor((config.totalMinted || 0) / Number(priceIncrement));
+      const newPrice = 0.01 * Math.pow(2, tier);
+      await NFTConfig.findOneAndUpdate({}, { currentPrice: newPrice });
+    }
+
     return res.status(200).json({ success: true, message: 'Settings updated', data: config });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });

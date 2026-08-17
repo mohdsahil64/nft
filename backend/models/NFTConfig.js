@@ -28,6 +28,22 @@ const nftConfigSchema = new mongoose.Schema(
       type: Number,
       default: 2100000,
     },
+    priceIncrement: {
+      type: Number,
+      default: 200000, // Price doubles every 2 lakh NFTs
+    },
+    minWithdrawal: {
+      type: Number,
+      default: 100, // Minimum USDT for withdrawal
+    },
+    minSwap: {
+      type: Number,
+      default: 100, // Minimum NFTs to swap
+    },
+    maintenanceMode: {
+      type: Boolean,
+      default: false,
+    },
     lastUpdated: {
       type: Date,
       default: Date.now,

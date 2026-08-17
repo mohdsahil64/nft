@@ -14,18 +14,22 @@ const getConfig = async () => {
       currentPrice: 0.01,
       signupBonusAmount: 100,
       totalSupply: 2100000,
+      priceIncrement: 200000, // Price doubles every 2 lakh NFTs
+      minWithdrawal: 100,     // Minimum USDT withdrawal
+      minSwap: 100,           // Minimum NFTs to swap
+      maintenanceMode: false,
       priceRanges: [
-        { from: 0, to: 50000, price: 0.01 },
-        { from: 50000, to: 100000, price: 0.02 },
-        { from: 100000, to: 150000, price: 0.04 },
-        { from: 150000, to: 200000, price: 0.08 },
-        { from: 200000, to: 250000, price: 0.16 },
-        { from: 250000, to: 300000, price: 0.32 },
-        { from: 300000, to: 350000, price: 0.64 },
-        { from: 350000, to: 400000, price: 1.28 },
-        { from: 400000, to: 450000, price: 2.56 },
-        { from: 450000, to: 500000, price: 5.12 },
-        { from: 500000, to: 2100000, price: 10.24 },
+        { from: 0, to: 200000, price: 0.01 },
+        { from: 200000, to: 400000, price: 0.02 },
+        { from: 400000, to: 600000, price: 0.04 },
+        { from: 600000, to: 800000, price: 0.08 },
+        { from: 800000, to: 1000000, price: 0.16 },
+        { from: 1000000, to: 1200000, price: 0.32 },
+        { from: 1200000, to: 1400000, price: 0.64 },
+        { from: 1400000, to: 1600000, price: 1.28 },
+        { from: 1600000, to: 1800000, price: 2.56 },
+        { from: 1800000, to: 2000000, price: 5.12 },
+        { from: 2000000, to: 2100000, price: 10.24 },
       ],
     });
     console.log('NFTConfig auto-seeded after missing');
@@ -35,13 +39,13 @@ const getConfig = async () => {
 
 /**
  * Get current NFT price based on totalMinted
- * Price doubles every 50,000 NFTs minted
+ * Price doubles every priceIncrement (default 200,000) NFTs minted
  */
 const getCurrentNFTPrice = async () => {
   const config = await getConfig();
-  const { totalMinted } = config;
-  // Dynamic calculation: starts at $0.01, doubles every 50k
-  const tier = Math.floor(totalMinted / 50000);
+  const { totalMinted, priceIncrement } = config;
+  const increment = priceIncrement || 200000;
+  const tier = Math.floor(totalMinted / increment);
   return 0.01 * Math.pow(2, tier);
 };
 
@@ -141,6 +145,10 @@ const getNFTStats = async () => {
     currentPrice: price,
     signupBonusAmount: config.signupBonusAmount,
     priceRanges: config.priceRanges,
+    priceIncrement: config.priceIncrement || 200000,
+    minWithdrawal: config.minWithdrawal || 100,
+    minSwap: config.minSwap || 100,
+    maintenanceMode: config.maintenanceMode || false,
   };
 };
 

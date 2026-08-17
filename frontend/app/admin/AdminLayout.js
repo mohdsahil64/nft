@@ -18,6 +18,7 @@ const adminNavItems = [
   { label: 'Users Swap History', href: '/admin/swaps', icon: RefreshCw },
   { label: 'NFT Market', href: '/admin/nft', icon: Coins },
   { label: 'FM Market', href: '/admin/fm', icon: Coins },
+  { label: 'Settings', href: '/admin/settings', icon: Settings },
 ];
 
 export default function AdminLayout({ children }) {

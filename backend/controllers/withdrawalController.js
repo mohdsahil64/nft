@@ -1,12 +1,13 @@
 const Withdrawal = require('../models/Withdrawal');
 const NFTWallet = require('../models/NFTWallet');
+const NFTConfig = require('../models/NFTConfig');
 const OTP = require('../models/OTP');
 const { generateAndSendOTP, verifyOTP, generateOTP, storeOTP } = require('../utils/otpService');
 const { sendSMSOTP } = require('../utils/smsService');
 
 /**
  * POST /api/withdrawal/initiate
- * Step 1: Check balance → Send email OTP
+ * Step 1: Check balance → Send mobile OTP
  */
 const initiateWithdrawal = async (req, res) => {
   try {
@@ -16,6 +17,14 @@ const initiateWithdrawal = async (req, res) => {
     if (!amount || amount <= 0) {
       return res.status(400).json({ success: false, message: 'Enter a valid amount' });
     }
+
+    // Get dynamic min withdrawal from config
+    const config = await NFTConfig.findOne().lean();
+    const minWithdrawal = config?.minWithdrawal || 100;
+    if (amount < minWithdrawal) {
+      return res.status(400).json({ success: false, message: `Minimum withdrawal is $${minWithdrawal} USDT` });
+    }
+
     if (!walletAddress || !walletAddress.startsWith('0x') || walletAddress.length !== 42) {
       return res.status(400).json({ success: false, message: 'Invalid wallet address' });
     }
