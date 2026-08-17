@@ -2,14 +2,12 @@
 import { useState, useEffect } from 'react';
 import { adminAPI } from '../../lib/api';
 import AdminLayout from './AdminLayout';
-import { Users, Coins, ArrowDownCircle, TrendingUp, UserPlus, DollarSign, AlertTriangle, Shield, ShieldOff } from 'lucide-react';
+import { Users, Coins, ArrowDownCircle, TrendingUp, UserPlus, DollarSign, AlertTriangle } from 'lucide-react';
 
 export default function AdminDashboard() {
   const [reports, setReports] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
-  const [maintenance, setMaintenance] = useState(false);
-  const [maintenanceLoading, setMaintenanceLoading] = useState(false);
 
   const fetchReports = async (retryCount = 0) => {
     setLoading(true);
@@ -29,26 +27,7 @@ export default function AdminDashboard() {
     }
   };
 
-  const fetchMaintenanceStatus = async () => {
-    try {
-      const r = await adminAPI.getMaintenanceStatus();
-      setMaintenance(r.data?.data?.maintenance || false);
-    } catch (_) {}
-  };
-
-  const handleToggleMaintenance = async () => {
-    setMaintenanceLoading(true);
-    try {
-      const r = await adminAPI.toggleMaintenance();
-      setMaintenance(r.data?.data?.maintenance || false);
-    } catch (_) {
-      alert('Failed to toggle maintenance mode');
-    } finally {
-      setMaintenanceLoading(false);
-    }
-  };
-
-  useEffect(() => { fetchReports(); fetchMaintenanceStatus(); }, []);
+  useEffect(() => { fetchReports(); }, []);
 
   const stats = reports ? [
     { label: 'Total Users', value: reports.totalUsers?.toLocaleString(), icon: Users, color: 'text-blue-400' },
@@ -66,32 +45,6 @@ export default function AdminDashboard() {
   return (
     <AdminLayout currentPage="dashboard">
       <h1 className="page-title">Admin Dashboard</h1>
-
-      {/* Maintenance Mode Toggle */}
-      <div className={`card mb-6 border ${maintenance ? 'border-red-500/50 bg-red-950/20' : 'border-emerald-500/30 bg-emerald-950/10'}`}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            {maintenance ? <ShieldOff className="w-6 h-6 text-red-400" /> : <Shield className="w-6 h-6 text-emerald-400" />}
-            <div>
-              <p className="text-white font-semibold">Maintenance Mode</p>
-              <p className="text-slate-400 text-sm">
-                {maintenance ? 'Site is DOWN — users see maintenance page' : 'Site is LIVE — users can access normally'}
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={handleToggleMaintenance}
-            disabled={maintenanceLoading}
-            className={`px-5 py-2 rounded-lg font-medium text-sm transition-all ${
-              maintenance
-                ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
-                : 'bg-red-600 hover:bg-red-500 text-white'
-            } disabled:opacity-50`}
-          >
-            {maintenanceLoading ? 'Switching...' : maintenance ? 'Turn OFF' : 'Turn ON'}
-          </button>
-        </div>
-      </div>
 
       {loading ? (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

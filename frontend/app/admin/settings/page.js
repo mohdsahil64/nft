@@ -25,14 +25,18 @@ export default function AdminSettingsPage() {
 
   const fetchSettings = async () => {
     try {
-      const res = await adminAPI.getSettings();
-      const data = res.data.data;
+      const [settingsRes, maintenanceRes] = await Promise.all([
+        adminAPI.getSettings(),
+        adminAPI.getMaintenanceStatus(),
+      ]);
+      const data = settingsRes.data.data;
+      const maintenanceStatus = maintenanceRes.data?.data?.maintenance || false;
       setSettings({
         signupBonusAmount: data.signupBonusAmount || 100,
         priceIncrement: data.priceIncrement || 200000,
         minWithdrawal: data.minWithdrawal || 100,
         minSwap: data.minSwap || 100,
-        maintenanceMode: data.maintenanceMode || false,
+        maintenanceMode: maintenanceStatus,
         currentPrice: data.currentPrice || 0.01,
         totalMinted: data.totalMinted || 0,
         totalSupply: data.totalSupply || 2100000,
@@ -200,7 +204,16 @@ export default function AdminSettingsPage() {
                 </div>
               </div>
               <button
-                onClick={() => handleChange('maintenanceMode', !settings.maintenanceMode)}
+                onClick={async () => {
+                  try {
+                    const res = await adminAPI.toggleMaintenance();
+                    const newVal = res.data?.data?.maintenance || false;
+                    handleChange('maintenanceMode', newVal);
+                    toast.success(newVal ? 'Maintenance ON' : 'Maintenance OFF');
+                  } catch (err) {
+                    toast.error('Failed to toggle maintenance');
+                  }
+                }}
                 className={`relative w-14 h-7 rounded-full transition-colors ${
                   settings.maintenanceMode ? 'bg-red-500' : 'bg-dark-600'
                 }`}
