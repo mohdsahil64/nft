@@ -2,23 +2,23 @@ const ReferralTree = require('../models/ReferralTree');
 const NFTWallet = require('../models/NFTWallet');
 const Transaction = require('../models/Transaction');
 
-// Commission percentages per level (on watch earnings)
+// Commission percentages per level (on watch earnings) — halved from original
 const WATCH_COMMISSION = {
-  1: 20,
-  2: 10,
-  3: 5,
-  4: 5,
-  5: 5,
-  6: 1,
-  7: 1,
-  8: 1,
-  9: 1,
-  10: 1,
-  11: 1,
-  12: 1,
-  13: 1,
-  14: 1,
-  15: 1,
+  1: 10,
+  2: 5,
+  3: 2.5,
+  4: 2.5,
+  5: 2.5,
+  6: 0.5,
+  7: 0.5,
+  8: 0.5,
+  9: 0.5,
+  10: 0.5,
+  11: 0.5,
+  12: 0.5,
+  13: 0.5,
+  14: 0.5,
+  15: 0.5,
 };
 
 /**

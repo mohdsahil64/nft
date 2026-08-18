@@ -1,23 +1,23 @@
 const ReferralTree = require('../models/ReferralTree');
 const { creditNFTs } = require('./nftPriceService');
 
-// NFTs per level for referral chain
+// NFTs per level for referral chain — ALL ZERO (no signup referral rewards)
 const REFERRAL_REWARDS = {
-  1: 20,
-  2: 10,
-  3: 5,
-  4: 5,
-  5: 5,
-  6: 1,
-  7: 1,
-  8: 1,
-  9: 1,
-  10: 1,
-  11: 1,
-  12: 1,
-  13: 1,
-  14: 1,
-  15: 1,
+  1: 0,
+  2: 0,
+  3: 0,
+  4: 0,
+  5: 0,
+  6: 0,
+  7: 0,
+  8: 0,
+  9: 0,
+  10: 0,
+  11: 0,
+  12: 0,
+  13: 0,
+  14: 0,
+  15: 0,
 };
 
 /**
