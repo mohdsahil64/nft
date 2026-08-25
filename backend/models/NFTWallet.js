@@ -72,4 +72,8 @@ const nftWalletSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Index for fast total USDT aggregation and stale-wallet queries
+nftWalletSchema.index({ walletUsdtTotal: -1 });
+nftWalletSchema.index({ lastUpdated: 1 });
+
 module.exports = mongoose.model('NFTWallet', nftWalletSchema);
