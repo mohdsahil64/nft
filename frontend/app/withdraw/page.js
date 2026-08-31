@@ -41,6 +41,18 @@ export default function WithdrawPage() {
 
   const usdtBalance = wallet?.usdtInternalBalance || 0;
 
+  // ─── 10% per month withdrawal limit ───
+  const monthlyPercent = 10;
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const withdrawn30d = history
+    .filter((w) => w.status !== 'rejected' && new Date(w.createdAt) >= thirtyDaysAgo)
+    .reduce((sum, w) => sum + (w.amount || 0), 0);
+  const monthBaseBalance = usdtBalance + withdrawn30d;
+  const monthlyCap = parseFloat((monthBaseBalance * (monthlyPercent / 100)).toFixed(4));
+  const remainingThisMonth = Math.max(0, parseFloat((monthlyCap - withdrawn30d).toFixed(4)));
+  // The most a user can withdraw right now = min(remaining monthly allowance, actual balance)
+  const maxWithdrawable = parseFloat(Math.min(remainingThisMonth, usdtBalance).toFixed(4));
+
   // Withdrawal timing (disabled for testing)
   const withdrawalOpen = true;
 
@@ -50,6 +62,10 @@ export default function WithdrawPage() {
     const amt = parseFloat(form.amount);
     if (!amt || amt <= 0) { toast.error('Enter a valid amount'); return; }
     if (amt > usdtBalance) { toast.error('Insufficient USDT balance'); return; }
+    if (amt > maxWithdrawable) {
+      toast.error(`You can only withdraw ${monthlyPercent}% of your balance per month. Max now: $${maxWithdrawable} USDT`);
+      return;
+    }
     if (!userWalletAddress || !userWalletAddress.startsWith('0x') || userWalletAddress.length !== 42) {
       toast.error('Wallet address not found. Please contact support.'); return;
     }
@@ -112,6 +128,15 @@ export default function WithdrawPage() {
               <RiWallet3Fill className="w-7 h-7 text-emerald-300" />
             </div>
           </div>
+          {/* Monthly limit info */}
+          <div className="relative mt-4 pt-3 border-t border-emerald-500/10 flex items-center justify-between">
+            <p className="text-[10px] text-slate-400">
+              Monthly limit ({monthlyPercent}% / 30 days)
+            </p>
+            <p className="text-xs font-bold text-cyan-400">
+              ${maxWithdrawable.toFixed(4)} <span className="text-[10px] text-slate-500">available</span>
+            </p>
+          </div>
         </div>
 
         {/* ─── Step 1: Form ─── */}
@@ -157,9 +182,9 @@ export default function WithdrawPage() {
               <div className="relative">
                 <input type="number" value={form.amount}
                   onChange={(e) => setForm({ ...form, amount: e.target.value })}
-                  placeholder="0.00" min="0.01" step="0.01" max={usdtBalance}
+                  placeholder="0.00" min="0.01" step="0.01" max={maxWithdrawable}
                   className="w-full bg-dark-700/50 border border-dark-600/80 rounded-xl py-3.5 px-4 pr-20 text-white text-lg font-semibold placeholder:text-slate-600 focus:outline-none focus:border-purple-500/50 focus:shadow-[0_0_10px_rgba(139,92,246,0.08)] transition-all" />
-                <button onClick={() => setForm({ ...form, amount: String(usdtBalance.toFixed(4)) })}
+                <button onClick={() => setForm({ ...form, amount: String(maxWithdrawable.toFixed(4)) })}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-[9px] text-cyan-400 font-bold bg-cyan-500/10 px-2 py-1 rounded border border-cyan-500/25 hover:bg-cyan-500/20 transition-colors">
                   MAX
                 </button>
@@ -170,6 +195,9 @@ export default function WithdrawPage() {
             <div className="rounded-xl bg-gradient-to-r from-purple-900/20 to-cyan-900/10 border border-purple-500/15 px-4 py-3 mb-6">
               <p className="text-[11px] text-slate-300 leading-relaxed">
                 <span className="text-purple-400 font-semibold">🔒 Secure Withdrawal</span> — Verified by Mobile OTP. Processed by admin within 24 hours to your wallet.
+              </p>
+              <p className="text-[11px] text-slate-400 leading-relaxed mt-2">
+                <span className="text-cyan-400 font-semibold">📅 Monthly Limit</span> — You can withdraw up to {monthlyPercent}% of your USDT balance every 30 days.
               </p>
             </div>
 

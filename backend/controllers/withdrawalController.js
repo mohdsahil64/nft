@@ -35,6 +35,43 @@ const initiateWithdrawal = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Insufficient USDT balance' });
     }
 
+    // ─── 10% PER MONTH WITHDRAWAL LIMIT ───
+    // User can withdraw only 10% of their USDT balance per rolling 30-day period.
+    // The cap is based on the balance at the start of the month = current balance + already withdrawn this month.
+    const monthlyPercent = config?.monthlyWithdrawalPercent || 10;
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+    const recentWithdrawals = await Withdrawal.find({
+      userId: user._id,
+      otpVerified: true,
+      status: { $ne: 'rejected' },
+      createdAt: { $gte: thirtyDaysAgo },
+    }).lean();
+
+    const alreadyWithdrawn30d = recentWithdrawals.reduce((sum, w) => sum + (w.amount || 0), 0);
+
+    // Base balance for this month = what's left now + what was already taken this month
+    const monthBaseBalance = (wallet.usdtInternalBalance || 0) + alreadyWithdrawn30d;
+    const monthlyCap = parseFloat((monthBaseBalance * (monthlyPercent / 100)).toFixed(6));
+    const remainingThisMonth = parseFloat((monthlyCap - alreadyWithdrawn30d).toFixed(6));
+
+    if (remainingThisMonth <= 0) {
+      // Find when the oldest withdrawal in this window unlocks
+      const oldest = recentWithdrawals.reduce((min, w) => (w.createdAt < min ? w.createdAt : min), new Date());
+      const unlockDate = new Date(new Date(oldest).getTime() + 30 * 24 * 60 * 60 * 1000);
+      return res.status(400).json({
+        success: false,
+        message: `Monthly withdrawal limit reached. You can withdraw ${monthlyPercent}% of your balance per month. Next withdrawal available after ${unlockDate.toLocaleDateString()}.`,
+      });
+    }
+
+    if (amount > remainingThisMonth) {
+      return res.status(400).json({
+        success: false,
+        message: `You can only withdraw ${monthlyPercent}% of your balance per month. Maximum allowed now: $${remainingThisMonth} USDT.`,
+      });
+    }
+
     // Check for existing pending withdrawal
     const pendingUnverified = await Withdrawal.findOne({ userId: user._id, status: 'pending', otpVerified: false });
     if (pendingUnverified) await Withdrawal.deleteOne({ _id: pendingUnverified._id });
@@ -156,6 +193,31 @@ const verifyMobileOTP = async (req, res) => {
     if (!wallet || (wallet.usdtInternalBalance || 0) < withdrawal.amount) {
       await Withdrawal.deleteOne({ _id: withdrawal._id });
       return res.status(400).json({ success: false, message: 'Insufficient balance. Withdrawal cancelled.' });
+    }
+
+    // ─── Re-enforce 10% per month limit before debiting ───
+    const cfg = await NFTConfig.findOne().lean();
+    const monthlyPercent = cfg?.monthlyWithdrawalPercent || 10;
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+    const recentWithdrawals = await Withdrawal.find({
+      userId: user._id,
+      otpVerified: true,
+      status: { $ne: 'rejected' },
+      createdAt: { $gte: thirtyDaysAgo },
+    }).lean();
+
+    const alreadyWithdrawn30d = recentWithdrawals.reduce((sum, w) => sum + (w.amount || 0), 0);
+    const monthBaseBalance = (wallet.usdtInternalBalance || 0) + alreadyWithdrawn30d;
+    const monthlyCap = parseFloat((monthBaseBalance * (monthlyPercent / 100)).toFixed(6));
+    const remainingThisMonth = parseFloat((monthlyCap - alreadyWithdrawn30d).toFixed(6));
+
+    if (withdrawal.amount > remainingThisMonth) {
+      await Withdrawal.deleteOne({ _id: withdrawal._id });
+      return res.status(400).json({
+        success: false,
+        message: `Monthly withdrawal limit reached. You can withdraw only ${monthlyPercent}% of your balance per month.`,
+      });
     }
 
     // Debit USDT

@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 
 const otpSchema = new mongoose.Schema(
   {
+    // Stores an identifier — either an email address or a mobile number
     email: {
       type: String,
       required: true,
@@ -14,7 +15,7 @@ const otpSchema = new mongoose.Schema(
     },
     purpose: {
       type: String,
-      enum: ['verification', 'login', 'withdrawal'],
+      enum: ['verification', 'login', 'withdrawal', 'email_verification', 'mobile_verification', 'password_reset'],
       default: 'verification',
     },
     expiresAt: {

@@ -26,15 +26,16 @@ function AuthContent() {
   const [walletRegistered, setWalletRegistered] = useState(null); // null=checking, true/false
   const [activeTab, setActiveTab] = useState(modeParam === 'login' ? 'login' : 'register');
 
-  // Register steps: 1=form, 2=smart-contract, 3=otp, 4=success
+  // Register steps: 1=form, 2=smart-contract, 3a=email-otp, 3b=mobile-otp, 4=success
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [otpLoading, setOtpLoading] = useState(false);
+  const [otpStep, setOtpStep] = useState('email'); // 'email' or 'mobile'
   const [resendCooldown, setResendCooldown] = useState(0);
 
   // Login form
-  const [loginForm, setLoginForm] = useState({ email: '', password: '' });
+  const [loginForm, setLoginForm] = useState({ mobile: '', password: '' });
   const [loginLoading, setLoginLoading] = useState(false);
 
   // Register form
@@ -239,6 +240,7 @@ function AuthContent() {
       await authAPI.register(form);
       toast.success('OTP sent to your email!', { id: 'send-otp' });
       setStep(3);
+      setOtpStep('email');
       setResendCooldown(60);
     } catch (err) {
       toast.dismiss('send-otp');
@@ -249,18 +251,31 @@ function AuthContent() {
     }
   };
 
-  // ─── Step 3: Verify OTP ───
+  // ─── Step 3: 2-Step OTP Verification (Email then Mobile) ───
   const handleOTPComplete = async (otp) => {
     setOtpLoading(true);
     try {
-      const res = await authAPI.verifyOTP({ email: form.email.toLowerCase(), otp });
-      const { user, token } = res.data.data;
-      if (token) sessionStorage.setItem('token', token);
-      localStorage.removeItem('pendingReferralCode');
-      dispatch(loginSuccess({ user, token }));
-      toast.success('Account created!');
-      setStep(4);
-      setTimeout(() => router.push('/dashboard'), 1500);
+      if (otpStep === 'email') {
+        // Step 1: Verify email OTP
+        await authAPI.verifyEmailOTP({ email: form.email.toLowerCase(), otp });
+        toast.success('Email verified! Now verify your mobile.');
+        setOtpStep('mobile');
+        setResendCooldown(60);
+      } else {
+        // Step 2: Verify mobile OTP
+        const res = await authAPI.verifyMobileOTP({ 
+          email: form.email.toLowerCase(), 
+          mobile: form.mobile, 
+          otp 
+        });
+        const { user, token } = res.data.data;
+        if (token) sessionStorage.setItem('token', token);
+        localStorage.removeItem('pendingReferralCode');
+        dispatch(loginSuccess({ user, token }));
+        toast.success('Your FutureMint account created successfully!');
+        setStep(4);
+        setTimeout(() => router.push('/dashboard'), 1500);
+      }
     } catch (err) {
       toast.error(err.response?.data?.message || 'OTP verification failed');
     } finally {
@@ -271,7 +286,11 @@ function AuthContent() {
   const handleResendOTP = async () => {
     if (resendCooldown > 0) return;
     try {
-      await authAPI.resendOTP({ email: form.email.toLowerCase(), purpose: 'verification' });
+      if (otpStep === 'email') {
+        await authAPI.resendOTP({ email: form.email.toLowerCase(), purpose: 'email_verification' });
+      } else {
+        await authAPI.resendOTP({ mobile: form.mobile, purpose: 'mobile_verification' });
+      }
       toast.success('OTP resent!');
       setResendCooldown(60);
     } catch (_) { toast.error('Failed to resend.'); }
@@ -303,10 +322,20 @@ function AuthContent() {
               <div className="w-14 h-14 bg-cyan-500/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-cyan-500/30">
                 <Shield className="w-7 h-7 text-cyan-400" />
               </div>
-              <h2 className="text-xl font-bold text-white mb-1">Verify Email</h2>
+              <h2 className="text-xl font-bold text-white mb-1">
+                {otpStep === 'email' ? 'Verify Email' : 'Verify Mobile Number'}
+              </h2>
               <p className="text-slate-400 text-sm">
-                Code sent to <span className="text-cyan-400">{form.email}</span>
+                Code sent to <span className="text-cyan-400">
+                  {otpStep === 'email' ? form.email : form.mobile}
+                </span>
               </p>
+              {otpStep === 'mobile' && (
+                <p className="text-slate-500 text-xs mt-2 flex items-center justify-center gap-1">
+                  <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
+                  Email verified
+                </p>
+              )}
             </div>
             <OTPInput length={6} onComplete={handleOTPComplete} disabled={otpLoading} />
             {otpLoading && <div className="flex justify-center mt-4"><LoadingSpinner /></div>}
@@ -446,12 +475,12 @@ function AuthContent() {
             {activeTab === 'login' && (
               <form onSubmit={handleLogin} noValidate className="space-y-4">
                 <div className="relative">
-                  <RiMailLine className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                  <input type="email" required value={loginForm.email}
-                    onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })}
-                    placeholder="Email Address"
+                  <RiPhoneLine className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                  <input type="tel" required value={loginForm.mobile}
+                    onChange={(e) => setLoginForm({ ...loginForm, mobile: e.target.value })}
+                    placeholder="Mobile Number"
                     className="w-full bg-dark-800 border border-dark-600 rounded-xl py-3 pl-10 pr-4 text-white text-sm placeholder:text-slate-500 focus:outline-none focus:border-cyan-500/50 transition-colors"
-                    autoComplete="email" />
+                    autoComplete="tel" />
                 </div>
                 <div className="relative">
                   <RiLockLine className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />

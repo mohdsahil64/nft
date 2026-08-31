@@ -13,6 +13,7 @@ export default function AdminSettingsPage() {
     priceIncrement: 200000,
     minWithdrawal: 100,
     minSwap: 100,
+    monthlyWithdrawalPercent: 10,
     maintenanceMode: false,
     currentPrice: 0.01,
     totalMinted: 0,
@@ -36,6 +37,7 @@ export default function AdminSettingsPage() {
         priceIncrement: data.priceIncrement || 200000,
         minWithdrawal: data.minWithdrawal || 100,
         minSwap: data.minSwap || 100,
+        monthlyWithdrawalPercent: data.monthlyWithdrawalPercent || 10,
         maintenanceMode: maintenanceStatus,
         currentPrice: data.currentPrice || 0.01,
         totalMinted: data.totalMinted || 0,
@@ -56,6 +58,7 @@ export default function AdminSettingsPage() {
         priceIncrement: Number(settings.priceIncrement),
         minWithdrawal: Number(settings.minWithdrawal),
         minSwap: Number(settings.minSwap),
+        monthlyWithdrawalPercent: Number(settings.monthlyWithdrawalPercent),
         maintenanceMode: settings.maintenanceMode,
       });
       toast.success('Settings saved successfully!');
@@ -191,6 +194,24 @@ export default function AdminSettingsPage() {
               min="1"
             />
             <p className="text-[9px] text-slate-500 mt-2">Current: {settings.minSwap} NFTs minimum</p>
+          </div>
+
+          {/* Monthly Withdrawal Limit */}
+          <div className="bg-dark-800 border border-dark-700 rounded-xl p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <DollarSign className="w-5 h-5 text-cyan-400" />
+              <h3 className="text-sm font-semibold text-white">Monthly Withdrawal Limit (%)</h3>
+            </div>
+            <p className="text-[11px] text-slate-400 mb-3">Max % of USDT balance a user can withdraw per 30 days</p>
+            <input
+              type="number"
+              value={settings.monthlyWithdrawalPercent}
+              onChange={(e) => handleChange('monthlyWithdrawalPercent', e.target.value)}
+              className="w-full bg-dark-700/50 border border-dark-600 rounded-lg py-3 px-4 text-white font-semibold focus:outline-none focus:border-cyan-500 transition-colors"
+              min="1"
+              max="100"
+            />
+            <p className="text-[9px] text-slate-500 mt-2">Current: {settings.monthlyWithdrawalPercent}% of balance per month</p>
           </div>
 
           {/* Maintenance Mode */}

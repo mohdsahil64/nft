@@ -164,22 +164,39 @@ const register = async (req, res) => {
       referredBy: referredByUser ? referredByUser._id : null,
     });
 
-    // Generate OTP, store in DB, and send email via otpService (uses Brevo HTTP API in production)
+    // Generate and send OTP to BOTH email and mobile
     try {
-      await generateAndSendOTP(email.toLowerCase(), 'verification');
+      const { generateOTP, storeOTP } = require('../utils/otpService');
+      const { sendOTPEmail } = require('../utils/emailService');
+      const { sendSMSOTP } = require('../utils/smsService');
+
+      // Generate separate OTPs for email and mobile
+      const emailOtp = generateOTP();
+      const mobileOtp = generateOTP();
+
+      // Store both OTPs
+      await storeOTP(email.toLowerCase(), emailOtp, 'email_verification');
+      await storeOTP(mobile, mobileOtp, 'mobile_verification');
+
+      // Send email OTP
+      await sendOTPEmail(email.toLowerCase(), emailOtp, 'email_verification');
+
+      // Send mobile OTP
+      await sendSMSOTP(mobile, mobileOtp);
+
+      console.log(`[Register] OTPs sent | Email: ${email.toLowerCase()} | Mobile: ${mobile}`);
     } catch (otpError) {
-      console.error(`[Register] Failed to send verification email | To: ${email.toLowerCase()} | Error: ${otpError.message}`);
-      console.error(`[Register] Full OTP error:`, otpError);
+      console.error(`[Register] Failed to send OTP | Error: ${otpError.message}`);
       return res.status(500).json({
         success: false,
-        message: 'Failed to send verification email. Please try again.',
+        message: 'Failed to send verification codes. Please try again.',
       });
     }
 
     return res.status(201).json({
       success: true,
-      message: 'OTP sent to your email. Please verify to complete registration.',
-      data: { email: email.toLowerCase() },
+      message: 'OTP sent to your email and mobile. Please verify both to complete registration.',
+      data: { email: email.toLowerCase(), mobile },
     });
   } catch (error) {
     if (error.name === 'ValidationError') {
@@ -191,16 +208,42 @@ const register = async (req, res) => {
 };
 
 /**
- * POST /api/auth/verify-otp
+ * POST /api/auth/verify-email-otp — Step 1: Verify email OTP during registration
  */
-const verifyRegistrationOTP = async (req, res) => {
+const verifyEmailOTP = async (req, res) => {
   try {
     const { email, otp } = req.body;
     if (!email || !otp) {
       return res.status(400).json({ success: false, message: 'Email and OTP are required' });
     }
 
-    const result = await verifyOTP(email.toLowerCase(), otp, 'verification');
+    const result = await verifyOTP(email.toLowerCase(), otp, 'email_verification');
+    if (!result.valid) {
+      return res.status(400).json({ success: false, message: result.message });
+    }
+
+    // Email OTP verified — return success
+    return res.status(200).json({
+      success: true,
+      message: 'Email verified. Please verify your mobile number next.',
+      data: { email: email.toLowerCase(), step: 'email_verified' },
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message || 'Email OTP verification failed' });
+  }
+};
+
+/**
+ * POST /api/auth/verify-mobile-otp — Step 2: Verify mobile OTP during registration (creates user)
+ */
+const verifyMobileOTP = async (req, res) => {
+  try {
+    const { email, mobile, otp } = req.body;
+    if (!email || !mobile || !otp) {
+      return res.status(400).json({ success: false, message: 'Email, mobile and OTP are required' });
+    }
+
+    const result = await verifyOTP(mobile, otp, 'mobile_verification');
     if (!result.valid) {
       return res.status(400).json({ success: false, message: result.message });
     }
@@ -277,7 +320,7 @@ const verifyRegistrationOTP = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: 'Account verified! Welcome to FutureMint NFT.',
+      message: 'Your FutureMint account created successfully!',
       data: {
         user: {
           _id: user._id,
@@ -294,32 +337,57 @@ const verifyRegistrationOTP = async (req, res) => {
       },
     });
   } catch (error) {
+    return res.status(500).json({ success: false, message: error.message || 'Mobile OTP verification failed' });
+  }
+};
+
+/**
+ * POST /api/auth/verify-otp — DEPRECATED: Kept for backward compatibility
+ */
+const verifyRegistrationOTP = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    if (!email || !otp) {
+      return res.status(400).json({ success: false, message: 'Email and OTP are required' });
+    }
+
+    // Try to verify as email OTP first
+    const result = await verifyOTP(email.toLowerCase(), otp, 'email_verification');
+    if (!result.valid) {
+      return res.status(400).json({ success: false, message: result.message });
+    }
+
+    // Email OTP verified — return success
+    return res.status(200).json({
+      success: true,
+      message: 'Email verified. Please verify your mobile number next.',
+      data: { email: email.toLowerCase(), step: 'email_verified' },
+    });
+  } catch (error) {
     return res.status(500).json({ success: false, message: error.message || 'OTP verification failed' });
   }
 };
 
 /**
- * POST /api/auth/login — Login with email + password + walletAddress validation
+ * POST /api/auth/login — Login with mobile + password + walletAddress validation
  */
 const login = async (req, res) => {
   try {
-    const { email, password, walletAddress } = req.body;
-    if (!email || !password) {
-      return res.status(400).json({ success: false, message: 'Email and password are required' });
+    const { mobile, password, walletAddress } = req.body;
+    if (!mobile || !password) {
+      return res.status(400).json({ success: false, message: 'Mobile number and password are required' });
     }
     if (!walletAddress) {
       return res.status(400).json({ success: false, message: 'Wallet address is required. Please connect your wallet first.' });
     }
 
-    // Find user by wallet address first (wallet is the unique key)
-    const user = await User.findOne({ walletAddress: walletAddress.toLowerCase() });
+    // Find user by mobile + wallet address (both must match)
+    const user = await User.findOne({ 
+      mobile,
+      walletAddress: walletAddress.toLowerCase() 
+    });
     if (!user) {
-      return res.status(401).json({ success: false, message: 'No account found with this wallet address.' });
-    }
-
-    // Check email matches this wallet's account
-    if (user.email !== email.toLowerCase()) {
-      return res.status(401).json({ success: false, message: 'Email does not match this wallet address.' });
+      return res.status(401).json({ success: false, message: 'No account found with this mobile number and wallet address.' });
     }
 
     if (!user.isVerified) {
@@ -438,14 +506,35 @@ const logout = async (req, res) => {
  */
 const resendOTP = async (req, res) => {
   try {
-    const { email, purpose } = req.body;
+    const { email, mobile, purpose } = req.body;
+
+    // Mobile-based OTP resend (mobile_verification, password_reset)
+    if (mobile && (purpose === 'mobile_verification' || purpose === 'password_reset')) {
+      const { generateOTP, storeOTP } = require('../utils/otpService');
+      const { sendSMSOTP } = require('../utils/smsService');
+
+      const otp = generateOTP();
+      await storeOTP(mobile, otp, purpose);
+      await sendSMSOTP(mobile, otp);
+      return res.status(200).json({ success: true, message: 'OTP resent successfully' });
+    }
+
+    // Email-based OTP resend
     if (!email) {
       return res.status(400).json({ success: false, message: 'Email is required' });
     }
-    const validPurposes = ['verification', 'login', 'withdrawal'];
+    const validPurposes = ['verification', 'login', 'withdrawal', 'email_verification'];
     const otpPurpose = validPurposes.includes(purpose) ? purpose : 'verification';
 
-    await generateAndSendOTP(email.toLowerCase(), otpPurpose);
+    if (otpPurpose === 'email_verification') {
+      const { generateOTP, storeOTP } = require('../utils/otpService');
+      const { sendOTPEmail } = require('../utils/emailService');
+      const otp = generateOTP();
+      await storeOTP(email.toLowerCase(), otp, 'email_verification');
+      await sendOTPEmail(email.toLowerCase(), otp, 'email_verification');
+    } else {
+      await generateAndSendOTP(email.toLowerCase(), otpPurpose);
+    }
     return res.status(200).json({ success: true, message: 'OTP resent successfully' });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message || 'Failed to resend OTP' });
@@ -454,36 +543,46 @@ const resendOTP = async (req, res) => {
 
 /**
  * POST /api/auth/forgot-password
- * Find user by email + walletAddress, send OTP
+ * Find user by mobile + walletAddress, send OTP via SMS
  */
 const forgotPassword = async (req, res) => {
   try {
-    const { email, walletAddress } = req.body;
-    if (!email || !walletAddress) {
-      return res.status(400).json({ success: false, message: 'Email and wallet address are required' });
+    const { mobile, walletAddress } = req.body;
+    if (!mobile || !walletAddress) {
+      return res.status(400).json({ success: false, message: 'Mobile number and wallet address are required' });
     }
 
-    // Find user matching email AND wallet address
+    // Find user matching mobile AND wallet address
     const user = await User.findOne({
-      email: email.toLowerCase(),
+      mobile,
       walletAddress: walletAddress.toLowerCase(),
     });
 
     if (!user) {
-      return res.status(404).json({ success: false, message: 'No account found with this email and wallet address combination.' });
+      return res.status(404).json({ success: false, message: 'No account found with this mobile number and wallet address combination.' });
     }
 
     if (!user.isVerified) {
       return res.status(403).json({ success: false, message: 'Account not verified.' });
     }
 
-    // Send OTP for password reset
-    await generateAndSendOTP(user.email, 'verification');
+    // Generate and send OTP to mobile via SMS
+    try {
+      const { generateOTP, storeOTP } = require('../utils/otpService');
+      const { sendSMSOTP } = require('../utils/smsService');
+
+      const otp = generateOTP();
+      await storeOTP(user.mobile, otp, 'password_reset');
+      await sendSMSOTP(user.mobile, otp);
+    } catch (otpError) {
+      console.error(`[ForgotPassword] Failed to send SMS OTP | Error: ${otpError.message}`);
+      return res.status(500).json({ success: false, message: 'Failed to send OTP. Please try again.' });
+    }
 
     return res.status(200).json({
       success: true,
-      message: 'OTP sent to your email. Verify to reset password.',
-      data: { email: user.email },
+      message: 'OTP sent to your mobile number. Verify to reset password.',
+      data: { mobile: user.mobile },
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message || 'Failed' });
@@ -492,25 +591,25 @@ const forgotPassword = async (req, res) => {
 
 /**
  * POST /api/auth/reset-password
- * Verify OTP + set new password
+ * Verify mobile OTP + set new password
  */
 const resetPassword = async (req, res) => {
   try {
-    const { email, otp, newPassword } = req.body;
-    if (!email || !otp || !newPassword) {
-      return res.status(400).json({ success: false, message: 'Email, OTP, and new password are required' });
+    const { mobile, otp, newPassword } = req.body;
+    if (!mobile || !otp || !newPassword) {
+      return res.status(400).json({ success: false, message: 'Mobile number, OTP, and new password are required' });
     }
 
     if (newPassword.length < 8) {
       return res.status(400).json({ success: false, message: 'Password must be at least 8 characters' });
     }
 
-    const result = await verifyOTP(email.toLowerCase(), otp, 'verification');
+    const result = await verifyOTP(mobile, otp, 'password_reset');
     if (!result.valid) {
       return res.status(400).json({ success: false, message: result.message });
     }
 
-    const user = await User.findOne({ email: email.toLowerCase() });
+    const user = await User.findOne({ mobile });
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
@@ -559,4 +658,4 @@ const checkWallet = async (req, res) => {
 
 
 
-module.exports = { register, verifyRegistrationOTP, login, loginVerifyOTP, logout, resendOTP, forgotPassword, resetPassword, checkWallet };
+module.exports = { register, verifyRegistrationOTP, verifyEmailOTP, verifyMobileOTP, login, loginVerifyOTP, logout, resendOTP, forgotPassword, resetPassword, checkWallet };

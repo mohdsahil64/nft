@@ -40,6 +40,10 @@ const nftConfigSchema = new mongoose.Schema(
       type: Number,
       default: 100, // Minimum NFTs to swap
     },
+    monthlyWithdrawalPercent: {
+      type: Number,
+      default: 10, // Max % of USDT balance a user can withdraw per 30-day period
+    },
     maintenanceMode: {
       type: Boolean,
       default: false,

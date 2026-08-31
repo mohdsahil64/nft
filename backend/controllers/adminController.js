@@ -447,13 +447,14 @@ const getSettings = async (req, res) => {
  */
 const updateSettings = async (req, res) => {
   try {
-    const { signupBonusAmount, priceRanges, priceIncrement, minWithdrawal, minSwap, maintenanceMode } = req.body;
+    const { signupBonusAmount, priceRanges, priceIncrement, minWithdrawal, minSwap, monthlyWithdrawalPercent, maintenanceMode } = req.body;
     const update = { lastUpdated: new Date() };
     if (signupBonusAmount !== undefined) update.signupBonusAmount = Number(signupBonusAmount);
     if (priceRanges) update.priceRanges = priceRanges;
     if (priceIncrement !== undefined) update.priceIncrement = Number(priceIncrement);
     if (minWithdrawal !== undefined) update.minWithdrawal = Number(minWithdrawal);
     if (minSwap !== undefined) update.minSwap = Number(minSwap);
+    if (monthlyWithdrawalPercent !== undefined) update.monthlyWithdrawalPercent = Number(monthlyWithdrawalPercent);
     if (maintenanceMode !== undefined) update.maintenanceMode = Boolean(maintenanceMode);
 
     const config = await NFTConfig.findOneAndUpdate({}, update, { new: true });
@@ -973,15 +974,6 @@ const refreshUsdtBalances = async () => {
       })
     );
     total += results.reduce((sum, b) => sum + b, 0);
-    await new Promise(r => setTimeout(r, 200));
-  }
-
-  return total;
-};        return 0;
-      })
-    );
-    total += results.reduce((sum, b) => sum + b, 0);
-    // Small delay between batches
     await new Promise(r => setTimeout(r, 200));
   }
 
