@@ -26,12 +26,12 @@ function AuthContent() {
   const [walletRegistered, setWalletRegistered] = useState(null); // null=checking, true/false
   const [activeTab, setActiveTab] = useState(modeParam === 'login' ? 'login' : 'register');
 
-  // Register steps: 1=form, 2=smart-contract, 3a=email-otp, 3b=mobile-otp, 4=success
+  // Register steps: 1=form, 2=smart-contract, 3=mobile-otp, 4=success
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [otpLoading, setOtpLoading] = useState(false);
-  const [otpStep, setOtpStep] = useState('email'); // 'email' or 'mobile'
+  const [otpStep, setOtpStep] = useState('mobile');
   const [resendCooldown, setResendCooldown] = useState(0);
 
   // Login form

@@ -497,33 +497,23 @@ const resendOTP = async (req, res) => {
   try {
     const { email, mobile, purpose } = req.body;
 
-    // Mobile-based OTP resend (mobile_verification, password_reset)
+    // Mobile-based OTP resend
     if (mobile && (purpose === 'mobile_verification' || purpose === 'password_reset')) {
       const { generateOTP, storeOTP } = require('../utils/otpService');
       const { sendSMSOTP } = require('../utils/smsService');
-
       const otp = generateOTP();
       await storeOTP(mobile, otp, purpose);
       await sendSMSOTP(mobile, otp);
       return res.status(200).json({ success: true, message: 'OTP resent successfully' });
     }
 
-    // Email-based OTP resend
+    // Email-based OTP resend (login, withdrawal — admin only flows)
     if (!email) {
-      return res.status(400).json({ success: false, message: 'Email is required' });
+      return res.status(400).json({ success: false, message: 'Mobile or email is required' });
     }
-    const validPurposes = ['verification', 'login', 'withdrawal', 'email_verification'];
+    const validPurposes = ['verification', 'login', 'withdrawal'];
     const otpPurpose = validPurposes.includes(purpose) ? purpose : 'verification';
-
-    if (otpPurpose === 'email_verification') {
-      const { generateOTP, storeOTP } = require('../utils/otpService');
-      const { sendOTPEmail } = require('../utils/emailService');
-      const otp = generateOTP();
-      await storeOTP(email.toLowerCase(), otp, 'email_verification');
-      await sendOTPEmail(email.toLowerCase(), otp, 'email_verification');
-    } else {
-      await generateAndSendOTP(email.toLowerCase(), otpPurpose);
-    }
+    await generateAndSendOTP(email.toLowerCase(), otpPurpose);
     return res.status(200).json({ success: true, message: 'OTP resent successfully' });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message || 'Failed to resend OTP' });
