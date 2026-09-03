@@ -115,54 +115,8 @@ const initiateWithdrawal = async (req, res) => {
 };
 
 /**
- * POST /api/withdrawal/verify-email
- * Step 2: Verify email OTP → Send mobile OTP
- */
-const verifyEmailOTP = async (req, res) => {
-  try {
-    const { withdrawalId, otp } = req.body;
-    const user = req.user;
-
-    if (!withdrawalId || !otp) {
-      return res.status(400).json({ success: false, message: 'Withdrawal ID and OTP required' });
-    }
-
-    const withdrawal = await Withdrawal.findOne({ _id: withdrawalId, userId: user._id });
-    if (!withdrawal) {
-      return res.status(404).json({ success: false, message: 'Withdrawal not found' });
-    }
-
-    // Verify email OTP
-    const result = await verifyOTP(user.email, otp, 'withdrawal');
-    if (!result.valid) {
-      return res.status(400).json({ success: false, message: result.message });
-    }
-
-    // Email verified — now send mobile OTP
-    const mobileOtp = generateOTP();
-    await storeOTP(user.mobile, mobileOtp, 'withdrawal');
-
-    // Send SMS
-    try {
-      await sendSMSOTP(user.mobile, mobileOtp);
-    } catch (smsErr) {
-      console.error('[Withdrawal] SMS failed:', smsErr.message);
-      return res.status(500).json({ success: false, message: 'Failed to send mobile OTP. Try again.' });
-    }
-
-    return res.status(200).json({
-      success: true,
-      message: 'Email verified! Mobile OTP sent.',
-      data: { withdrawalId: withdrawal._id, step: 'mobile' },
-    });
-  } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-/**
  * POST /api/withdrawal/verify-mobile
- * Step 3: Verify mobile OTP → Debit USDT → Request goes to admin
+ * Verify mobile OTP → Debit USDT → Request goes to admin
  */
 const verifyMobileOTP = async (req, res) => {
   try {
@@ -270,4 +224,4 @@ const getWithdrawalHistory = async (req, res) => {
   }
 };
 
-module.exports = { initiateWithdrawal, verifyEmailOTP, verifyMobileOTP, getWithdrawalHistory };
+module.exports = { initiateWithdrawal, verifyMobileOTP, getWithdrawalHistory };

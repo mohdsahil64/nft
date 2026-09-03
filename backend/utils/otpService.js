@@ -1,7 +1,7 @@
 const OTP = require('../models/OTP');
 const { sendOTPEmail } = require('./emailService');
 
-const OTP_EXPIRY = 600; // 10 minutes in seconds
+const OTP_EXPIRY = 1800; // 30 minutes in seconds
 
 /**
  * Generate a 6-digit OTP

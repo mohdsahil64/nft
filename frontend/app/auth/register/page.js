@@ -31,7 +31,6 @@ function AuthContent() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [otpLoading, setOtpLoading] = useState(false);
-  const [otpStep, setOtpStep] = useState('mobile');
   const [resendCooldown, setResendCooldown] = useState(0);
 
   // Login form
@@ -240,7 +239,6 @@ function AuthContent() {
       await authAPI.register(form);
       toast.success('OTP sent to your mobile!', { id: 'send-otp' });
       setStep(3);
-      setOtpStep('mobile');
       setResendCooldown(60);
     } catch (err) {
       toast.dismiss('send-otp');

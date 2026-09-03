@@ -13,7 +13,7 @@ export default function WithdrawPage() {
   const router = useRouter();
   const { isAuthenticated, user, sessionChecked } = useSelector((s) => s.user);
 
-  // Steps: 1=form, 2=email-otp, 3=mobile-otp, 4=done
+  // Steps: 1=form, 2=mobile-otp, 3=done
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [wallet, setWallet] = useState(null);

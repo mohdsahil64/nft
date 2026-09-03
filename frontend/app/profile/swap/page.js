@@ -46,7 +46,7 @@ export default function SwapNFTPage() {
   const handleSwap = async () => {
     const qty = parseFloat(amount);
     if (!qty || qty <= 0) { toast.error('Enter a valid amount'); return; }
-    if (qty < 500) { toast.error('Minimum 500 NFT required to swap'); return; }
+    if (qty < 200) { toast.error('Minimum 200 NFT required to swap'); return; }
     if (qty > (wallet?.nftBalance || 0)) { toast.error('Insufficient NFT balance'); return; }
 
     setSwapping(true);
@@ -113,14 +113,14 @@ export default function SwapNFTPage() {
               <span className="text-sm">🎯</span>
               <div className="flex-1">
                 <p className="text-[11px] text-white font-medium">
-                  {(wallet?.nftBalance || 0) < 500
-                    ? `${500 - (wallet?.nftBalance || 0)} NFT more to unlock`
+                  {(wallet?.nftBalance || 0) < 200
+                    ? `${200 - (wallet?.nftBalance || 0)} NFT more to unlock`
                     : 'Swap available!'
                   }
                 </p>
-                <p className="text-[9px] text-slate-500">Min 500 NFT required</p>
+                <p className="text-[9px] text-slate-500">Min 200 NFT required</p>
               </div>
-              <span className="text-[9px] text-slate-400">{wallet?.nftBalance || 0}/500</span>
+              <span className="text-[9px] text-slate-400">{wallet?.nftBalance || 0}/200</span>
             </div>
 
           {/* Amount Input */}
@@ -177,7 +177,7 @@ export default function SwapNFTPage() {
             )}
           </button>
 
-          <p className="text-[9px] text-slate-600 text-center mt-3">Min: 500 NFT • 5% processing fee • Credited instantly</p>
+          <p className="text-[9px] text-slate-600 text-center mt-3">Min: 200 NFT • 5% processing fee • Credited instantly</p>
         </div>
 
         {/* ─── Success Card ─── */}

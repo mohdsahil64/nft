@@ -719,7 +719,7 @@ const swapNFT = async (req, res) => {
     // Get dynamic min swap from config
     const NFTConfig = require('../models/NFTConfig');
     const config = await NFTConfig.findOne().lean();
-    const minSwap = config?.minSwap || 100;
+    const minSwap = config?.minSwap || 200;
 
     if (amount < minSwap) {
       return res.status(400).json({ success: false, message: `Minimum ${minSwap} NFT required to swap` });

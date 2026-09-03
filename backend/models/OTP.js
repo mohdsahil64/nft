@@ -20,8 +20,8 @@ const otpSchema = new mongoose.Schema(
     },
     expiresAt: {
       type: Date,
-      default: () => new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
-      index: { expireAfterSeconds: 0 }, // TTL index - removes docs after 10 mins
+      default: () => new Date(Date.now() + 30 * 60 * 1000), // 30 minutes
+      index: { expireAfterSeconds: 0 }, // TTL index - removes docs after 30 mins
     },
     attempts: {
       type: Number,

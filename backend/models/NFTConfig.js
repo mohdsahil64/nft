@@ -38,7 +38,7 @@ const nftConfigSchema = new mongoose.Schema(
     },
     minSwap: {
       type: Number,
-      default: 100, // Minimum NFTs to swap
+      default: 200, // Minimum NFTs to swap
     },
     monthlyWithdrawalPercent: {
       type: Number,

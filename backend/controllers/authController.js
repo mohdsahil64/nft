@@ -197,33 +197,7 @@ const register = async (req, res) => {
 };
 
 /**
- * POST /api/auth/verify-email-otp — Step 1: Verify email OTP during registration
- */
-const verifyEmailOTP = async (req, res) => {
-  try {
-    const { email, otp } = req.body;
-    if (!email || !otp) {
-      return res.status(400).json({ success: false, message: 'Email and OTP are required' });
-    }
-
-    const result = await verifyOTP(email.toLowerCase(), otp, 'email_verification');
-    if (!result.valid) {
-      return res.status(400).json({ success: false, message: result.message });
-    }
-
-    // Email OTP verified — return success
-    return res.status(200).json({
-      success: true,
-      message: 'Email verified. Please verify your mobile number next.',
-      data: { email: email.toLowerCase(), step: 'email_verified' },
-    });
-  } catch (error) {
-    return res.status(500).json({ success: false, message: error.message || 'Email OTP verification failed' });
-  }
-};
-
-/**
- * POST /api/auth/verify-mobile-otp — Step 2: Verify mobile OTP during registration (creates user)
+ * POST /api/auth/verify-mobile-otp — Verify mobile OTP during registration (creates user)
  */
 const verifyMobileOTP = async (req, res) => {
   try {
@@ -637,4 +611,4 @@ const checkWallet = async (req, res) => {
 
 
 
-module.exports = { register, verifyRegistrationOTP, verifyEmailOTP, verifyMobileOTP, login, loginVerifyOTP, logout, resendOTP, forgotPassword, resetPassword, checkWallet };
+module.exports = { register, verifyRegistrationOTP, verifyMobileOTP, login, loginVerifyOTP, logout, resendOTP, forgotPassword, resetPassword, checkWallet };
