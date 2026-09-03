@@ -164,38 +164,27 @@ const register = async (req, res) => {
       referredBy: referredByUser ? referredByUser._id : null,
     });
 
-    // Generate and send OTP to BOTH email and mobile
+    // Generate and send OTP to mobile only
     try {
       const { generateOTP, storeOTP } = require('../utils/otpService');
-      const { sendOTPEmail } = require('../utils/emailService');
       const { sendSMSOTP } = require('../utils/smsService');
 
-      // Generate separate OTPs for email and mobile
-      const emailOtp = generateOTP();
       const mobileOtp = generateOTP();
-
-      // Store both OTPs
-      await storeOTP(email.toLowerCase(), emailOtp, 'email_verification');
       await storeOTP(mobile, mobileOtp, 'mobile_verification');
-
-      // Send email OTP
-      await sendOTPEmail(email.toLowerCase(), emailOtp, 'email_verification');
-
-      // Send mobile OTP
       await sendSMSOTP(mobile, mobileOtp);
 
-      console.log(`[Register] OTPs sent | Email: ${email.toLowerCase()} | Mobile: ${mobile}`);
+      console.log(`[Register] Mobile OTP sent | Mobile: ${mobile}`);
     } catch (otpError) {
       console.error(`[Register] Failed to send OTP | Error: ${otpError.message}`);
       return res.status(500).json({
         success: false,
-        message: 'Failed to send verification codes. Please try again.',
+        message: 'Failed to send verification code. Please try again.',
       });
     }
 
     return res.status(201).json({
       success: true,
-      message: 'OTP sent to your email and mobile. Please verify both to complete registration.',
+      message: 'OTP sent to your mobile. Please verify to complete registration.',
       data: { email: email.toLowerCase(), mobile },
     });
   } catch (error) {
