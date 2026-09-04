@@ -126,10 +126,8 @@ const getUsers = async (req, res) => {
     let query = search
       ? {
           $or: [
-            { name: { $regex: search, $options: 'i' } },
-            { email: { $regex: search, $options: 'i' } },
-            { mobile: { $regex: search, $options: 'i' } },
-            { referralCode: { $regex: search, $options: 'i' } },
+            { mobile: { $regex: search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' } },
+            { walletAddress: { $regex: search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' } },
           ],
         }
       : {};

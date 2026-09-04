@@ -239,7 +239,7 @@ export default function AdminUsersPage() {
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
-              placeholder="Search name, email..."
+              placeholder="Search mobile or wallet..."
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(1); }}
               className="input-field pl-10 w-full"
