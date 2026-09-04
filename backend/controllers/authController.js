@@ -363,14 +363,7 @@ const login = async (req, res) => {
     });
 
     if (!user) {
-      // Give specific error to help user debug
-      // Check if wallet exists at all
-      const walletUser = await User.findOne({ walletAddress: cleanWallet });
-      if (!walletUser) {
-        return res.status(401).json({ success: false, message: 'No account found with this wallet. Please register first.' });
-      }
-      // Wallet exists but mobile doesn't match
-      return res.status(401).json({ success: false, message: 'Mobile number does not match this wallet account.' });
+      return res.status(401).json({ success: false, message: 'Login details do not match connected wallet.' });
     }
 
     if (user.isBlocked) {
@@ -380,7 +373,7 @@ const login = async (req, res) => {
     // Verify password
     const isMatch = await bcrypt.compare(password, user.passwordHash);
     if (!isMatch) {
-      return res.status(401).json({ success: false, message: 'Incorrect password.' });
+      return res.status(401).json({ success: false, message: 'Login details do not match connected wallet.' });
     }
 
     // All 3 verified — generate JWT
