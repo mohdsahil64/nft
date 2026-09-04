@@ -345,39 +345,43 @@ const login = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Wallet address is required. Please connect your wallet first.' });
     }
 
-    // Validate wallet format
     const cleanWallet = walletAddress.trim().toLowerCase();
     if (!cleanWallet.startsWith('0x') || cleanWallet.length !== 42) {
       return res.status(400).json({ success: false, message: 'Invalid wallet address format.' });
     }
 
-    // Normalize mobile input
-    const cleanMobileInput = mobile.trim().replace(/\s+/g, '');
+    const cleanMobile = mobile.trim().replace(/\s+/g, '');
 
-    // Find user where ALL THREE match: walletAddress + mobile + verified
-    // This is the safest query — even if DB has duplicates, only exact match wins
-    const user = await User.findOne({
+    // Find ALL verified users matching this wallet (should be exactly 1 — wallet is unique)
+    // Then strictly check mobile matches THIS specific account
+    // This prevents: "first document found" issue when multiple users share a mobile
+    const userByWallet = await User.findOne({
       walletAddress: cleanWallet,
-      mobile: cleanMobileInput,
       isVerified: true,
     });
 
-    if (!user) {
+    if (!userByWallet) {
       return res.status(401).json({ success: false, message: 'Login details do not match connected wallet.' });
     }
 
-    if (user.isBlocked) {
+    // Strictly verify mobile matches THIS wallet's account
+    const dbMobile = (userByWallet.mobile || '').trim().replace(/\s+/g, '');
+    if (dbMobile !== cleanMobile) {
+      return res.status(401).json({ success: false, message: 'Login details do not match connected wallet.' });
+    }
+
+    if (userByWallet.isBlocked) {
       return res.status(403).json({ success: false, message: 'Account is blocked. Contact support.' });
     }
 
     // Verify password
-    const isMatch = await bcrypt.compare(password, user.passwordHash);
+    const isMatch = await bcrypt.compare(password, userByWallet.passwordHash);
     if (!isMatch) {
       return res.status(401).json({ success: false, message: 'Login details do not match connected wallet.' });
     }
 
-    // All 3 verified — generate JWT
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+    // All checks passed — generate JWT for this exact user
+    const token = jwt.sign({ id: userByWallet._id }, process.env.JWT_SECRET, {
       expiresIn: process.env.JWT_EXPIRES_IN || '7d',
     });
 
@@ -393,14 +397,14 @@ const login = async (req, res) => {
       message: 'Login successful',
       data: {
         user: {
-          _id: user._id,
-          name: user.name,
-          email: user.email,
-          mobile: user.mobile,
-          walletAddress: user.walletAddress,
-          network: user.network,
-          referralCode: user.referralCode,
-          createdAt: user.createdAt,
+          _id: userByWallet._id,
+          name: userByWallet.name,
+          email: userByWallet.email,
+          mobile: userByWallet.mobile,
+          walletAddress: userByWallet.walletAddress,
+          network: userByWallet.network,
+          referralCode: userByWallet.referralCode,
+          createdAt: userByWallet.createdAt,
         },
         token,
       },

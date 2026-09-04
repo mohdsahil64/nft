@@ -10,29 +10,45 @@ import MaintenanceGate from '../components/MaintenanceGate';
 
 function SessionRestorer() {
   useEffect(() => {
-    // Restore wallet state from localStorage (survives page refresh)
-    const savedWallet = localStorage.getItem('walletAddress');
-    if (savedWallet && !store.getState().wallet.isConnected) {
-      store.dispatch(connectWallet({ address: savedWallet, chainId: null }));
-    }
-
     const token = sessionStorage.getItem('token');
+
     if (token && !store.getState().user.isAuthenticated) {
-      // Restore session from token — user didn't logout, so keep them logged in
+      // Valid session — restore user (page reload, keep logged in)
       userAPI.getProfile()
         .then((res) => {
-          store.dispatch(loginSuccess({ user: res.data.data, token }));
+          const user = res.data.data;
+          // Restore wallet from DB record only (trusted source)
+          if (user.walletAddress) {
+            localStorage.setItem('walletAddress', user.walletAddress);
+            store.dispatch(connectWallet({ address: user.walletAddress, chainId: null }));
+          }
+          store.dispatch(loginSuccess({ user, token }));
         })
         .catch(() => {
-          // Token expired or invalid — clear it, user must login again
+          // Token expired — clear everything
           sessionStorage.removeItem('token');
+          localStorage.removeItem('walletAddress');
           store.dispatch(sessionCheckDone());
         });
     } else {
-      // No token or already authenticated — mark session check as done
+      // No session token — clear stale wallet so old user's wallet doesn't leak
+      localStorage.removeItem('walletAddress');
       store.dispatch(sessionCheckDone());
     }
   }, []);
+
+  // Tab/browser close — if no active session, clear localStorage
+  useEffect(() => {
+    const handleUnload = () => {
+      const token = sessionStorage.getItem('token');
+      if (!token) {
+        localStorage.removeItem('walletAddress');
+      }
+    };
+    window.addEventListener('beforeunload', handleUnload);
+    return () => window.removeEventListener('beforeunload', handleUnload);
+  }, []);
+
   return null;
 }
 

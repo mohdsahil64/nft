@@ -26,6 +26,9 @@ const walletSlice = createSlice({
       state.error = null;
     },
     disconnectWallet(state) {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('walletAddress');
+      }
       return initialState;
     },
     setBalances(state, action) {

@@ -149,9 +149,31 @@ function AuthContent() {
     e.preventDefault();
     setLoginLoading(true);
     try {
-      const res = await authAPI.login({ ...loginForm, walletAddress: address });
+      // Get live wallet address directly from the wallet provider
+      // Never trust Redux/localStorage — always ask the wallet for current address
+      let liveWalletAddress = address;
+      try {
+        if (window.ethereum) {
+          const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+          if (accounts && accounts[0]) {
+            liveWalletAddress = accounts[0].toLowerCase();
+            // Update localStorage and Redux with the real live address
+            localStorage.setItem('walletAddress', liveWalletAddress);
+          }
+        }
+      } catch (_) {}
+
+      if (!liveWalletAddress) {
+        toast.error('Wallet not connected. Please connect your wallet first.');
+        setLoginLoading(false);
+        return;
+      }
+
+      const res = await authAPI.login({ ...loginForm, walletAddress: liveWalletAddress });
       const { user, token } = res.data.data;
       if (token) sessionStorage.setItem('token', token);
+      // Store the correct wallet from DB response (single source of truth)
+      localStorage.setItem('walletAddress', user.walletAddress);
       dispatch(loginSuccess({ user, token }));
       toast.success('Login successful!');
       router.push('/dashboard');
