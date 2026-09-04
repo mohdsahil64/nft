@@ -5,6 +5,7 @@ import Providers from './providers';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata = {
+  metadataBase: new URL('https://futuremint.pro'),
   title: 'FutureMint NFT — Watch, Earn & Own the Digital Future | Web3 Ecosystem',
   description: 'FutureMint NFT is a premium Web3 ecosystem where you watch short videos, earn NFTs & FM tokens daily, build teams, and grow in the evolving digital economy. Join free today.',
   keywords: 'FutureMint, NFT, FM Token, Web3, earn NFTs, watch to earn, DeFi, BSC, Polygon, digital future, blockchain, crypto earning, referral rewards, passive income crypto',
