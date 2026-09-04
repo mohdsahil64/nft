@@ -336,10 +336,10 @@ const verifyRegistrationOTP = async (req, res) => {
  */
 const login = async (req, res) => {
   try {
-    const { mobile, password, walletAddress } = req.body;
+    const { email, password, walletAddress } = req.body;
 
-    if (!mobile || !password) {
-      return res.status(400).json({ success: false, message: 'Mobile number and password are required' });
+    if (!email || !password) {
+      return res.status(400).json({ success: false, message: 'Email and password are required' });
     }
     if (!walletAddress) {
       return res.status(400).json({ success: false, message: 'Wallet address is required. Please connect your wallet first.' });
@@ -350,38 +350,32 @@ const login = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid wallet address format.' });
     }
 
-    const cleanMobile = mobile.trim().replace(/\s+/g, '');
+    const cleanEmail = email.trim().toLowerCase();
 
-    // Find ALL verified users matching this wallet (should be exactly 1 — wallet is unique)
-    // Then strictly check mobile matches THIS specific account
-    // This prevents: "first document found" issue when multiple users share a mobile
-    const userByWallet = await User.findOne({
-      walletAddress: cleanWallet,
-      isVerified: true,
-    });
+    // Step 1: Find user by wallet (wallet is 100% unique — 0 duplicates confirmed)
+    const user = await User.findOne({ walletAddress: cleanWallet, isVerified: true });
 
-    if (!userByWallet) {
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'No account found with this wallet. Please register first.' });
+    }
+
+    // Step 2: Verify email matches THIS wallet's account
+    if (user.email !== cleanEmail) {
       return res.status(401).json({ success: false, message: 'Login details do not match connected wallet.' });
     }
 
-    // Strictly verify mobile matches THIS wallet's account
-    const dbMobile = (userByWallet.mobile || '').trim().replace(/\s+/g, '');
-    if (dbMobile !== cleanMobile) {
-      return res.status(401).json({ success: false, message: 'Login details do not match connected wallet.' });
-    }
-
-    if (userByWallet.isBlocked) {
+    if (user.isBlocked) {
       return res.status(403).json({ success: false, message: 'Account is blocked. Contact support.' });
     }
 
-    // Verify password
-    const isMatch = await bcrypt.compare(password, userByWallet.passwordHash);
+    // Step 3: Verify password
+    const isMatch = await bcrypt.compare(password, user.passwordHash);
     if (!isMatch) {
       return res.status(401).json({ success: false, message: 'Login details do not match connected wallet.' });
     }
 
-    // All checks passed — generate JWT for this exact user
-    const token = jwt.sign({ id: userByWallet._id }, process.env.JWT_SECRET, {
+    // All checks passed — generate JWT
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
       expiresIn: process.env.JWT_EXPIRES_IN || '7d',
     });
 
@@ -397,14 +391,14 @@ const login = async (req, res) => {
       message: 'Login successful',
       data: {
         user: {
-          _id: userByWallet._id,
-          name: userByWallet.name,
-          email: userByWallet.email,
-          mobile: userByWallet.mobile,
-          walletAddress: userByWallet.walletAddress,
-          network: userByWallet.network,
-          referralCode: userByWallet.referralCode,
-          createdAt: userByWallet.createdAt,
+          _id: user._id,
+          name: user.name,
+          email: user.email,
+          mobile: user.mobile,
+          walletAddress: user.walletAddress,
+          network: user.network,
+          referralCode: user.referralCode,
+          createdAt: user.createdAt,
         },
         token,
       },
@@ -509,30 +503,34 @@ const resendOTP = async (req, res) => {
 
 /**
  * POST /api/auth/forgot-password
- * Find user by mobile + walletAddress, send OTP via SMS
+ * Find user by email + walletAddress, send OTP via SMS to mobile
  */
 const forgotPassword = async (req, res) => {
   try {
-    const { mobile, walletAddress } = req.body;
-    if (!mobile || !walletAddress) {
-      return res.status(400).json({ success: false, message: 'Mobile number and wallet address are required' });
+    const { email, walletAddress } = req.body;
+    if (!email || !walletAddress) {
+      return res.status(400).json({ success: false, message: 'Email and wallet address are required' });
     }
 
-    // Find user matching mobile AND wallet address
+    const cleanWallet = walletAddress.trim().toLowerCase();
+    const cleanEmail = email.trim().toLowerCase();
+
+    // Find user by wallet + email (both unique together)
     const user = await User.findOne({
-      mobile,
-      walletAddress: walletAddress.toLowerCase(),
+      walletAddress: cleanWallet,
+      email: cleanEmail,
+      isVerified: true,
     });
 
     if (!user) {
-      return res.status(404).json({ success: false, message: 'No account found with this mobile number and wallet address combination.' });
+      return res.status(404).json({ success: false, message: 'No account found with this email and wallet address.' });
     }
 
     if (!user.isVerified) {
       return res.status(403).json({ success: false, message: 'Account not verified.' });
     }
 
-    // Generate and send OTP to mobile via SMS
+    // Send OTP to mobile via SMS
     try {
       const { generateOTP, storeOTP } = require('../utils/otpService');
       const { sendSMSOTP } = require('../utils/smsService');
@@ -547,8 +545,8 @@ const forgotPassword = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: 'OTP sent to your mobile number. Verify to reset password.',
-      data: { mobile: user.mobile },
+      message: 'OTP sent to your registered mobile number.',
+      data: { mobile: user.mobile.replace(/(\d{2})\d+(\d{2})/, '$1****$2') },
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message || 'Failed' });
@@ -561,23 +559,28 @@ const forgotPassword = async (req, res) => {
  */
 const resetPassword = async (req, res) => {
   try {
-    const { mobile, otp, newPassword } = req.body;
-    if (!mobile || !otp || !newPassword) {
-      return res.status(400).json({ success: false, message: 'Mobile number, OTP, and new password are required' });
+    const { email, walletAddress, otp, newPassword } = req.body;
+    if (!email || !walletAddress || !otp || !newPassword) {
+      return res.status(400).json({ success: false, message: 'All fields are required' });
     }
 
     if (newPassword.length < 8) {
       return res.status(400).json({ success: false, message: 'Password must be at least 8 characters' });
     }
 
-    const result = await verifyOTP(mobile, otp, 'password_reset');
-    if (!result.valid) {
-      return res.status(400).json({ success: false, message: result.message });
-    }
+    const user = await User.findOne({
+      walletAddress: walletAddress.trim().toLowerCase(),
+      email: email.trim().toLowerCase(),
+      isVerified: true,
+    });
 
-    const user = await User.findOne({ mobile });
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const result = await verifyOTP(user.mobile, otp, 'password_reset');
+    if (!result.valid) {
+      return res.status(400).json({ success: false, message: result.message });
     }
 
     user.passwordHash = await bcrypt.hash(newPassword, 12);
