@@ -336,10 +336,10 @@ const verifyRegistrationOTP = async (req, res) => {
  */
 const login = async (req, res) => {
   try {
-    const { email, password, walletAddress } = req.body;
+    const { mobile, password, walletAddress } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({ success: false, message: 'Email and password are required' });
+    if (!mobile || !password) {
+      return res.status(400).json({ success: false, message: 'Mobile number and password are required' });
     }
     if (!walletAddress) {
       return res.status(400).json({ success: false, message: 'Wallet address is required. Please connect your wallet first.' });
@@ -350,17 +350,17 @@ const login = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid wallet address format.' });
     }
 
-    const cleanEmail = email.trim().toLowerCase();
+    const cleanMobile = mobile.trim().replace(/\s+/g, '');
 
-    // Step 1: Find user by wallet (wallet is 100% unique — 0 duplicates confirmed)
+    // Step 1: Find user by wallet ONLY (wallet is 100% unique)
     const user = await User.findOne({ walletAddress: cleanWallet, isVerified: true });
-
     if (!user) {
-      return res.status(401).json({ success: false, message: 'No account found with this wallet. Please register first.' });
+      return res.status(401).json({ success: false, message: 'Login details do not match connected wallet.' });
     }
 
-    // Step 2: Verify email matches THIS wallet's account
-    if (user.email !== cleanEmail) {
+    // Step 2: Verify mobile matches THIS wallet's account exactly
+    const dbMobile = (user.mobile || '').trim().replace(/\s+/g, '');
+    if (dbMobile !== cleanMobile) {
       return res.status(401).json({ success: false, message: 'Login details do not match connected wallet.' });
     }
 
@@ -374,7 +374,7 @@ const login = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Login details do not match connected wallet.' });
     }
 
-    // All checks passed — generate JWT
+    // All 3 verified — generate JWT
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
       expiresIn: process.env.JWT_EXPIRES_IN || '7d',
     });

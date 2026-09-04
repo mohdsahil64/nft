@@ -34,7 +34,7 @@ function AuthContent() {
   const [resendCooldown, setResendCooldown] = useState(0);
 
   // Login form
-  const [loginForm, setLoginForm] = useState({ email: '', password: '' });
+  const [loginForm, setLoginForm] = useState({ mobile: '', password: '' });
   const [loginLoading, setLoginLoading] = useState(false);
 
   // Register form
@@ -473,12 +473,12 @@ function AuthContent() {
             {activeTab === 'login' && (
               <form onSubmit={handleLogin} noValidate className="space-y-4">
                 <div className="relative">
-                  <RiMailLine className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                  <input type="email" required value={loginForm.email}
-                    onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })}
-                    placeholder="Email Address"
+                  <RiPhoneLine className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                  <input type="tel" required value={loginForm.mobile}
+                    onChange={(e) => setLoginForm({ ...loginForm, mobile: e.target.value })}
+                    placeholder="Mobile Number"
                     className="w-full bg-dark-800 border border-dark-600 rounded-xl py-3 pl-10 pr-4 text-white text-sm placeholder:text-slate-500 focus:outline-none focus:border-cyan-500/50 transition-colors"
-                    autoComplete="email" />
+                    autoComplete="tel" />
                 </div>
                 <div className="relative">
                   <RiLockLine className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
