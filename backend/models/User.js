@@ -32,7 +32,8 @@ const userSchema = new mongoose.Schema(
       required: [true, 'Wallet address is required'],
       trim: true,
       lowercase: true,
-      index: true,
+      unique: true,
+      sparse: true,
       validate: {
         validator: function(v) {
           return v && v.startsWith('0x') && v.length === 42;

@@ -351,35 +351,39 @@ const login = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid wallet address format.' });
     }
 
-    // Step 1: Find user by wallet address (wallet is unique — 1 wallet = 1 account)
-    const user = await User.findOne({ walletAddress: cleanWallet });
-    if (!user) {
-      return res.status(401).json({ success: false, message: 'No account found with this wallet address. Please register first.' });
-    }
-
-    // Step 2: Verify mobile matches this wallet's account
-    // Normalize mobile — strip spaces and leading zeros for comparison
+    // Normalize mobile input
     const cleanMobileInput = mobile.trim().replace(/\s+/g, '');
-    const cleanMobileDB = (user.mobile || '').trim().replace(/\s+/g, '');
-    if (cleanMobileDB !== cleanMobileInput) {
+
+    // Find user where ALL THREE match: walletAddress + mobile + verified
+    // This is the safest query — even if DB has duplicates, only exact match wins
+    const user = await User.findOne({
+      walletAddress: cleanWallet,
+      mobile: cleanMobileInput,
+      isVerified: true,
+    });
+
+    if (!user) {
+      // Give specific error to help user debug
+      // Check if wallet exists at all
+      const walletUser = await User.findOne({ walletAddress: cleanWallet });
+      if (!walletUser) {
+        return res.status(401).json({ success: false, message: 'No account found with this wallet. Please register first.' });
+      }
+      // Wallet exists but mobile doesn't match
       return res.status(401).json({ success: false, message: 'Mobile number does not match this wallet account.' });
     }
 
-    // Step 3: Check account status
-    if (!user.isVerified) {
-      return res.status(403).json({ success: false, message: 'Account not verified. Please complete registration.' });
-    }
     if (user.isBlocked) {
       return res.status(403).json({ success: false, message: 'Account is blocked. Contact support.' });
     }
 
-    // Step 4: Verify password
+    // Verify password
     const isMatch = await bcrypt.compare(password, user.passwordHash);
     if (!isMatch) {
       return res.status(401).json({ success: false, message: 'Incorrect password.' });
     }
 
-    // All 3 checks passed — generate JWT
+    // All 3 verified — generate JWT
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
       expiresIn: process.env.JWT_EXPIRES_IN || '7d',
     });
