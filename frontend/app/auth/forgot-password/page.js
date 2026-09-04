@@ -5,8 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { authAPI } from '../../../lib/api';
 import OTPInput from '../../../components/shared/OTPInput';
-import LoadingSpinner from '../../../components/shared/LoadingSpinner';
-import { RiMailLine, RiLockLine } from 'react-icons/ri';
+import { RiPhoneLine, RiLockLine } from 'react-icons/ri';
 import { Eye, EyeOff, CheckCircle, Loader2, ArrowLeft, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -17,9 +16,8 @@ export default function ForgotPasswordPage() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [email, setEmail] = useState('');
+  const [mobile, setMobile] = useState('');
   const [walletAddress, setWalletAddress] = useState(address || '');
-  const [maskedMobile, setMaskedMobile] = useState('');
   const [otp, setOtp] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [resendCooldown, setResendCooldown] = useState(0);
@@ -41,14 +39,13 @@ export default function ForgotPasswordPage() {
     return () => clearInterval(t);
   }, [resendCooldown]);
 
-  const handleSubmitEmail = async (e) => {
+  const handleSubmitMobile = async (e) => {
     e.preventDefault();
-    if (!email) { toast.error('Email is required'); return; }
+    if (!mobile) { toast.error('Mobile number is required'); return; }
     setLoading(true);
     try {
-      const res = await authAPI.forgotPassword({ email, walletAddress });
+      const res = await authAPI.forgotPassword({ mobile, walletAddress });
       toast.success(res.data.message);
-      setMaskedMobile(res.data.data?.mobile || '');
       setStep(2);
       setResendCooldown(60);
     } catch (err) {
@@ -62,7 +59,7 @@ export default function ForgotPasswordPage() {
     if (newPassword.length < 8) { toast.error('Password must be at least 8 characters'); return; }
     setLoading(true);
     try {
-      const res = await authAPI.resetPassword({ email, walletAddress, otp, newPassword });
+      const res = await authAPI.resetPassword({ mobile, otp, newPassword });
       toast.success(res.data.message);
       setStep(3);
     } catch (err) {
@@ -73,8 +70,8 @@ export default function ForgotPasswordPage() {
   const handleResendOTP = async () => {
     if (resendCooldown > 0) return;
     try {
-      await authAPI.forgotPassword({ email, walletAddress });
-      toast.success('OTP resent to your mobile');
+      await authAPI.forgotPassword({ mobile, walletAddress });
+      toast.success('OTP resent');
       setResendCooldown(60);
     } catch (_) { toast.error('Failed to resend'); }
   };
@@ -113,7 +110,7 @@ export default function ForgotPasswordPage() {
             <div className="text-center mb-5">
               <h2 className="text-lg font-bold text-white mb-1">Reset Password</h2>
               <p className="text-slate-400 text-xs">
-                OTP sent to your mobile <span className="text-cyan-400">{maskedMobile}</span>
+                OTP sent to <span className="text-cyan-400">{mobile}</span>
               </p>
             </div>
             <form onSubmit={handleResetPassword} noValidate className="space-y-4">
@@ -150,7 +147,7 @@ export default function ForgotPasswordPage() {
     );
   }
 
-  // Step 1: Email
+  // Step 1: Mobile
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#070714] px-4 py-10">
       <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
@@ -166,17 +163,16 @@ export default function ForgotPasswordPage() {
               <RiLockLine className="w-6 h-6 text-purple-400" />
             </div>
             <h2 className="text-lg font-bold text-white mb-1">Forgot Password</h2>
-            <p className="text-slate-400 text-xs">Enter your email to receive OTP on your mobile</p>
+            <p className="text-slate-400 text-xs">Enter your mobile number to receive a reset code</p>
           </div>
-          <form onSubmit={handleSubmitEmail} noValidate className="space-y-4">
+          <form onSubmit={handleSubmitMobile} noValidate className="space-y-4">
             <div className="relative">
-              <RiMailLine className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-              <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
-                placeholder="Email Address"
+              <RiPhoneLine className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+              <input type="tel" required value={mobile} onChange={(e) => setMobile(e.target.value)}
+                placeholder="Mobile Number"
                 className="w-full bg-dark-800 border border-dark-600 rounded-xl py-3 pl-10 pr-4 text-white text-sm placeholder:text-slate-500 focus:outline-none focus:border-cyan-500/50 transition-colors"
-                autoComplete="email" />
+                autoComplete="tel" />
             </div>
-            {/* Wallet address readonly */}
             <div className="relative opacity-60">
               <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs">🔗</span>
               <input type="text" value={walletAddress} readOnly

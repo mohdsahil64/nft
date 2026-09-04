@@ -503,38 +503,33 @@ const resendOTP = async (req, res) => {
 
 /**
  * POST /api/auth/forgot-password
- * Find user by email + walletAddress, send OTP via SMS to mobile
+ * Find user by mobile + walletAddress, send OTP via SMS
  */
 const forgotPassword = async (req, res) => {
   try {
-    const { email, walletAddress } = req.body;
-    if (!email || !walletAddress) {
-      return res.status(400).json({ success: false, message: 'Email and wallet address are required' });
+    const { mobile, walletAddress } = req.body;
+    if (!mobile || !walletAddress) {
+      return res.status(400).json({ success: false, message: 'Mobile number and wallet address are required' });
     }
 
     const cleanWallet = walletAddress.trim().toLowerCase();
-    const cleanEmail = email.trim().toLowerCase();
+    const cleanMobile = mobile.trim().replace(/\s+/g, '');
 
-    // Find user by wallet + email (both unique together)
+    // Find user by wallet + mobile
     const user = await User.findOne({
       walletAddress: cleanWallet,
-      email: cleanEmail,
+      mobile: cleanMobile,
       isVerified: true,
     });
 
     if (!user) {
-      return res.status(404).json({ success: false, message: 'No account found with this email and wallet address.' });
-    }
-
-    if (!user.isVerified) {
-      return res.status(403).json({ success: false, message: 'Account not verified.' });
+      return res.status(404).json({ success: false, message: 'No account found with this mobile and wallet address.' });
     }
 
     // Send OTP to mobile via SMS
     try {
       const { generateOTP, storeOTP } = require('../utils/otpService');
       const { sendSMSOTP } = require('../utils/smsService');
-
       const otp = generateOTP();
       await storeOTP(user.mobile, otp, 'password_reset');
       await sendSMSOTP(user.mobile, otp);
@@ -545,8 +540,8 @@ const forgotPassword = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: 'OTP sent to your registered mobile number.',
-      data: { mobile: user.mobile.replace(/(\d{2})\d+(\d{2})/, '$1****$2') },
+      message: 'OTP sent to your mobile number.',
+      data: { mobile: cleanMobile },
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message || 'Failed' });
@@ -559,28 +554,24 @@ const forgotPassword = async (req, res) => {
  */
 const resetPassword = async (req, res) => {
   try {
-    const { email, walletAddress, otp, newPassword } = req.body;
-    if (!email || !walletAddress || !otp || !newPassword) {
-      return res.status(400).json({ success: false, message: 'All fields are required' });
+    const { mobile, otp, newPassword } = req.body;
+    if (!mobile || !otp || !newPassword) {
+      return res.status(400).json({ success: false, message: 'Mobile, OTP, and new password are required' });
     }
 
     if (newPassword.length < 8) {
       return res.status(400).json({ success: false, message: 'Password must be at least 8 characters' });
     }
 
-    const user = await User.findOne({
-      walletAddress: walletAddress.trim().toLowerCase(),
-      email: email.trim().toLowerCase(),
-      isVerified: true,
-    });
-
-    if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' });
-    }
-
-    const result = await verifyOTP(user.mobile, otp, 'password_reset');
+    const result = await verifyOTP(mobile.trim(), otp, 'password_reset');
     if (!result.valid) {
       return res.status(400).json({ success: false, message: result.message });
+    }
+
+    // Find user by mobile (wallet confirmed at step 1)
+    const user = await User.findOne({ mobile: mobile.trim(), isVerified: true });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
     }
 
     user.passwordHash = await bcrypt.hash(newPassword, 12);
@@ -588,7 +579,7 @@ const resetPassword = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: 'Password reset successful. You can now login with your new password.',
+      message: 'Password reset successful. You can now login.',
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message || 'Password reset failed' });
