@@ -7,7 +7,7 @@ import { authAPI } from '../../lib/api';
 import { logout } from '../../store/slices/userSlice';
 import { disconnectWallet } from '../../store/slices/walletSlice';
 import Navbar from '../../components/shared/Navbar';
-import { RiWallet3Line, RiArrowDownCircleLine, RiCoinLine, RiCustomerService2Line, RiInformationLine, RiLogoutBoxRLine, RiArrowRightSLine, RiVerifiedBadgeFill, RiSwapLine } from 'react-icons/ri';
+import { RiWallet3Line, RiArrowDownCircleLine, RiCoinLine, RiCustomerService2Line, RiInformationLine, RiLogoutBoxRLine, RiArrowRightSLine, RiVerifiedBadgeFill, RiSwapLine, RiGiftLine } from 'react-icons/ri';
 import { truncateAddress } from '../../lib/web3';
 import toast from 'react-hot-toast';
 
@@ -73,7 +73,23 @@ export default function ProfilePage() {
         {/* ─── Menu Options ─── */}
         <div className="rounded-2xl border border-dark-600/60 bg-dark-800/50 overflow-hidden mb-5">
 
-          {/* Withdrawal */}
+          {/* September Mega Offer */}
+          <Link href="/profile/offer"
+            className="w-full flex items-center justify-between px-4 py-4 border-b border-dark-700/50 hover:bg-dark-700/30 transition-colors">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-orange-500/10 flex items-center justify-center relative">
+                <RiGiftLine className="w-4.5 h-4.5 text-orange-400" />
+                <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse" />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-white">September Mega Offer 🔥</p>
+                <p className="text-[9px] text-orange-400 font-medium">Limited Time — Tap to view!</p>
+              </div>
+            </div>
+            <RiArrowRightSLine className="w-5 h-5 text-slate-600" />
+          </Link>
+
+          {/* Swap */}
           <Link href="/profile/swap"
             className="w-full flex items-center justify-between px-4 py-4 border-b border-dark-700/50 hover:bg-dark-700/30 transition-colors">
             <div className="flex items-center gap-3">

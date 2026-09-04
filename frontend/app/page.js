@@ -193,6 +193,50 @@ export default function LandingPage() {
             GET STARTED <BsArrowRight className="w-5 h-5" />
           </button>
           <p className="text-center text-slate-500 text-[11px] mt-2.5">NO INVESTMENT REQUIRED*</p>
+
+          {/* ─── SEPTEMBER MEGA OFFER BANNER ─── */}
+          <div className="relative mt-5 rounded-2xl overflow-hidden border border-orange-500/30">
+            <div className="absolute inset-0 bg-gradient-to-br from-[#1a0800] via-[#0d0714] to-[#0a0020]" />
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[250px] h-[120px] bg-orange-600/20 rounded-full blur-[50px]" />
+            <div className="relative z-10 p-4">
+              {/* Title */}
+              <div className="flex items-center justify-center gap-1.5 mb-3">
+                <span className="text-lg animate-bounce" style={{ animationDuration: '1.5s' }}>🔥</span>
+                <span className="text-sm font-black text-white tracking-wide">SEPTEMBER MEGA OFFER</span>
+                <span className="text-lg animate-bounce" style={{ animationDuration: '1.5s', animationDelay: '0.2s' }}>🔥</span>
+              </div>
+
+              {/* Rewards row */}
+              <div className="grid grid-cols-2 gap-2.5 mb-3">
+                {/* Reward 1 */}
+                <div className="rounded-xl bg-cyan-500/8 border border-cyan-500/20 p-3 text-center">
+                  <p className="text-[9px] text-cyan-400 font-bold uppercase mb-1.5">🎯 Reward 1</p>
+                  <p className="text-[9px] text-slate-300 mb-0.5">👥 50 Direct</p>
+                  <p className="text-[9px] text-slate-300 mb-2">🌐 500 Team</p>
+                  <div className="pt-1.5 border-t border-cyan-500/15">
+                    <p className="text-[10px] font-bold text-cyan-300">5,000 NFT</p>
+                    <p className="text-[10px] font-bold text-yellow-400">+ 5,000 FM</p>
+                  </div>
+                </div>
+                {/* Reward 2 */}
+                <div className="rounded-xl bg-purple-500/8 border border-purple-500/20 p-3 text-center">
+                  <p className="text-[9px] text-purple-400 font-bold uppercase mb-1.5">👑 Reward 2</p>
+                  <p className="text-[9px] text-slate-300 mb-0.5">👥 100 Direct</p>
+                  <p className="text-[9px] text-slate-300 mb-2">🌐 1,000 Team</p>
+                  <div className="pt-1.5 border-t border-purple-500/15">
+                    <p className="text-[10px] font-bold text-purple-300">10,000 NFT</p>
+                    <p className="text-[10px] font-bold text-yellow-400">+ 10,000 FM</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bottom text */}
+              <div className="text-center">
+                <p className="text-[10px] font-black text-orange-400 mb-0.5">🚀 SEPTEMBER ONLY!</p>
+                <p className="text-[9px] text-slate-400">💎 Build Your Team • Unlock Your Bonus</p>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
