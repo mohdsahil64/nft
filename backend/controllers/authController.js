@@ -43,6 +43,14 @@ const register = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid wallet address format.' });
     }
 
+    // Block dummy/zero/placeholder wallet addresses (e.g. 0x0000...0001)
+    // A valid wallet must have real hex content, not mostly zeros
+    const hexPart = cleanWallet.slice(2); // remove '0x'
+    const nonZeroChars = hexPart.replace(/0/g, '').length;
+    if (nonZeroChars < 10 || /^0x0+1?$/.test(cleanWallet)) {
+      return res.status(400).json({ success: false, message: 'Invalid wallet address. Please connect a real wallet.' });
+    }
+
     if (!['BSC', 'Polygon'].includes(network)) {
       return res.status(400).json({ success: false, message: 'Network must be BSC or Polygon' });
     }
@@ -224,21 +232,61 @@ const verifyMobileOTP = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Wallet address missing. Please register again with your wallet connected.' });
     }
 
+    const finalWallet = pending.walletAddress.toLowerCase();
+
+    // ─── FINAL SAFETY CHECKS (before account creation) ───
+
+    // 1. Block dummy/placeholder wallets
+    const hexPart = finalWallet.slice(2);
+    if (hexPart.replace(/0/g, '').length < 10) {
+      await PendingRegistration.deleteOne({ email: email.toLowerCase() });
+      return res.status(400).json({ success: false, message: 'Invalid wallet address. Please connect a real wallet.' });
+    }
+
+    // 2. Wallet must be unique — no account already using it
+    const walletTaken = await User.findOne({ walletAddress: finalWallet });
+    if (walletTaken) {
+      await PendingRegistration.deleteOne({ email: email.toLowerCase() });
+      return res.status(409).json({ success: false, message: 'This wallet is already registered. Please login instead.' });
+    }
+
+    // 3. Re-check 3-account limits (in case they filled up during pending)
+    const emailCount = await User.countDocuments({ email: pending.email });
+    if (emailCount >= 3) {
+      await PendingRegistration.deleteOne({ email: email.toLowerCase() });
+      return res.status(400).json({ success: false, message: 'Maximum 3 accounts allowed per email' });
+    }
+    const mobileCount = await User.countDocuments({ mobile: pending.mobile });
+    if (mobileCount >= 3) {
+      await PendingRegistration.deleteOne({ email: email.toLowerCase() });
+      return res.status(400).json({ success: false, message: 'Maximum 3 accounts allowed per mobile number' });
+    }
+
     // Now create the actual user in DB
     const newReferralCode = await generateReferralCode();
 
-    const user = await User.create({
-      name: pending.name,
-      email: pending.email,
-      mobile: pending.mobile,
-      passwordHash: pending.passwordHash,
-      walletAddress: pending.walletAddress || undefined,
-      network: pending.network,
-      referralCode: newReferralCode,
-      referredBy: pending.referredBy || null,
-      isVerified: true,
-      signupBonusClaimed: false, // Will claim from dashboard
-    });
+    let user;
+    try {
+      user = await User.create({
+        name: pending.name,
+        email: pending.email,
+        mobile: pending.mobile,
+        passwordHash: pending.passwordHash,
+        walletAddress: finalWallet,
+        network: pending.network,
+        referralCode: newReferralCode,
+        referredBy: pending.referredBy || null,
+        isVerified: true,
+        signupBonusClaimed: false, // Will claim from dashboard
+      });
+    } catch (createErr) {
+      // Unique index violation (duplicate wallet) — race condition safety
+      await PendingRegistration.deleteOne({ email: email.toLowerCase() });
+      if (createErr.code === 11000) {
+        return res.status(409).json({ success: false, message: 'This wallet is already registered. Please login instead.' });
+      }
+      throw createErr;
+    }
 
     // Create NFT wallet (empty — bonus credited on claim)
     await NFTWallet.create({ userId: user._id });
