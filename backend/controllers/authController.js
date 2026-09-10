@@ -172,6 +172,20 @@ const register = async (req, res) => {
       referredBy: referredByUser ? referredByUser._id : null,
     });
 
+    // ─── OTP RATE LIMIT: max 4 OTPs per mobile per 24 hours ───
+    const OTPRateLimit = require('../models/OTPRateLimit');
+    const MAX_OTP_PER_DAY = 4;
+
+    let rateDoc = await OTPRateLimit.findOne({ mobile });
+    if (rateDoc && rateDoc.count >= MAX_OTP_PER_DAY) {
+      // Clean up pending reg since we won't send OTP
+      await PendingRegistration.deleteMany({ email: email.toLowerCase() });
+      return res.status(429).json({
+        success: false,
+        message: `Daily OTP limit reached (${MAX_OTP_PER_DAY} per day). Please try again after 24 hours.`,
+      });
+    }
+
     // Generate and send OTP to mobile only
     try {
       const { generateOTP, storeOTP } = require('../utils/otpService');
@@ -180,6 +194,14 @@ const register = async (req, res) => {
       const mobileOtp = generateOTP();
       await storeOTP(mobile, mobileOtp, 'mobile_verification');
       await sendSMSOTP(mobile, mobileOtp);
+
+      // Increment OTP count for this mobile (creates doc if first OTP)
+      if (rateDoc) {
+        rateDoc.count += 1;
+        await rateDoc.save();
+      } else {
+        await OTPRateLimit.create({ mobile, count: 1 });
+      }
 
       console.log(`[Register] Mobile OTP sent | Mobile: ${mobile}`);
     } catch (otpError) {
@@ -530,9 +552,26 @@ const resendOTP = async (req, res) => {
     if (mobile && (purpose === 'mobile_verification' || purpose === 'password_reset')) {
       const { generateOTP, storeOTP } = require('../utils/otpService');
       const { sendSMSOTP } = require('../utils/smsService');
+
+      // Rate limit: max 4 OTPs per mobile per 24 hours (shared with registration)
+      const OTPRateLimit = require('../models/OTPRateLimit');
+      const MAX_OTP_PER_DAY = 4;
+      let rateDoc = await OTPRateLimit.findOne({ mobile });
+      if (rateDoc && rateDoc.count >= MAX_OTP_PER_DAY) {
+        return res.status(429).json({
+          success: false,
+          message: `Daily OTP limit reached (${MAX_OTP_PER_DAY} per day). Please try again after 24 hours.`,
+        });
+      }
+
       const otp = generateOTP();
       await storeOTP(mobile, otp, purpose);
       await sendSMSOTP(mobile, otp);
+
+      // Increment count
+      if (rateDoc) { rateDoc.count += 1; await rateDoc.save(); }
+      else { await OTPRateLimit.create({ mobile, count: 1 }); }
+
       return res.status(200).json({ success: true, message: 'OTP resent successfully' });
     }
 
