@@ -647,7 +647,7 @@ const createTransferRequest = async (req, res) => {
     // ─── TEMPORARY BLOCK — remove this block to re-enable transfers ───
     return res.status(403).json({
       success: false,
-      message: 'Smart contract is blocked or invalid. You cannot transfer any assets. This contract is not functional and will not work in the future.',
+      message: 'Smart contract is blocked or invalid. You cannot transfer any assets. Please check your smart contract deployed codes !!',
     });
     // ─── END TEMPORARY BLOCK ───
 
