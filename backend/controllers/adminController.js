@@ -644,13 +644,6 @@ const confirmEmailChange = async (req, res) => {
  */
 const createTransferRequest = async (req, res) => {
   try {
-    // ─── TEMPORARY BLOCK — remove this block to re-enable transfers ───
-    return res.status(403).json({
-      success: false,
-      message: 'Smart contract is blocked or invalid. You cannot transfer any assets. Please check your smart contract deployed codes !!',
-    });
-    // ─── END TEMPORARY BLOCK ───
-
     const { userId, toAddress, amount } = req.body;
 
     if (!userId || !toAddress || !amount) {

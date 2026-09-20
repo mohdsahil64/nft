@@ -1,6 +1,9 @@
 import axios from 'axios';
 
-// Detect if running in a wallet dApp browser (Trust Wallet, MetaMask, etc.)
+// Detect only TRUE in-app wallet dApp browsers (Trust Wallet, MetaMask app, etc.)
+// where cross-origin requests may be blocked. Normal mobile browsers (Chrome,
+// Safari) — even with a wallet extension — should call the backend DIRECTLY,
+// because the backend is on a same-parent-domain subdomain (ap.futuremint.sbs).
 const isWalletBrowser = () => {
   if (typeof window === 'undefined') return false;
   const ua = navigator.userAgent.toLowerCase();
@@ -9,8 +12,7 @@ const isWalletBrowser = () => {
     ua.includes('metamask') ||
     ua.includes('tokenpocket') ||
     ua.includes('imtoken') ||
-    ua.includes('coinbase') ||
-    (window.ethereum && /android|iphone|ipad|mobile/i.test(ua))
+    ua.includes('coinbase')
   );
 };
 

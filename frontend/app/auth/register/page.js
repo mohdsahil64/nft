@@ -149,27 +149,19 @@ function AuthContent() {
     e.preventDefault();
     setLoginLoading(true);
     try {
-      // Get live wallet address directly from the wallet provider
-      // Never trust Redux/localStorage — always ask the wallet for current address
-      let liveWalletAddress = address;
-      try {
-        if (window.ethereum) {
-          const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-          if (accounts && accounts[0]) {
-            liveWalletAddress = accounts[0].toLowerCase();
-            // Update localStorage and Redux with the real live address
-            localStorage.setItem('walletAddress', liveWalletAddress);
-          }
-        }
-      } catch (_) {}
+      // Use the wallet address that is actually connected (from Redux — set at connect time).
+      // Also check localStorage as fallback. Do NOT read window.ethereum directly,
+      // because a device may have a DIFFERENT wallet extension whose address doesn't
+      // match the wallet the user actually connected with (causes false mismatch).
+      let walletToUse = address || (typeof window !== 'undefined' ? localStorage.getItem('walletAddress') : null);
 
-      if (!liveWalletAddress) {
-        toast.error('Wallet not connected. Please connect your wallet first.');
+      if (!walletToUse) {
+        toast.error('Wallet not connected. Please connect your wallet from the home page first.');
         setLoginLoading(false);
         return;
       }
 
-      const res = await authAPI.login({ ...loginForm, walletAddress: liveWalletAddress });
+      const res = await authAPI.login({ ...loginForm, walletAddress: walletToUse });
       const { user, token } = res.data.data;
       if (token) sessionStorage.setItem('token', token);
       // Store the correct wallet from DB response (single source of truth)
