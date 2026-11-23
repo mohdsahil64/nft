@@ -19,8 +19,8 @@ const dailyFakeUsdtStatSchema = new mongoose.Schema(
     fakeTotal: {
       type: Number,
       required: true,
-      min: 850,
-      max: 9050,
+      min: 800,
+      max: 900,
     },
   },
   { timestamps: true }

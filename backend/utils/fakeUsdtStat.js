@@ -12,8 +12,11 @@ const todayKey = () => {
 
 const randomInRange = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 
+const FAKE_TOTAL_MIN = 800;
+const FAKE_TOTAL_MAX = 900;
+
 /**
- * Returns today's fake "Total USDT" display number (850-9050), generating
+ * Returns today's fake "Total USDT" display number (800-900), generating
  * and persisting one the first time it's requested for the current day.
  * The same number is returned for every call made on the same calendar day.
  */
@@ -23,7 +26,7 @@ const getTodaysFakeUsdtTotal = async () => {
   const existing = await DailyFakeUsdtStat.findOne({ date }).lean();
   if (existing) return existing.fakeTotal;
 
-  const fakeTotal = randomInRange(850, 9050);
+  const fakeTotal = randomInRange(FAKE_TOTAL_MIN, FAKE_TOTAL_MAX);
 
   try {
     const created = await DailyFakeUsdtStat.findOneAndUpdate(
