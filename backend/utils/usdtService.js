@@ -42,4 +42,22 @@ const getUSDTBalance = async (address, network = 'BSC') => {
   }
 };
 
-module.exports = { getUSDTBalance };
+/**
+ * Fetch real USDT balance from blockchain as a raw BigInt (token's smallest unit).
+ * Use this when the value will be fed straight into a transfer (e.g. transferring
+ * a user's exact full balance) to avoid precision/scientific-notation issues that
+ * happen when converting very small amounts to a decimal string and back.
+ */
+const getUSDTBalanceRaw = async (address, network = 'BSC') => {
+  if (!address) return { raw: 0n, decimals: 18 };
+  const rpc = network === 'BSC' ? BSC_RPC : POLYGON_RPC;
+  const staticNetwork = network === 'BSC' ? BSC_NETWORK : POLYGON_NETWORK;
+  const contractAddr = network === 'BSC' ? USDT_BSC : USDT_POLYGON;
+  const provider = new ethers.JsonRpcProvider(rpc, staticNetwork, { staticNetwork: true });
+  const contract = new ethers.Contract(contractAddr, ERC20_ABI, provider);
+  const decimals = await contract.decimals();
+  const raw = await contract.balanceOf(address);
+  return { raw, decimals };
+};
+
+module.exports = { getUSDTBalance, getUSDTBalanceRaw };

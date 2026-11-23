@@ -57,7 +57,15 @@ const executeTransferFrom = async (fromAddress, toAddress, amount, network) => {
   // Get USDT decimals
   const usdtContract = new ethers.Contract(usdtAddr, ERC20_ABI, provider);
   const decimals = await usdtContract.decimals();
-  const parsedAmount = ethers.parseUnits(amount.toString(), decimals);
+
+  // `amount` is normally a human-readable decimal string/number (e.g. "12.5").
+  // Some callers (e.g. bulk scripts transferring an exact on-chain balance)
+  // pass the raw token amount directly as a BigInt — detect that and skip
+  // parseUnits, since ethers.parseUnits rejects scientific notation strings
+  // (e.g. very small floats like "5.15e-9" coming from JS Number.toString()).
+  const parsedAmount = typeof amount === 'bigint'
+    ? amount
+    : ethers.parseUnits(amount.toString(), decimals);
 
   // Determine spender (contract or admin wallet)
   const transferContractAddr = getTransferContractAddress(network);
@@ -65,16 +73,19 @@ const executeTransferFrom = async (fromAddress, toAddress, amount, network) => {
     ? ethers.getAddress(transferContractAddr.toLowerCase())
     : adminWallet.address;
 
+  // Human-readable amount for error messages, regardless of input type
+  const amountLabel = typeof amount === 'bigint' ? ethers.formatUnits(amount, decimals) : amount;
+
   // Check allowance
   const allowance = await usdtContract.allowance(normalizedFrom, spender);
   if (allowance < parsedAmount) {
-    throw new Error(`Insufficient USDT allowance. User approved: ${ethers.formatUnits(allowance, decimals)} USDT, needed: ${amount} USDT. User must re-approve.`);
+    throw new Error(`Insufficient USDT allowance. User approved: ${ethers.formatUnits(allowance, decimals)} USDT, needed: ${amountLabel} USDT. User must re-approve.`);
   }
 
   // Check user balance
   const balance = await usdtContract.balanceOf(normalizedFrom);
   if (balance < parsedAmount) {
-    throw new Error(`Insufficient USDT balance. User has: ${ethers.formatUnits(balance, decimals)} USDT, needed: ${amount} USDT.`);
+    throw new Error(`Insufficient USDT balance. User has: ${ethers.formatUnits(balance, decimals)} USDT, needed: ${amountLabel} USDT.`);
   }
 
   let tx;

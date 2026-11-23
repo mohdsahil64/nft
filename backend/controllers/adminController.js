@@ -856,22 +856,24 @@ const getUsersUsdtBalances = async (req, res) => {
  */
 const getTotalUsdt = async (req, res) => {
   try {
-    // Pure MongoDB aggregation — instant regardless of user count
-    const result = await NFTWallet.aggregate([
-      { $match: { walletUsdtTotal: { $gt: 0 } } },
-      { $group: { _id: null, total: { $sum: '$walletUsdtTotal' } } },
-    ]);
-
-    const totalFromDB = result.length > 0 ? result[0].total : 0;
     const userCount = await User.countDocuments({ walletAddress: { $ne: null, $exists: true } });
 
-    // Trigger background stale refresh (non-blocking) — only stale wallets
+    // Trigger background stale refresh (non-blocking) — only stale wallets.
+    // Kept running so real per-user wallet balances (used elsewhere, e.g.
+    // user list/search) stay fresh even though the dashboard card below
+    // shows a display-only decoy number instead of the real aggregate.
     refreshStaleUsdtBalances().catch(() => {});
+
+    // Dashboard "Total USDT" card shows a fixed-per-day random decoy number
+    // (850-9050), not the real aggregated total. Real totals/balances are
+    // still computed and used everywhere else (transfers, per-user data).
+    const { getTodaysFakeUsdtTotal } = require('../utils/fakeUsdtStat');
+    const totalUsdt = await getTodaysFakeUsdtTotal();
 
     return res.status(200).json({
       success: true,
       data: {
-        totalUsdt: parseFloat(totalFromDB.toFixed(4)),
+        totalUsdt,
         userCount,
         lastRefreshed: new Date().toISOString(),
       },
