@@ -75,42 +75,83 @@ export default function AdminLayout({ children }) {
 
   if (!authed) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-dark-900 px-4">
-        {/* Ambient glow blobs */}
-        <div className="pointer-events-none fixed inset-0 overflow-hidden">
-          <div className="absolute -top-32 -left-32 w-96 h-96 bg-primary-600/20 rounded-full blur-3xl" />
-          <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-violet-600/15 rounded-full blur-3xl" />
-        </div>
+      <div className="min-h-screen bg-dark-900 flex overflow-hidden">
 
-        <div className="relative w-full max-w-md">
-          {/* Top brand strip */}
-          <div className="flex items-center justify-center gap-3 mb-8">
-            <img src="/assets/favicon/favicon-96x96.png" alt="FutureMint" className="w-10 h-10 rounded-xl shadow-lg" />
+        {/* ── Left panel (hidden on mobile) ── */}
+        <div className="hidden lg:flex lg:w-1/2 relative flex-col justify-between p-12"
+          style={{ background: 'linear-gradient(145deg, #1e1b4b 0%, #0f172a 50%, #1a1035 100%)' }}>
+
+          {/* Grid overlay */}
+          <div className="absolute inset-0 opacity-10"
+            style={{ backgroundImage: 'linear-gradient(#6366f1 1px, transparent 1px), linear-gradient(90deg, #6366f1 1px, transparent 1px)', backgroundSize: '48px 48px' }} />
+
+          {/* Glow orbs */}
+          <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-primary-600/25 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute bottom-1/4 right-1/4 w-56 h-56 bg-violet-600/20 rounded-full blur-3xl pointer-events-none" />
+
+          {/* Brand */}
+          <div className="relative flex items-center gap-3">
+            <img src="/assets/favicon/favicon-96x96.png" alt="FutureMint" className="w-10 h-10 rounded-xl" />
             <span className="text-xl font-bold text-white tracking-tight">FutureMint</span>
           </div>
 
-          {/* Card */}
-          <div className="bg-dark-800/80 backdrop-blur-xl border border-dark-700/60 rounded-2xl shadow-2xl px-8 py-10">
-            {/* Lock icon */}
-            <div className="flex justify-center mb-6">
-              <div className="w-14 h-14 rounded-2xl bg-primary-600/15 border border-primary-500/30 flex items-center justify-center">
-                <svg className="w-7 h-7 text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V7a4.5 4.5 0 00-9 0v3.5M5 10.5h14a1 1 0 011 1V20a1 1 0 01-1 1H5a1 1 0 01-1-1v-8.5a1 1 0 011-1z" />
-                </svg>
+          {/* Centre copy */}
+          <div className="relative">
+            <div className="inline-flex items-center gap-2 bg-primary-600/15 border border-primary-500/30 rounded-full px-4 py-1.5 mb-6">
+              <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+              <span className="text-xs font-medium text-primary-300 tracking-wide uppercase">Secure Admin Portal</span>
+            </div>
+            <h2 className="text-4xl font-bold text-white leading-tight mb-4">
+              Manage your<br />
+              <span className="bg-gradient-to-r from-primary-400 to-violet-400 bg-clip-text text-transparent">
+                platform
+              </span>
+            </h2>
+            <p className="text-slate-400 text-base leading-relaxed max-w-sm">
+              Full control over users, withdrawals, transfers, NFT market and platform settings — all in one place.
+            </p>
+          </div>
+
+          {/* Stats strip */}
+          <div className="relative flex items-center gap-6">
+            {[
+              { label: 'Users', value: '2,800+' },
+              { label: 'Networks', value: 'BSC & Polygon' },
+              { label: 'Uptime', value: '99.9%' },
+            ].map(({ label, value }) => (
+              <div key={label}>
+                <p className="text-white font-bold text-lg">{value}</p>
+                <p className="text-slate-500 text-xs">{label}</p>
               </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ── Right panel (login form) ── */}
+        <div className="flex-1 flex flex-col justify-center items-center px-6 py-12 relative">
+
+          {/* Mobile brand */}
+          <div className="flex lg:hidden items-center gap-3 mb-10">
+            <img src="/assets/favicon/favicon-96x96.png" alt="FutureMint" className="w-9 h-9 rounded-xl" />
+            <span className="text-lg font-bold text-white">FutureMint</span>
+          </div>
+
+          <div className="w-full max-w-sm">
+            {/* Heading */}
+            <div className="mb-8">
+              <h1 className="text-3xl font-bold text-white mb-2">Welcome back</h1>
+              <p className="text-slate-500 text-sm">Sign in to access the control panel</p>
             </div>
 
-            <h1 className="text-2xl font-bold text-white text-center mb-1">Control Panel</h1>
-            <p className="text-slate-500 text-sm text-center mb-8">Restricted access — authorised personnel only</p>
-
             <form onSubmit={handleAdminLogin} className="space-y-5">
+
               {/* Email */}
-              <div>
-                <label htmlFor="admin-email" className="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wider">
-                  Email address
+              <div className="space-y-1.5">
+                <label htmlFor="admin-email" className="block text-xs font-semibold text-slate-400 uppercase tracking-widest">
+                  Email
                 </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">
+                <div className="relative group">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-primary-400 transition-colors">
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25H4.5a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5H4.5a2.25 2.25 0 00-2.25 2.25m19.5 0l-9.75 6.75L2.25 6.75" />
                     </svg>
@@ -121,7 +162,7 @@ export default function AdminLayout({ children }) {
                     required
                     value={loginForm.email}
                     onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })}
-                    className="w-full bg-dark-900/70 border border-dark-600 hover:border-dark-500 focus:border-primary-500 focus:ring-1 focus:ring-primary-500/40 rounded-xl pl-10 pr-4 py-3 text-sm text-white placeholder-slate-600 outline-none transition-all"
+                    className="w-full bg-dark-800 border border-dark-700 hover:border-dark-600 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 rounded-xl pl-11 pr-4 py-3.5 text-sm text-white placeholder-slate-600 outline-none transition-all"
                     placeholder="admin@example.com"
                     autoComplete="username"
                   />
@@ -129,14 +170,14 @@ export default function AdminLayout({ children }) {
               </div>
 
               {/* Password */}
-              <div>
-                <label htmlFor="admin-password" className="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wider">
+              <div className="space-y-1.5">
+                <label htmlFor="admin-password" className="block text-xs font-semibold text-slate-400 uppercase tracking-widest">
                   Password
                 </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">
+                <div className="relative group">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-primary-400 transition-colors">
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V7a4.5 4.5 0 00-9 0v3.5M5 10.5h14a1 1 0 011 1V20a1 1 0 01-1 1H5a1 1 0 01-1-1v-8.5a1 1 0 011-1z" />
                     </svg>
                   </span>
                   <input
@@ -145,14 +186,14 @@ export default function AdminLayout({ children }) {
                     required
                     value={loginForm.password}
                     onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
-                    className="w-full bg-dark-900/70 border border-dark-600 hover:border-dark-500 focus:border-primary-500 focus:ring-1 focus:ring-primary-500/40 rounded-xl pl-10 pr-12 py-3 text-sm text-white placeholder-slate-600 outline-none transition-all"
+                    className="w-full bg-dark-800 border border-dark-700 hover:border-dark-600 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 rounded-xl pl-11 pr-12 py-3.5 text-sm text-white placeholder-slate-600 outline-none transition-all"
                     placeholder="••••••••••••"
                     autoComplete="current-password"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-300 transition-colors"
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -164,8 +205,9 @@ export default function AdminLayout({ children }) {
               <button
                 type="submit"
                 disabled={loginLoading}
-                className="w-full mt-2 bg-primary-600 hover:bg-primary-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-xl py-3 text-sm transition-all duration-200 shadow-lg shadow-primary-900/40 flex items-center justify-center gap-2"
+                className="w-full mt-2 relative overflow-hidden bg-primary-600 hover:bg-primary-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-xl py-3.5 text-sm transition-all duration-200 shadow-lg shadow-primary-900/50 flex items-center justify-center gap-2 group"
               >
+                <span className="absolute inset-0 bg-gradient-to-r from-primary-500/0 via-white/5 to-primary-500/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
                 {loginLoading ? (
                   <>
                     <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -175,13 +217,21 @@ export default function AdminLayout({ children }) {
                     Verifying…
                   </>
                 ) : (
-                  'Sign in to Panel'
+                  <>
+                    Sign in
+                    <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                    </svg>
+                  </>
                 )}
               </button>
             </form>
-          </div>
 
-          <p className="text-center text-xs text-slate-700 mt-6">FutureMint · Secure Admin Access</p>
+            {/* Footer */}
+            <p className="text-center text-xs text-slate-700 mt-10">
+              Restricted access · FutureMint © {new Date().getFullYear()}
+            </p>
+          </div>
         </div>
       </div>
     );
