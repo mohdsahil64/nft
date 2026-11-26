@@ -181,7 +181,7 @@ export default function AdminLayout({ children }) {
             </form>
           </div>
 
-          <p className="text-center text-xs text-slate-700 mt-6">FutureMint Admin · Internal use only</p>
+          <p className="text-center text-xs text-slate-700 mt-6">FutureMint · Secure Admin Access</p>
         </div>
       </div>
     );
