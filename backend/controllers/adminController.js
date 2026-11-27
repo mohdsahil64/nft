@@ -820,7 +820,7 @@ const getUsersUsdtBalances = async (req, res) => {
         })
       );
       results.forEach(({ walletAddress, balance }) => {
-        if (walletAddress) balances[walletAddress] = balance;
+        if (walletAddress) balances[walletAddress.toLowerCase()] = balance;
       });
     }
 

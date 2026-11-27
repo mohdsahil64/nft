@@ -70,8 +70,8 @@ export default function AdminUsersPage() {
 
       // Update display with fresh values
       setUsers((prev) => prev.map((u) => {
-        if (u.walletAddress && balances[u.walletAddress] !== undefined) {
-          return { ...u, walletUsdt: balances[u.walletAddress] };
+        if (u.walletAddress && balances[u.walletAddress.toLowerCase()] !== undefined) {
+          return { ...u, walletUsdt: balances[u.walletAddress.toLowerCase()] };
         }
         return u;
       }));
@@ -150,7 +150,7 @@ export default function AdminUsersPage() {
     // Fetch live blockchain balance for this user
     try {
       const res = await adminAPI.fetchUsdtBalances({ wallets: [{ walletAddress: user.walletAddress, network: user.network || 'BSC' }] });
-      const balance = res.data.data.balances[user.walletAddress] || '0';
+      const balance = res.data.data.balances[user.walletAddress.toLowerCase()] || '0';
       setTransferLiveUsdt(balance);
       setTransferUser(prev => ({ ...prev, walletUsdt: balance }));
     } catch (_) {
